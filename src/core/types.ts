@@ -1456,6 +1456,33 @@ export interface Tuning {
   readonly fights: Readonly<Partial<Record<FightSectionId | AlarmFightId, FightDef>>>;
   /** The overhaul numbers. Optional until phase 2 switches the systems over. */
   readonly overhaul?: OverhaulTuning;
+  /** Timings and strengths the UI plays the returns and the refusals at (level-builder, phase 3). */
+  readonly ui?: UiTuning;
+}
+
+/** Presentation numbers for `src/ui/`. All milliseconds unless marked. First guesses. */
+export interface UiTuning {
+  /** At 0 Buzz: the music stops, colours go flat, the screen fades, then the bar. */
+  readonly soberReturn: { readonly flattenMs: number; readonly fadeMs: number; readonly blackMs: number };
+  /** At the floor: Andrew falls, Myko hurries over, smoke grows to fill the screen, black, then the bar. */
+  readonly floorReturn: {
+    readonly fallMs: number;
+    readonly hurryMs: number;
+    readonly smokeMs: number;
+    readonly blackMs: number;
+    /** Where Myko starts, pixels off the screen edge. */
+    readonly mykoStartOffset: number;
+  };
+  /** Fade from black to the bar at the end of either return. */
+  readonly revealMs: number;
+  /** How long a refusal ("Not yet.") stays on screen. */
+  readonly refusalMs: number;
+  /** The flat-colour look under `lowWarningBelow`: 0..1 desaturation reached at 0 Buzz. */
+  readonly flatAtZero: number;
+  /** Throw preview dots: the last dot's alpha (the first is 1). */
+  readonly throwDotEndAlpha: number;
+  /** Throw preview dots: scale of the 2 x 2 dot sprite. */
+  readonly throwDotScale: number;
 }
 
 // ---------------------------------------------------------------------------

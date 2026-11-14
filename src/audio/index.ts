@@ -112,9 +112,9 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
 
   // Myko call-in: the music cuts out completely until the called section completes.
   let callSection: string | null = null;
-  const endCall = (): void => {
+  const endCall = (keepSilent = false): void => {
     callSection = null;
-    music.setSilent(false);
+    if (!keepSilent) music.setSilent(false);
   };
 
   // Boss music: intense while a boss or set piece is on, one step more at each phase change.
@@ -127,6 +127,21 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
     bossPhases = 0;
     music.setIntensity(0);
   };
+
+  // Sober return: silence until the fade has run, then the bar's music.
+  let soberTimer: ReturnType<typeof setTimeout> | null = null;
+  const uncutMusic = (): void => {
+    if (soberTimer !== null) clearTimeout(soberTimer);
+    soberTimer = null;
+    music.setSilent(callSection !== null);
+  };
+  const cutMusicForSober = (): void => {
+    const u = TUNING.ui?.soberReturn;
+    if (soberTimer !== null) clearTimeout(soberTimer);
+    music.setSilent(true);
+    soberTimer = setTimeout(uncutMusic, u ? u.flattenMs + u.fadeMs + u.blackMs : 2500);
+  };
+  let lastMelee: string | null = null;
 
   const haymakerKnockback = TUNING.abilities.punchCombo.combo?.at(-1)?.knockback ?? Infinity;
   const heatWarnAt = TUNING.heat.max * TUNING.heat.thermalDetectFraction;
@@ -151,9 +166,18 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
     bus.on(G.PlayerHit, () => play('hurt')),
     bus.on(G.BarReturned, ({ reason }) => {
       stopAlarm();
-      endCall();
+      endCall(reason === 'sober');
       endBoss();
       if (reason === 'floor') play('fallOver');
+      // At 0 Buzz the music is cut; it comes back once the fade to the bar is over.
+      else cutMusicForSober();
+    }),
+    bus.on(G.MoveUsed, () => play('moveUsed')),
+    bus.on(G.SpiritStarted, () => play('spiritStart')),
+    bus.on(G.SpiritEnded, () => play('spiritEnd')),
+    bus.on(G.KitChanged, ({ kit }) => {
+      if (lastMelee !== null && kit.slots.melee !== lastMelee) play('weaponSwap');
+      lastMelee = kit.slots.melee;
     }),
     bus.on(G.SectionStarted, ({ sectionId, kind }) => {
       if (kind !== 'boss' && kind !== 'setpiece') return;
@@ -180,7 +204,7 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
       if (e !== undefined && e !== 'hurley') play(e);
     }),
     bus.on(G.AbilityUnlocked, () => play('abilityUnlocked')),
-    bus.on(G.DrinkConsumed, () => play('drink')),
+    bus.on(G.DrinkConsumed, ({ drinkId }) => play(drinkId === 'coffee' || drinkId === 'tea' ? 'hotDrink' : 'drink')),
     bus.on(G.FoodConsumed, () => play('drink')),
     bus.on(G.PickupCollected, () => play('pickup')),
     bus.on(G.PickupRefused, () => play('refuse')),
@@ -224,6 +248,7 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
       stopAlarm();
       endCall();
       endBoss();
+      uncutMusic();
     }),
     bus.on(G.ChapterCompleted, () => {
       stopAlarm();
@@ -242,6 +267,7 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
       for (const u of unsubs) u();
       stopAlarm();
       clearInterval(settingsTimer);
+      if (soberTimer !== null) clearTimeout(soberTimer);
       music.dispose();
       if (typeof window !== 'undefined') {
         window.removeEventListener('pointerdown', gesture);
