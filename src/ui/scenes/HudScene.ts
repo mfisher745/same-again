@@ -61,9 +61,10 @@ const NOTICE_WIDTH_CHARS = 70;
 
 const BUZZ_COLOUR: Record<HudModel['buzz']['state'], ColourName> = {
   sober: 'fog',
+  buzzed: 'sand',
   grand: 'grass',
-  locked: 'amber',
-  banjaxed: 'alarm',
+  bitMuch: 'amber',
+  fecked: 'alarm',
 };
 
 interface Notice {

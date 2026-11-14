@@ -613,6 +613,8 @@ export interface HitInfo {
   readonly stunMs: number;
   /** Hold the target in place (the brawler's grab), 0 for none. */
   readonly holdMs: number;
+  /** On a hit against Andrew: how far it moves the meter. DESIGN.md 7.1 "Being hit". Absent = ordinary. */
+  readonly weight?: HitWeight;
 }
 
 /** Status conditions an enemy can be in. DESIGN.md sections 7.2 and 7.3. */
@@ -1624,7 +1626,7 @@ export interface GameEventPayloads {
   'checkpoint:reached': { readonly checkpointId: CheckpointId };
   'save:written': { readonly reason: SaveReason };
   'chapter:started': { readonly chapter: ChapterNumber };
-  'chapter:completed': { readonly chapter: ChapterNumber; readonly endBuzzState: BuzzState };
+  'chapter:completed': { readonly chapter: ChapterNumber; readonly endState: DrunkState };
   'game:paused': Record<string, never>;
   'game:resumed': Record<string, never>;
   /** Andrew arrived on a screen; audio switches the regional theme. */

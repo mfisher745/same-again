@@ -1,177 +1,203 @@
 /**
- * Andrew: movement, sneak, aim, facing, health and death, plus the stats
- * that travel with him (Buzz, hangover, timed effects, heat, inventory,
- * abilities). DESIGN.md sections 6, 7.1 and 7.2. Plain TypeScript.
+ * Andrew: movement, sneak, aim, facing and flinch, plus the stats that travel
+ * with him (the Buzz meter, inventory, abilities). DESIGN.md sections 6, 7.1
+ * and 7.2. Plain TypeScript.
  *
+ * There is no health: a hit moves the meter by its weight (`hits.ts`) and the
+ * meter reaching 0 or the floor sends him back to the bar (`barFlow.ts`).
  * WASD moves at `runSpeed`; Shift sneaks at `runSpeed * sneakSpeedMultiplier`.
- * There is no separate walk.
  */
 
 import { TUNING } from '../content/tuning';
 import { GameEvents } from '../core/types';
 import type {
   BuzzStateEffects,
-  ConsumableEffect,
+  ChapterNumber,
+  DrunkLevel,
   Facing,
   GameEventBus,
-  Health,
   HitInfo,
   InputFrame,
+  MeterSnapshot,
+  OverhaulDrinkId,
   PlayerSnapshot,
   TileGrid,
   Vec2,
 } from '../core/types';
 import { Abilities } from './abilities';
-import { Buzz } from './buzz';
 import { decayVelocity } from './combat';
-import { Hangover, Heat, TimedEffects, maxHealthFor } from './conditions';
-import { angleOf, facingFromAngle, fromAngle, normalize, scale, sub, toRad } from './geometry';
+import { angleOf, facingFromAngle, scale, normalize, sub } from './geometry';
 import { moveBox } from './grid';
+import { applyHit } from './hits';
 import type { ConsumableTarget } from './inventory';
 import { Inventory } from './inventory';
+import { adjustMeter, createMeter, drink, levelFor, levelTable, restValue, setInSun, snapshot, stepMeter } from './meter';
+import type { MeterResult, MeterState } from './meter';
+
+/** What the old abilities see while they last (removed with them): no multipliers, specials open. */
+const NEUTRAL_EFFECTS: BuzzStateEffects = {
+  damageMultiplier: 1,
+  attackSpeedMultiplier: 1,
+  knockbackResistance: 0,
+  specialsUnlocked: true,
+  aimSwayDeg: 0,
+  movementDrift: 0,
+  footstepNoiseMultiplier: 1,
+  screenWobble: 0,
+};
 
 export class Player implements ConsumableTarget {
   readonly instanceId = 'andrew';
   pos: Vec2 = { x: 0, y: 0 };
   facing: Facing = 'down';
-  /** Aim angle after sway, degrees. */
+  /** Aim angle, degrees. */
   aimDeg = 90;
-  /** Mouse aim point after sway. */
+  /** Mouse aim point. */
   aimPoint: Vec2 = { x: 0, y: 0 };
   moving = false;
   sneaking = false;
   /** Time standing still, for Act Natural. */
   stillMs = 0;
-  dead = false;
-
-  private hp: number;
-  private invulnMs = 0;
-  private dashMs = 0;
-  private dashVel: Vec2 = { x: 0, y: 0 };
-  private kb: Vec2 = { x: 0, y: 0 };
-  private heldMs = 0;
-  private stunMs = 0;
-  private clockMs = 0;
+  /** Set while the return to the bar plays: nothing hurts him and he cannot act. */
+  returning = false;
   /** Set by the Myko call-in: nothing can hurt Andrew while Myko works. */
   protected_ = false;
 
-  readonly buzz: Buzz;
-  readonly hangover: Hangover;
-  readonly timed = new TimedEffects();
-  readonly heat: Heat;
+  /** The Buzz meter (DESIGN.md 7.1). Replace through `applyMeter`. */
+  meter: MeterState;
+
+  private invulnMs = 0;
+  private kb: Vec2 = { x: 0, y: 0 };
+  private heldMs = 0;
+  private stunMs = 0;
+
   readonly inventory: Inventory;
   readonly abilities: Abilities;
 
   constructor(
     private readonly bus: GameEventBus,
     snap: PlayerSnapshot,
+    readonly chapter: ChapterNumber,
   ) {
-    this.buzz = new Buzz(bus, snap.buzz);
-    this.hangover = new Hangover(bus, snap.hangover);
-    this.heat = new Heat(bus);
+    this.meter = createMeter(chapter);
     this.inventory = new Inventory(bus, { slots: snap.drinkSlots, selected: snap.selectedDrink, empties: snap.empties });
     this.abilities = new Abilities(bus, snap.unlockedAbilities, snap.selectedSpecial);
-    this.hp = Math.min(snap.health, this.maxHealth);
   }
 
-  get maxHealth(): number {
-    return maxHealthFor(this.hangover.active);
+  get level(): DrunkLevel {
+    return levelFor(this.meter.value, levelTable(this.chapter));
   }
 
-  get health(): Health {
-    return { current: this.hp, max: this.maxHealth };
+  meterSnapshot(): MeterSnapshot {
+    return snapshot(this.meter);
   }
 
   get invulnerable(): boolean {
-    return this.invulnMs > 0 || this.protected_;
-  }
-
-  get dodging(): boolean {
-    return this.dashMs > 0;
+    return this.invulnMs > 0 || this.protected_ || this.returning;
   }
 
   get held(): boolean {
     return this.heldMs > 0;
   }
 
-  /** On the floor: Banjaxed fall or stun. */
+  /** Flinching, or on the way back to the bar. */
   get incapacitated(): boolean {
-    return this.buzz.fallen || this.stunMs > 0 || this.dead;
+    return this.stunMs > 0 || this.returning;
   }
 
   get canAct(): boolean {
-    return !this.incapacitated && !this.held && !this.dodging;
+    return !this.incapacitated && !this.held;
   }
 
+  /** Bridge for the old abilities, which go with step 4. */
   effects(): BuzzStateEffects {
-    return this.buzz.effects();
+    return NEUTRAL_EFFECTS;
   }
 
   snapshot(): PlayerSnapshot {
     return {
-      health: this.hp,
-      buzz: this.buzz.value,
+      health: TUNING.player.maxHealth,
+      buzz: this.meter.value,
       empties: this.inventory.empties,
       drinkSlots: this.inventory.slots(),
       selectedDrink: this.inventory.selected,
       selectedSpecial: this.abilities.selectedSpecial(),
       unlockedAbilities: this.abilities.unlocked(),
-      hangover: this.hangover.state(),
+      hangover: { active: false },
     };
   }
 
-  restore(snap: PlayerSnapshot): void {
-    this.buzz.restore(snap.buzz);
-    this.hangover.restore(snap.hangover);
-    this.inventory.restore(snap.drinkSlots, snap.selectedDrink, snap.empties);
-    this.abilities.restore(snap.unlockedAbilities, snap.selectedSpecial);
-    this.timed.clear();
-    this.hp = Math.min(snap.health, this.maxHealth);
-    this.dead = false;
+  /** Back in the bar: a fresh meter at the bottom of Grand, nothing in flight. */
+  resetForBar(): void {
+    this.meter = createMeter(this.chapter);
+    this.returning = false;
     this.invulnMs = 0;
-    this.dashMs = 0;
     this.kb = { x: 0, y: 0 };
     this.heldMs = 0;
     this.stunMs = 0;
   }
 
+  /** Adopt a meter result: emit its events. The meter keeps `returnReason` for the run to act on. */
+  applyMeter(r: MeterResult): void {
+    const before = this.meter.value;
+    this.meter = r.state;
+    if (r.state.value !== before) this.bus.emit(GameEvents.BuzzChanged, { value: r.state.value, delta: r.state.value - before });
+    for (const e of r.events) {
+      switch (e.kind) {
+        case 'levelChanged':
+          this.bus.emit(GameEvents.BuzzLevelChanged, { from: e.from, to: e.to, state: e.state, value: e.value });
+          break;
+        case 'spiritStarted':
+          this.bus.emit(GameEvents.SpiritStarted, { drinkId: e.drinkId, durationMs: e.durationMs });
+          break;
+        case 'spiritEnded':
+          this.bus.emit(GameEvents.SpiritEnded, { drinkId: e.drinkId });
+          break;
+      }
+    }
+  }
+
+  setInSun(inSun: boolean): void {
+    this.meter = setInSun(this.meter, inSun);
+  }
+
+  /** Constant drain, spirit window and tea (DESIGN.md 7.1). */
+  tickMeter(dtMs: number): void {
+    if (this.returning) return;
+    this.applyMeter(stepMeter(this.meter, dtMs));
+  }
+
+  /** Drink through the meter. */
+  drinkDrink(id: OverhaulDrinkId): void {
+    this.applyMeter(drink(this.meter, id));
+  }
+
+  /** Move the meter by a number of points (a bridge for old consumables; the kit drinks through `drinkDrink`). */
+  addBuzz(amount: number): void {
+    this.applyMeter(adjustMeter(this.meter, amount));
+  }
+
   /** Movement and aim for one tick. Returns the distance moved. */
   move(dtMs: number, input: InputFrame, grid: TileGrid, extraBlocked?: (c: number, r: number) => boolean): number {
-    this.clockMs += dtMs;
     this.invulnMs = Math.max(0, this.invulnMs - dtMs);
     this.heldMs = Math.max(0, this.heldMs - dtMs);
     this.stunMs = Math.max(0, this.stunMs - dtMs);
-    const fx = this.effects();
-    const heatSway = this.heat.full ? TUNING.buzz.effects.locked.aimSwayDeg : 0;
 
-    // Aim with sway (Locked and above, tequila, full heat; tea steadies).
     const rawAim = angleOf(sub(input.aim, this.pos));
-    const swayAmp = Math.max(fx.aimSwayDeg, heatSway) * this.timed.swayMultiplier();
-    const sway = swayAmp * Math.sin((this.clockMs / TUNING.player.swayPeriodMs) * Math.PI * 2);
-    this.aimDeg = rawAim + sway;
-    const aimDist = Math.hypot(input.aim.x - this.pos.x, input.aim.y - this.pos.y);
-    this.aimPoint = { x: this.pos.x + Math.cos(toRad(this.aimDeg)) * aimDist, y: this.pos.y + Math.sin(toRad(this.aimDeg)) * aimDist };
+    this.aimDeg = rawAim;
+    this.aimPoint = input.aim;
 
     const w = TUNING.player.bodyWidth;
     const h = TUNING.player.bodyHeight;
     let delta: Vec2 = { x: 0, y: 0 };
     this.sneaking = input.held.has('sneak');
 
-    if (this.dashMs > 0) {
-      const t = Math.min(dtMs, this.dashMs);
-      this.dashMs -= dtMs;
-      delta = scale(this.dashVel, t / 1000);
-    } else if (!this.incapacitated && !this.held) {
+    if (!this.incapacitated && !this.held) {
       const dir = normalize(input.move);
       if (dir.x !== 0 || dir.y !== 0) {
-        let speed = TUNING.player.runSpeed * this.timed.speedMultiplier();
+        let speed = TUNING.player.runSpeed;
         if (this.sneaking) speed *= TUNING.player.sneakSpeedMultiplier;
-        let v = scale(dir, speed);
-        if (fx.movementDrift > 0) {
-          const driftAngle = (this.clockMs / TUNING.player.driftPeriodMs) * 360;
-          v = { x: v.x + fromAngle(driftAngle).x * fx.movementDrift * speed, y: v.y + fromAngle(driftAngle).y * fx.movementDrift * speed };
-        }
-        delta = scale(v, dtMs / 1000);
+        delta = scale(scale(dir, speed), dtMs / 1000);
         this.facing = facingFromAngle(angleOf(dir));
       }
     }
@@ -185,7 +211,7 @@ export class Player implements ConsumableTarget {
     const moved = Math.hypot(this.pos.x - before.x, this.pos.y - before.y);
     const tryingToMove = input.move.x !== 0 || input.move.y !== 0;
     this.moving = moved > 0.01 && tryingToMove;
-    this.stillMs = tryingToMove || this.dashMs > 0 ? 0 : this.stillMs + dtMs;
+    this.stillMs = tryingToMove ? 0 : this.stillMs + dtMs;
     return moved;
   }
 
@@ -194,83 +220,34 @@ export class Player implements ConsumableTarget {
     this.facing = facingFromAngle(this.aimDeg);
   }
 
-  startDodge(dashDistance: number, invulnerableMs: number, dirHint: Vec2): void {
-    let dir = normalize(dirHint);
-    if (dir.x === 0 && dir.y === 0) dir = fromAngle(this.aimDeg);
-    const ms = TUNING.player.stumbleDashMs;
-    this.dashMs = ms;
-    this.dashVel = scale(dir, (dashDistance / ms) * 1000);
-    this.invulnMs = Math.max(this.invulnMs, invulnerableMs);
-    this.heldMs = 0;
-  }
-
-  /** Returns true if the hit landed. Emits events; death is reported via `dead`. */
+  /**
+   * A hit from an enemy or boss: moves the meter by its weight, then flinch
+   * and knockback. Returns true if it landed. DESIGN.md 7.1 "Being hit".
+   */
   takeHit(hit: HitInfo): boolean {
-    if (this.dead || this.invulnerable) return false;
-    const fx = this.effects();
-    this.hp = Math.max(0, this.hp - hit.amount);
-    this.kb = scale(hit.knockback, 1 - fx.knockbackResistance);
+    if (this.invulnerable || this.meter.returnReason) return false;
+    const r = applyHit(this.meter, hit.weight ?? 'ordinary');
+    this.applyMeter(r);
+    if (r.direction === null) return false;
+    this.kb = hit.knockback;
     if (hit.holdMs > 0) this.heldMs = hit.holdMs;
     if (hit.stunMs > 0) this.stunMs = hit.stunMs;
     this.invulnMs = TUNING.player.hurtInvulnerableMs;
-    this.bus.emit(GameEvents.PlayerDamaged, { hit, health: this.health });
-    if (this.hp <= 0) this.dead = true;
+    this.bus.emit(GameEvents.PlayerHit, { source: hit.source, weight: hit.weight ?? 'ordinary', direction: r.direction, amount: r.amount });
     return true;
   }
 
-  /** Environmental damage that ignores invulnerability frames (heat). */
-  drain(amount: number): void {
-    if (this.dead || amount <= 0) return;
-    this.hp = Math.max(0, this.hp - amount);
-    if (this.hp <= 0) this.dead = true;
-  }
-
-  // ConsumableTarget
-  addBuzz(amount: number): void {
-    this.buzz.add(amount);
-  }
-
-  heal(amount: number): void {
-    const before = this.hp;
-    this.hp = Math.min(this.maxHealth, this.hp + amount);
-    if (this.hp > before) this.bus.emit(GameEvents.PlayerHealed, { amount: this.hp - before, health: this.health });
-  }
-
-  healFull(): void {
-    this.heal(this.maxHealth);
-  }
-
-  cureHangover(): void {
-    this.hangover.cure();
-  }
-
-  resetHeat(): void {
-    this.heat.reset();
-  }
-
-  addTimed(effect: ConsumableEffect & { kind: 'timed' }): void {
-    this.timed.add(effect.effect, effect.durationMs, effect.magnitude);
-  }
-
-  /** Clamp health after max changes (hangover start). */
-  clampHealth(): void {
-    this.hp = Math.min(this.hp, this.maxHealth);
-  }
-
-  setHealth(v: number): void {
-    this.hp = Math.max(0, Math.min(this.maxHealth, v));
-  }
+  // ConsumableTarget (bridge for the old inventory; removed with it)
+  heal(): void {}
+  healFull(): void {}
+  cureHangover(): void {}
+  resetHeat(): void {}
+  addTimed(): void {}
 
   /** Noise radius of Andrew's footsteps right now; 0 when silent. DESIGN.md 7.3. */
   footstepNoiseRadius(): number {
     if (!this.moving) return 0;
-    const fx = this.effects();
-    const base = TUNING.player.footstepNoiseRadius;
-    if (this.sneaking) {
-      const loud = Math.max(0, fx.footstepNoiseMultiplier - 1) * base * TUNING.stealth.lockedSneakNoiseFactor;
-      return Math.max(TUNING.player.sneakNoiseRadius, loud);
-    }
-    return base * fx.footstepNoiseMultiplier;
+    return this.sneaking ? TUNING.player.sneakNoiseRadius : TUNING.player.footstepNoiseRadius;
   }
 }
 
@@ -287,3 +264,6 @@ export function freshPlayerSnapshot(): PlayerSnapshot {
     hangover: { active: false },
   };
 }
+
+/** The meter value a chapter starts at (bottom of Grand). */
+export const startingMeterValue = (chapter: ChapterNumber): number => restValue(chapter);

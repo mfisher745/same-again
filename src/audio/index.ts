@@ -148,7 +148,7 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
 
   const G = GameEvents;
   const unsubs: Array<() => void> = [
-    bus.on(G.PlayerDamaged, () => play('hurt')),
+    bus.on(G.PlayerHit, () => play('hurt')),
     bus.on(G.PlayerDied, () => {
       stopAlarm();
       endCall();

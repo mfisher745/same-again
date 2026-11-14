@@ -4,8 +4,6 @@ import type {
   AbilityId,
   AudioSettings,
   BossId,
-  BuzzSnapshot,
-  BuzzState,
   CasebookEntry,
   ChapterNumber,
   DeductionBoardDef,
@@ -17,14 +15,14 @@ import type {
   GameEventBus,
   GameEventName,
   GameEventPayloads,
-  HangoverState,
+  DrunkLevelTable,
   Health,
-  HeatSnapshot,
+  MeterSnapshot,
   ObjectiveId,
   SaveState,
   SpecialAbilityId,
 } from '../../core/types';
-import { TUNING } from '../../content/tuning';
+import { levelFor, overhaulTuning, stateFor } from '../../systems/meter';
 import type { UiStateSource } from '../contract';
 
 export class FakeBus implements GameEventBus {
@@ -45,18 +43,14 @@ export class FakeBus implements GameEventBus {
   }
 }
 
-export const stateForBuzz = (v: number): BuzzState => {
-  const t = TUNING.buzz.thresholds;
-  return v >= t.banjaxed ? 'banjaxed' : v >= t.locked ? 'locked' : v >= t.grand ? 'grand' : 'sober';
-};
 
 export class FakeSource implements UiStateSource {
   readonly bus = new FakeBus();
-  healthState: Health = { current: 70, max: 100 };
+  /** The meter value; the level, state and floor follow from the chapter 1 table. */
   buzzValue = 45;
-  banjaxedPhase: BuzzSnapshot['banjaxedPhase'] = 'none';
-  heatState: HeatSnapshot = { active: false, value: 40 };
-  hangoverState: HangoverState = { active: false };
+  spiritActive = false;
+  teaHoldActive = false;
+  inSun = false;
   emptiesCount = 4;
   slots: DrinkSlots = [{ drinkId: 'stout', count: 3 }, { drinkId: 'whiskey', count: 1 }, null];
   selected: DrinkSlotIndex = 0;
@@ -72,10 +66,20 @@ export class FakeSource implements UiStateSource {
   paused = false;
   log: string[] = [];
 
-  health = (): Health => this.healthState;
-  buzz = (): BuzzSnapshot => ({ value: this.buzzValue, state: stateForBuzz(this.buzzValue), banjaxedPhase: this.banjaxedPhase, banjaxedPhaseMsLeft: 0 });
-  heat = (): HeatSnapshot => this.heatState;
-  hangover = (): HangoverState => this.hangoverState;
+  levelTable = (): DrunkLevelTable => overhaulTuning().levels[1];
+  meter = (): MeterSnapshot => {
+    const table = this.levelTable();
+    const level = levelFor(this.buzzValue, table);
+    return {
+      value: this.buzzValue,
+      level,
+      state: stateFor(level),
+      floor: table.floor,
+      spiritActive: this.spiritActive,
+      teaHoldActive: this.teaHoldActive,
+      inSun: this.inSun,
+    };
+  };
   empties = (): number => this.emptiesCount;
   drinkSlots = (): DrinkSlots => this.slots;
   selectedDrink = (): DrinkSlotIndex => this.selected;

@@ -4,7 +4,7 @@
  */
 
 import { TUNING } from '../content/tuning';
-import type { AttackShape, DamageSource, ScreenId, TileGrid, Vec2 } from '../core/types';
+import type { AttackShape, DamageSource, HitWeight, ScreenId, TileGrid, Vec2 } from '../core/types';
 import { add, distance, fromAngle, normalize, scale } from './geometry';
 import { isBlocked, tileOf } from './grid';
 
@@ -29,6 +29,8 @@ export interface Projectile {
   readonly knockback: number;
   readonly stunMs: number;
   readonly holdMs: number;
+  /** How far it moves Andrew's meter if it hits him. */
+  readonly weight: HitWeight;
   /** Instance IDs already hit (piercing shots hit each target once). */
   readonly hit: Set<string>;
   /** Height above ground for drawing lobbed shots. */
@@ -56,6 +58,7 @@ export interface ProjectileSpawn {
   readonly knockback: number;
   readonly stunMs?: number;
   readonly holdMs?: number;
+  readonly weight?: HitWeight;
   readonly frame: string;
 }
 
@@ -85,6 +88,7 @@ export function spawnProjectile(s: ProjectileSpawn): Projectile {
     knockback: s.knockback,
     stunMs: s.stunMs ?? 0,
     holdMs: s.holdMs ?? 0,
+    weight: s.weight ?? 'ordinary',
     hit: new Set(),
     height: 0,
     done: false,

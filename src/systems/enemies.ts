@@ -341,6 +341,7 @@ export class EnemyActor {
         damage: a.damage,
         knockback: a.knockback,
         holdMs: a.holdMs ?? 0,
+        weight: a.weight ?? 'ordinary',
         frame: projectileFrame(a.id),
       });
     } else if (world.playerTargetable() && shapeHits(a.shape, this.pos, this.attackDir, world.playerPosition(), TUNING.combat.characterHitRadius)) {
@@ -381,6 +382,7 @@ export class EnemyActor {
         knockback: knockbackVector(from, player, a.knockback, 0),
         stunMs: 0,
         holdMs: a.holdMs ?? 0,
+        weight: a.weight ?? 'ordinary',
       },
       from,
     );

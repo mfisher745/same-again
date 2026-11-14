@@ -12,6 +12,7 @@
  */
 
 import type { BarReturnReason, HotDrinkId, Kit, OverhaulSaveState, OverhaulTuning, SectionId } from '../core/types';
+import { topUpBottles as kitTopUpBottles } from './kit';
 import { createMeter, overhaulTuning } from './meter';
 import type { MeterState } from './meter';
 
@@ -38,9 +39,8 @@ export interface BarArrival<P extends BarProgress> {
   readonly returned: { readonly reason: BarReturnReason } | null;
 }
 
-/** Bottles Andrew has on leaving the bar: what he had, or the minimum. */
-export const topUpBottles = (kit: Kit, t: OverhaulTuning = overhaulTuning()): Kit =>
-  kit.bottles >= t.carry.minBottlesOnLeavingBar ? kit : { ...kit, bottles: t.carry.minBottlesOnLeavingBar };
+/** Bottles Andrew has on leaving the bar: what he had, or the minimum. The rule lives in `kit.ts`. */
+export const topUpBottles = (kit: Kit, t: OverhaulTuning = overhaulTuning()): Kit => kitTopUpBottles(kit, t).kit;
 
 export function arriveAtBar<P extends BarProgress>(progress: P, reason: BarReturnReason | null, t: OverhaulTuning = overhaulTuning()): BarArrival<P> {
   const finished = progress.underWaySectionId !== null && progress.completedSectionIds.includes(progress.underWaySectionId);

@@ -35,7 +35,7 @@ import type {
   AlarmFightId,
   AttackShape,
   BossId,
-  BuzzState,
+  DrunkState,
   ChapterFlagValue,
   ChapterNumber,
   CheckpointId,
@@ -78,7 +78,6 @@ import { SAVE_VERSION } from '../core/types';
 import type { AbilityAction } from './abilities';
 import { BossRunner } from './boss';
 import { knockbackVector, scaledDamage, shapeHits, shapeHitsRect } from './combat';
-import { buzzStateRank } from './buzz';
 import { DialogueRunner } from './dialogue';
 import { Dressing, hashKey, pickLoot, propHitRect } from './dressing';
 import type { InteractPoint, LiveProp } from './dressing';
@@ -89,7 +88,7 @@ import { FightRunner } from './fight';
 import { add, distance, normalize, rectContains, scale } from './geometry';
 import { isShade } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
-import { applyConsumable, isAlcoholic, wouldHaveEffect } from './inventory';
+import { applyConsumable, wouldHaveEffect } from './inventory';
 import { Myko } from './myko';
 import type { CallTarget, MykoHost } from './myko';
 import { Player } from './player';
@@ -133,7 +132,7 @@ export interface RunOptions {
   readonly afterDeath: boolean;
   readonly writeSave: (state: SaveState, reason: SaveReason) => void;
   readonly onDeath: () => void;
-  readonly onChapterComplete: (endState: BuzzState, snapshot: SaveState) => void;
+  readonly onChapterComplete: (endState: DrunkState, snapshot: SaveState) => void;
   /** Sound effects with no bus event (door, push, deflect). */
   readonly playEffect?: (id: RunEffect) => void;
   /**
@@ -209,12 +208,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   // State
   private objectiveId: ObjectiveId | null = null;
   private controlsLocked = false;
-  private deathTimer = -1;
   private ended = false;
   private readonly script: ChapterScript;
   private readonly scope: BusScope;
-  private msSinceGrandOrAbove = 0;
   private begun = false;
+  /** The current screen is out in the sun (`ScreenDef.sun`). */
+  private screenInSun = false;
 
   constructor(private readonly opts: RunOptions) {
     const save = opts.save;
@@ -235,7 +234,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.respawn = save.respawn;
     this.reachedCheckpoints.add(save.checkpointId);
 
-    this.player = new Player(this.bus, save.player);
+    this.player = new Player(this.bus, save.player, this.chapter);
     this.dialogue = new DialogueRunner(this.bus, opts.dialogue, {
       played: save.playedDialogue ?? [],
       context: {
@@ -269,12 +268,6 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private begin(): void {
     const save = this.opts.save;
     this.script.onStart?.({ checkpointId: save.checkpointId, resumed: this.opts.resumed });
-    if (this.opts.afterDeath) {
-      this.bus.emit(GameEvents.PlayerRespawned, { respawn: save.respawn });
-      this.myko.comment('death', 'myko.death', true);
-    } else if (!this.opts.resumed && this.player.hangover.active) {
-      this.myko.comment('hangover', 'myko.hangover', true);
-    }
     const region = this.module.def.screens.find((x) => x.id === this.screen.id)?.region;
     if (region) this.bus.emit(GameEvents.ScreenEntered, { screenId: this.screen.id, region });
   }
@@ -298,10 +291,6 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   get isEnded(): boolean {
     return this.ended;
-  }
-
-  get dying(): boolean {
-    return this.deathTimer >= 0;
   }
 
   /** Gameplay is paused by a scripted scene. */
@@ -444,14 +433,6 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.tickTimers();
     if (this.ended) return;
 
-    if (this.deathTimer >= 0) {
-      this.deathTimer -= dtMs;
-      if (this.deathTimer < 0) {
-        this.ended = true;
-        this.opts.onDeath();
-      }
-      return;
-    }
     // The call-in blackout pauses gameplay until the UI reports it finished (or it times out).
     if (this.myko.callInProgress) {
       this.myko.tickCall(dtMs);
@@ -462,26 +443,24 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     const live = this.controlsLocked || this.myko.callInProgress || this.deduction?.isOpen === true ? lockedInput(input) : input;
     const p = this.player;
 
-    // Player conditions.
-    p.buzz.tick(dtMs);
-    p.timed.tick(dtMs);
+    // Player: move, then the meter (sun first, so this tick's drain is right).
     p.move(dtMs, live, this.grid, (c, r) => this.extraBlocked(c, r));
-    const heatDamage = p.heat.tick(dtMs, { inShade: isShade(this.grid, p.pos), running: p.moving && !p.sneaking });
-    p.drain(heatDamage);
-    if (p.heat.active && p.heat.fraction() >= TUNING.myko.heatWarnFraction) this.myko.comment('heat', 'myko.heat');
-    this.trackSober(dtMs);
+    p.setInSun(this.screenInSun && !isShade(this.grid, p.pos));
+    p.tickMeter(dtMs);
+    if (p.meter.returnReason) this.handleReturn();
 
     this.handleInventoryInput(live);
     const actions = p.abilities.update(dtMs, live, {
       effects: p.effects(),
-      buzz: p.buzz.value,
+      buzz: p.meter.value,
       empties: p.inventory.empties,
-      spendBuzz: (n) => p.buzz.spend(n),
+      // Moves cost no Buzz now; the old costs go with the old abilities.
+      spendBuzz: () => true,
       spendEmpties: (n) => p.inventory.spendEmpties(n),
       canAct: p.canAct,
       held: p.held,
     });
-    for (const a of actions) this.resolveAction(a, live);
+    for (const a of actions) this.resolveAction(a);
     if (live.pressed.has('interact')) this.interact();
 
     // Footsteps.
@@ -506,7 +485,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     for (const { runner, placement } of this.stealthHere()) {
       if (!placement) continue;
       if (!runner.isFinished && !runner.alarmRaised && rectContains(placement.startArea, p.pos)) this.startStealth(runner);
-      runner.tick(dtMs, { pos: p.pos, hidden, running: p.moving && !p.sneaking, thermalVisible: p.heat.visibleToThermal() });
+      // Thermal masts (chapter 8) lost their heat meter with the old systems; chapter 8 decides what they read.
+      runner.tick(dtMs, { pos: p.pos, hidden, running: p.moving && !p.sneaking, thermalVisible: false });
       if (runner.active && rectContains(placement.exitArea, p.pos)) runner.finish();
     }
 
@@ -519,11 +499,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.myko.standPoint = combat ? this.activeEntrance() : this.myko.standPoint;
     const inputActive = live.move.x !== 0 || live.move.y !== 0 || live.pressed.size > 0;
     this.myko.update(dtMs, this.deduction?.isOpen === true ? lockedInput(input) : input, { combatOrStealth: combat, inputActive });
+    if (p.meter.returnReason) this.handleReturn();
+  }
 
-    if (p.dead && this.deathTimer < 0) {
-      this.deathTimer = TUNING.player.deathRespawnDelayMs;
-      this.bus.emit(GameEvents.PlayerDied, { checkpointId: this.checkpointId });
-    }
+  /** Step 2 replaces this with the full return to the bar. */
+  private handleReturn(): void {
+    this.player.resetForBar();
   }
 
   // -------------------------------------------------------------------------
@@ -535,7 +516,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   }
 
   playerTargetable(): boolean {
-    return !this.player.dead && !this.player.protected_ && !this.dialogue.blocking;
+    return !this.player.returning && !this.player.protected_ && !this.dialogue.blocking;
   }
 
   hitPlayer(hit: Omit<HitInfo, 'targetInstanceId'>): boolean {
@@ -780,9 +761,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.exitLocks.set(exitId, locked);
   }
 
-  setHeatActive(active: boolean): void {
-    this.player.heat.setActive(active);
-  }
+  /** The heat meter is gone (DESIGN.md 7.1: the sun doubles the drain instead). Kept so scripts compile. */
+  setHeatActive(): void {}
 
   setMykoScripted(pos: Vec2 | null): void {
     if (pos) {
@@ -882,7 +862,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (this.ended) return;
     this.ended = true;
     this.dialogue.finishAll();
-    this.opts.onChapterComplete(this.player.buzz.state, this.snapshot());
+    this.opts.onChapterComplete(this.player.meterSnapshot().state, this.snapshot());
   }
 
   // -------------------------------------------------------------------------
@@ -1219,7 +1199,9 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     const atStart = spawn.x === layout.playerStart.x && spawn.y === layout.playerStart.y;
     this.myko.pos = layout.mykoStart && atStart ? layout.mykoStart : { x: spawn.x - TUNING.myko.followDistance, y: spawn.y };
     // Areas Andrew spawns inside fire on the next tick (insideTriggers was cleared above).
-    const region = this.module.def.screens.find((s) => s.id === id)?.region;
+    const def = this.module.def.screens.find((s) => s.id === id);
+    this.screenInSun = def?.sun === true;
+    const region = def?.region;
     if (region) this.bus.emit(GameEvents.ScreenEntered, { screenId: id, region });
     this.script?.onScreenEntered?.(id);
   }
@@ -1235,23 +1217,17 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       const id = inv.drinkSelected();
       if (!id) return;
       applyConsumable(TUNING.drinks[id].effects, this.player);
-      if (this.player.heat.active && isAlcoholic(id)) this.myko.comment('heat', 'myko.heat.wrongDrink', true);
-      else if (this.player.buzz.banjaxedPhase === 'none') this.myko.maybeComment('drink', 'myko.drink', TUNING.myko.drinkCommentChance);
+      this.myko.maybeComment('drink', 'myko.drink', TUNING.myko.drinkCommentChance);
     }
   }
 
-  private trackSober(dtMs: number): void {
-    if (this.player.buzz.state !== 'sober') this.msSinceGrandOrAbove += dtMs;
-  }
-
-  private resolveAction(a: AbilityAction, input: InputFrame): void {
+  private resolveAction(a: AbilityAction): void {
     const p = this.player;
     const fx = p.effects();
     const r = TUNING.combat.characterHitRadius;
     const source = { kind: 'player' as const, abilityId: a.abilityId };
     switch (a.kind) {
       case 'dodge':
-        p.startDodge(a.dashDistance, a.invulnerableMs, input.move);
         return;
       case 'melee': {
         p.faceAim();
@@ -1436,10 +1412,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       if (item.kind === 'food') {
         const def = TUNING.food[item.foodId];
         const ok = wouldHaveEffect(def.effects, {
-          healthMissing: p.health.max - p.health.current,
-          hungover: p.hangover.active,
-          buzz: p.buzz.value,
-          heat: p.heat.value,
+          healthMissing: 0,
+          hungover: false,
+          buzz: p.meter.value,
+          heat: 0,
         });
         if (!ok) {
           this.refuse(live.def.id, 'noEffect');
@@ -1530,19 +1506,6 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       if (!this.dialogue.hasPlayed(sequenceId)) return;
       this.opts.patchSave?.((s) => ((s.playedDialogue ?? []).includes(sequenceId) ? s : { ...s, playedDialogue: [...(s.playedDialogue ?? []), sequenceId] }));
     });
-    this.scope.on(GameEvents.BuzzBanjaxedPhase, ({ phase }) => {
-      if (phase === 'fallen') this.myko.comment('drink', 'myko.banjaxed', true);
-    });
-    this.scope.on(GameEvents.BuzzStateChanged, ({ from, to }) => {
-      if (to === 'sober' && buzzStateRank(from) > 0 && this.msSinceGrandOrAbove >= TUNING.player.soberRemarkMinMsAbove) {
-        const line = this.opts.pool('andrew.sober');
-        const pickIdx = Math.floor(this.rng.next() * line.length);
-        const id = line[pickIdx];
-        if (id) void this.say(id, { repeat: true });
-        this.msSinceGrandOrAbove = 0;
-      }
-    });
-    this.scope.on(GameEvents.HangoverStarted, () => this.player.clampHealth());
   }
 }
 

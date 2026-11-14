@@ -26,7 +26,6 @@ import { GameEvents, SAVE_VERSION } from '../core/types';
 import type {
   AbilityId,
   AudioSettings,
-  BuzzState,
   CasebookEntry,
   ChapterNumber,
   CheckpointId,
@@ -37,10 +36,10 @@ import type {
   DrinkSlots,
   EvidenceId,
   GameEventBus,
-  HangoverState,
+  DrunkLevelTable,
+  DrunkState,
   Health,
-  HeatSnapshot,
-  BuzzSnapshot,
+  MeterSnapshot,
   ObjectiveId,
   SaveState,
   SpecialAbilityId,
@@ -48,7 +47,7 @@ import type {
   TextId,
 } from '../core/types';
 import { abilitiesForChapterStart } from './abilities';
-import { hangoverAtChapterStart, hangoverFromChapterEnd, maxHealthFor } from './conditions';
+import { createMeter, levelTable, snapshot } from './meter';
 import type { DialogueLookup } from './dialogue';
 import { freshPlayerSnapshot } from './player';
 import { ChapterRun } from './run';
@@ -163,20 +162,11 @@ export function chapterOf(id: string): number {
 }
 
 /** Applies the end-of-chapter rules and positions the save at the next chapter. */
-export function carryOver(snapshot: SaveState, endState: BuzzState, next: ChapterModule): SaveState {
-  const ended = snapshot.chapter;
-  const hungover = hangoverAtChapterStart(next.def.number, hangoverFromChapterEnd(ended, endState));
-  const finished = snapshot.finishedChapters.includes(ended) ? snapshot.finishedChapters : [...snapshot.finishedChapters, ended];
-  return saveAtChapterStart(next, {
-    ...snapshot,
-    finishedChapters: finished,
-    player: {
-      ...snapshot.player,
-      buzz: 0,
-      health: maxHealthFor(hungover),
-      hangover: { active: hungover },
-    },
-  });
+export function carryOver(snap: SaveState, _endState: DrunkState, next: ChapterModule): SaveState {
+  const ended = snap.chapter;
+  const finished = snap.finishedChapters.includes(ended) ? snap.finishedChapters : [...snap.finishedChapters, ended];
+  // Buzz does not carry over: every chapter starts at the bottom of Grand in its bar (DESIGN.md 7.1).
+  return saveAtChapterStart(next, { ...snap, finishedChapters: finished });
 }
 
 export interface SessionOptions {
@@ -348,11 +338,11 @@ export class GameSession {
     this.begin({ ...p, save, resumed: true, afterDeath: true });
   }
 
-  private onChapterComplete(endState: BuzzState, snap: SaveState): void {
+  private onChapterComplete(endState: DrunkState, snap: SaveState): void {
     const p = this.pending;
     if (!p) return;
     const ended = snap.chapter;
-    this.bus.emit(GameEvents.ChapterCompleted, { chapter: ended, endBuzzState: endState });
+    this.bus.emit(GameEvents.ChapterCompleted, { chapter: ended, endState });
     if (ended >= 10) {
       const finished = snap.finishedChapters.includes(ended) ? snap.finishedChapters : [...snap.finishedChapters, ended];
       p.store.write({ ...snap, finishedChapters: finished });
@@ -387,17 +377,11 @@ export function createUiState(session: GameSession) {
     get bus(): GameEventBus {
       return session.bus;
     },
-    health(): Health {
-      return run()?.player.health ?? { current: TUNING.player.maxHealth, max: TUNING.player.maxHealth };
+    meter(): MeterSnapshot {
+      return run()?.player.meterSnapshot() ?? snapshot(createMeter(1));
     },
-    buzz(): BuzzSnapshot {
-      return run()?.player.buzz.snapshot() ?? { value: 0, state: 'sober', banjaxedPhase: 'none', banjaxedPhaseMsLeft: 0 };
-    },
-    heat(): HeatSnapshot {
-      return run()?.player.heat.snapshot() ?? { active: false, value: 0 };
-    },
-    hangover(): HangoverState {
-      return run()?.player.hangover.state() ?? { active: false };
+    levelTable(): DrunkLevelTable {
+      return levelTable(run()?.chapter ?? 1);
     },
     empties(): number {
       return run()?.player.inventory.empties ?? 0;

@@ -7,7 +7,6 @@ import type {
   AbilityId,
   AudioSettings,
   BossId,
-  BuzzSnapshot,
   CasebookEntry,
   ChapterNumber,
   DeductionBoardDef,
@@ -17,9 +16,9 @@ import type {
   DrinkSlots,
   EvidenceId,
   GameEventBus,
-  HangoverState,
+  DrunkLevelTable,
   Health,
-  HeatSnapshot,
+  MeterSnapshot,
   ObjectiveId,
   SaveState,
   SpecialAbilityId,
@@ -27,10 +26,10 @@ import type {
 
 export interface UiStateSource {
   readonly bus: GameEventBus;
-  health(): Health;
-  buzz(): BuzzSnapshot;
-  heat(): HeatSnapshot;
-  hangover(): HangoverState;
+  /** The one Buzz meter: value, level, floor, spirit window, tea hold, sun. There is no health. */
+  meter(): MeterSnapshot;
+  /** Where each level sits on the meter in this chapter (grows by chapter). */
+  levelTable(): DrunkLevelTable;
   empties(): number;
   drinkSlots(): DrinkSlots;
   selectedDrink(): DrinkSlotIndex;
