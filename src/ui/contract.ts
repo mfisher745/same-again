@@ -13,10 +13,15 @@ import type {
   DialogueId,
   EvidenceId,
   GameEventBus,
+  HotDrinkId,
   Kit,
+  OverhaulDrinkId,
+  SpecialSlotIndex,
+  TabMode,
   DrunkLevelTable,
   Health,
   MeterSnapshot,
+  MoveId,
   ObjectiveId,
   OverhaulSaveState,
   MoveSlotView,
@@ -41,6 +46,21 @@ export interface UiStateSource {
   throwPreview(): ThrowAim | null;
   /** The latest refusal of a move (`ui.move.*`); `seq` rises with each. Null before the first. */
   refusal(): { readonly textId: TextId; readonly seq: number } | null;
+  /** Tab screen: put a held drink in the drink slot, or clear it. False if refused. */
+  assignDrink(id: OverhaulDrinkId | null): boolean;
+  /** Tab screen: put a learned move of the slot's own level in a special slot, or clear it. False if refused. */
+  assignMove(slot: SpecialSlotIndex, id: MoveId | null): boolean;
+  /** Tab screen: equip an owned weapon. */
+  assignWeapon(id: WeaponId): boolean;
+  /** Tab screen: drink any held drink straight from the inventory. */
+  drinkFromInventory(id: OverhaulDrinkId): boolean;
+  /** The bar's free hot drink is on offer (once per visit) and Andrew carries none. */
+  hotDrinkOffered(): boolean;
+  /** Take the free hot drink. False if refused. */
+  takeHotDrink(id: HotDrinkId): boolean;
+  /** Tab as toggle (default) or hold; kept with the save's settings. */
+  tabMode(): TabMode;
+  setTabMode(mode: TabMode): void;
   mykoCallsLeft(): number;
   /** 0..1 progress of the M hold; 0 when not held. */
   mykoCallHoldProgress(): number;

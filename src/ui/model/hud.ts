@@ -1,134 +1,121 @@
 /**
  * HUD view-model: turns the state source's snapshots into plain numbers and
  * IDs the HUD scene draws. No Phaser. docs/style-guide.md section 4.
+ * There is no health: the one Buzz meter, the drink, the four special slots,
+ * the weapon, the bottles and Myko's calls. DESIGN.md 7.
  */
 
 import { TUNING } from '../../content/tuning';
-import type { AbilityId, BossId, DrinkId, DrunkState, Kit, SpecialAbilityId, TextId } from '../../core/types';
-import { heldDrinks } from '../../systems/kit';
-import { iconDrink } from '../../systems/pickups';
-import { legacyAbilityOf } from '../../systems/playerCombat';
+import type { BossId, DrunkLevel, DrunkState, MeterSnapshot, MoveId, OverhaulDrinkId, SpecialSlotIndex, TextId, WeaponId } from '../../core/types';
 import type { UiStateSource } from '../contract';
+import { METER } from '../layout';
+import { uiTuning } from '../uiTuning';
 
-export type PipFill = 'full' | 'half' | 'empty';
-
-export interface HudSlotView {
-  readonly drinkId: DrinkId | null;
+export interface HudDrinkView {
+  /** The drink in the drink slot, or null when the slot is empty. */
+  readonly drinkId: OverhaulDrinkId | null;
+  /** How many of it he holds (a hot drink counts 1). */
   readonly count: number;
-  readonly selected: boolean;
 }
 
-/** Why the selected special cannot be used right now. */
-export type SpecialReason = 'sober' | 'buzz' | 'recharge';
+export interface HudSpecialView {
+  readonly slot: SpecialSlotIndex;
+  readonly moveId: MoveId | null;
+  /** Andrew is at this slot's level: not dark. */
+  readonly lit: boolean;
+  /** 0..1 of the cooldown still to run (1 just after use, 0 ready). */
+  readonly cooldownFraction: number;
+  /** Lit, has a move and is off cooldown. */
+  readonly ready: boolean;
+}
 
 export interface HudModel {
-  /** Health pips: empty now that there is no health (kept so the HUD scene compiles until it is redone). */
-  readonly pips: readonly PipFill[];
   readonly buzz: {
-    /** 0..1 */
+    /** 0..1 of the way to the floor. */
     readonly fraction: number;
-    /** Notch positions as 0..1 fractions of the meter: where Buzzed, Grand, Bit much and Fecked begin. */
-    readonly notches: readonly number[];
+    /** Where Grand, Bit much and Fecked begin, as 0..1 fractions of the meter. */
+    readonly marks: readonly number[];
+    readonly level: DrunkLevel;
     readonly state: DrunkState;
     readonly stateTextId: TextId;
     /** A spirit window is running; the meter flashes. */
     readonly flashing: boolean;
+    readonly inSun: boolean;
+    readonly teaHold: boolean;
+    /** Length of the meter in pixels: grows with the chapter's floor. */
+    readonly widthPx: number;
+    /** 0..1 how flat the colours should be (under the low warning). */
+    readonly flatness: number;
   };
-  readonly heat: { readonly fraction: number } | null;
-  readonly slots: readonly [HudSlotView, HudSlotView, HudSlotView];
-  readonly empties: number;
-  /** Bottle Throw is unlocked: the empties slot is live rather than dimmed. */
-  readonly throwUnlocked: boolean;
-  /** The melee ability shown with the left mouse button, or null before any is unlocked. */
-  readonly melee: AbilityId | null;
-  /** The Stumble is unlocked: the dodge slot (Space) is shown. */
-  readonly dodgeUnlocked: boolean;
-  readonly special: {
-    readonly abilityId: SpecialAbilityId | null;
-    /** Name, or the "Sober" label when none is selectable. */
-    readonly labelTextId: TextId;
-    readonly iconAbility: AbilityId | null;
-    /** Specials are locked by Buzz state: draw dimmed. */
-    readonly locked: boolean;
-    /** Show the slot at all: at least one special is unlocked. */
-    readonly shown: boolean;
-    /** More than one special is unlocked, so R (cycle) is shown too. */
-    readonly cyclable: boolean;
-    /** Why it cannot be used now, when it cannot. */
-    readonly reason: SpecialReason | null;
-  };
-  /** One flag per call in the game: true if still available, false for an ink stub. */
+  readonly drink: HudDrinkView;
+  readonly specials: readonly [HudSpecialView, HudSpecialView, HudSpecialView, HudSpecialView];
+  readonly weapon: WeaponId;
+  readonly bottles: number;
+  /** One flag per call in the game: true if still available, false for a spent one. */
   readonly calls: readonly boolean[];
   /** 0..1 */
   readonly callHold: number;
   readonly boss: { readonly bossId: BossId; readonly nameTextId: TextId; readonly fraction: number } | null;
-  readonly hangover: boolean;
-}
-
-/**
- * The drink cell the old HUD draws for each of three places: the drink in the
- * slot first (selected), then the next two held drinks. A stand-in until the
- * HUD is redone for the kit (docs/overhaul-plan.md phase 3).
- */
-export function hudDrinkCells(kit: Kit): readonly [HudSlotView, HudSlotView, HudSlotView] {
-  const held = heldDrinks(kit);
-  const first = kit.slots.drink;
-  const order = first === null ? held : [first, ...held.filter((id) => id !== first)];
-  const cell = (i: number): HudSlotView => {
-    const id = order[i];
-    if (id === undefined) return { drinkId: null, count: 0, selected: false };
-    const count = id === 'coffee' || id === 'tea' ? 1 : (kit.drinks[id] ?? 0);
-    return { drinkId: iconDrink(id), count, selected: i === 0 };
-  };
-  return [cell(0), cell(1), cell(2)];
+  readonly refusal: { readonly textId: TextId; readonly seq: number } | null;
 }
 
 const clamp01 = (n: number): number => (Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0);
 
+/** Pixel length of the meter for a chapter whose floor is `floor`. */
+export const meterWidth = (floor: number): number =>
+  Math.round(Math.max(METER.minWidth, Math.min(METER.maxWidth, (Number.isFinite(floor) ? floor : 0) * METER.pxPerPoint)));
+
+/**
+ * How flat the colours are, 0..1: nothing from `lowWarningBelow` up, then a
+ * gentle slide that reaches `flatAtZero` at 0. DESIGN.md 7.1.
+ */
+export function flatness(meter: MeterSnapshot): number {
+  const below = TUNING.overhaul?.lowWarningBelow ?? 10;
+  const v = Number.isFinite(meter.value) ? meter.value : 0;
+  if (v >= below || below <= 0) return 0;
+  return clamp01((1 - Math.max(0, v) / below) * uiTuning().flatAtZero);
+}
+
+function drinkView(source: UiStateSource): HudDrinkView {
+  const kit = source.kit();
+  const id = kit.slots.drink;
+  if (id === null) return { drinkId: null, count: 0 };
+  const count = id === 'coffee' || id === 'tea' ? (kit.hotDrink === id ? 1 : 0) : (kit.drinks[id] ?? 0);
+  return { drinkId: id, count };
+}
+
 export function buildHudModel(source: UiStateSource): HudModel {
   const meter = source.meter();
   const table = source.levelTable();
-  const kit = source.kit();
   const boss = source.boss();
   const calls = TUNING.myko.callsPerGame;
   const left = source.mykoCallsLeft();
-  // One special cell stands in for the four slots until the HUD is redone: the highest lit slot with a move,
-  // else the lowest dark one (docs/overhaul-plan.md phase 3).
-  const slots = source.moveSlots().filter((s) => s.moveId !== null);
-  const lit = slots.filter((s) => s.lit);
-  const shownSlot = lit.length > 0 ? lit[lit.length - 1] : slots[0];
-  const moveId = shownSlot?.moveId ?? null;
-  let reason: SpecialReason | null = null;
-  if (shownSlot) {
-    if (!shownSlot.lit) reason = 'sober';
-    else if (shownSlot.cooldownLeftMs > 0) reason = 'recharge';
-  }
-  const cells = hudDrinkCells(kit);
   const floor = Math.max(1, meter.floor);
+  const views = source.moveSlots();
+  const specials = ([1, 2, 3, 4] as const).map((slot): HudSpecialView => {
+    const v = views.find((x) => x.slot === slot);
+    const cooldownFraction = v === undefined || v.cooldownMs <= 0 ? 0 : clamp01(v.cooldownLeftMs / v.cooldownMs);
+    const moveId = v?.moveId ?? null;
+    const lit = v?.lit ?? false;
+    return { slot, moveId, lit, cooldownFraction, ready: moveId !== null && lit && (v?.cooldownLeftMs ?? 0) <= 0 };
+  }) as unknown as HudModel['specials'];
   return {
-    pips: [],
     buzz: {
       fraction: clamp01(meter.value / floor),
-      notches: [table.grand.min / floor, table.bitMuch.min / floor, table.fecked.min / floor],
+      marks: [table.grand.min / floor, table.bitMuch.min / floor, table.fecked.min / floor],
+      level: meter.level,
       state: meter.state,
       stateTextId: `ui.buzz.${meter.state}`,
       flashing: meter.spiritActive,
+      inSun: meter.inSun,
+      teaHold: meter.teaHoldActive,
+      widthPx: meterWidth(floor),
+      flatness: flatness(meter),
     },
-    heat: null,
-    slots: cells,
-    empties: kit.bottles,
-    throwUnlocked: true,
-    melee: source.weapon() === 'hurley' ? 'hurley' : 'punchCombo',
-    dodgeUnlocked: false,
-    special: {
-      abilityId: moveId === 'stoutSlam' || moveId === 'borrowedGlove' ? moveId : null,
-      labelTextId: moveId === null ? 'ui.hud.noSpecial' : `ability.${moveId}.name`,
-      iconAbility: moveId === null ? null : legacyAbilityOf(moveId) === 'punchCombo' ? 'stoutSlam' : legacyAbilityOf(moveId),
-      locked: moveId === null || reason !== null,
-      shown: slots.length > 0,
-      cyclable: false,
-      reason,
-    },
+    drink: drinkView(source),
+    specials,
+    weapon: source.weapon(),
+    bottles: source.kit().bottles,
     calls: Array.from({ length: calls }, (_, i) => i < left),
     callHold: clamp01(source.mykoCallHoldProgress()),
     boss:
@@ -139,7 +126,7 @@ export function buildHudModel(source: UiStateSource): HudModel {
             nameTextId: TUNING.bosses[boss.bossId].nameTextId,
             fraction: clamp01(boss.health.current / Math.max(1, boss.health.max)),
           },
-    hangover: false,
+    refusal: source.refusal(),
   };
 }
 

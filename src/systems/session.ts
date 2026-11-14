@@ -44,6 +44,11 @@ import type {
   WeaponId,
   BossId,
   TextId,
+  HotDrinkId,
+  MoveId,
+  OverhaulDrinkId,
+  SpecialSlotIndex,
+  TabMode,
 } from '../core/types';
 import { gainWeapon, createKit, learnMove, pickUpDrink, topUpBottles } from './kit';
 import { createMeter, levelTable, snapshot } from './meter';
@@ -184,6 +189,7 @@ export class GameSession {
   private current: ChapterRun | null = null;
   private paused = false;
   private audio: AudioSettings;
+  private tabModeChosen: TabMode = 'toggle';
   /** Sound for effects with no bus event; set by main from the audio module. */
   playEffect: ((id: RunEffect) => void) | null = null;
 
@@ -310,6 +316,19 @@ export class GameSession {
     this.store.writeAudio(settings);
   }
 
+  /** Tab as toggle or hold: the running chapter's setting, else the save's, else toggle. */
+  tabMode(): TabMode {
+    return this.current?.tabMode() ?? this.store.load()?.settings.tabMode ?? this.tabModeChosen;
+  }
+
+  /** Keep the choice with the run and the stored save. */
+  setTabMode(mode: TabMode): void {
+    this.tabModeChosen = mode;
+    this.current?.setTabMode(mode);
+    const saved = this.store.load();
+    if (saved) this.store.write({ ...saved, settings: { ...saved.settings, tabMode: mode } });
+  }
+
   // -------------------------------------------------------------------------
   // Internals
   // -------------------------------------------------------------------------
@@ -393,6 +412,30 @@ export function createUiState(session: GameSession) {
     /** The latest refusal of a move (`ui.move.*`), for the HUD to flash. */
     refusal(): ActionRefusal | null {
       return run()?.combat.lastRefusal ?? null;
+    },
+    assignDrink(id: OverhaulDrinkId | null): boolean {
+      return run()?.assignDrink(id) ?? false;
+    },
+    assignMove(slot: SpecialSlotIndex, id: MoveId | null): boolean {
+      return run()?.assignMove(slot, id) ?? false;
+    },
+    assignWeapon(id: WeaponId): boolean {
+      return run()?.assignWeapon(id) ?? false;
+    },
+    drinkFromInventory(id: OverhaulDrinkId): boolean {
+      return run()?.drinkFromInventory(id) ?? false;
+    },
+    hotDrinkOffered(): boolean {
+      return run()?.hotDrinkOffered() ?? false;
+    },
+    takeHotDrink(id: HotDrinkId): boolean {
+      return run()?.takeHotDrink(id) ?? false;
+    },
+    tabMode(): TabMode {
+      return session.tabMode();
+    },
+    setTabMode(mode: TabMode): void {
+      session.setTabMode(mode);
     },
     mykoCallsLeft(): number {
       return run()?.callsRemaining() ?? session.store.load()?.mykoCallsLeft ?? TUNING.myko.callsPerGame;
