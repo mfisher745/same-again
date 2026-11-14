@@ -1329,8 +1329,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** Drink (Q), cycle the drink slot (wheel). DESIGN.md 6 and 7.1. */
   private handleKitInput(input: InputFrame): void {
     const p = this.player;
-    if (input.pressed.has('selectDrinkNext')) p.setKit(cycleDrink(p.kit, 1).kit);
-    if (input.pressed.has('selectDrinkPrev')) p.setKit(cycleDrink(p.kit, -1).kit);
+    if (input.pressed.has('cycleDrink') && p.canAct) p.setKit(cycleDrink(p.kit, input.wheelDir ?? 1).kit);
     if (input.pressed.has('drink') && p.canAct) this.drinkResult(drinkSelected(p.kit));
   }
 

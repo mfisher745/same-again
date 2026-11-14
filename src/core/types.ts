@@ -143,36 +143,23 @@ export type CompletableSectionId = FightSectionId | AlarmFightId | BossId | Puzz
  */
 export type InputAction =
   | 'melee'
-  | 'ranged'
-  /** @deprecated overhaul phase 2/5 removes this. */
-  | 'dodge'
   | 'drink'
-  /** @deprecated overhaul phase 2/5 removes this. */
-  | 'selectDrink1'
-  /** @deprecated overhaul phase 2/5 removes this. */
-  | 'selectDrink2'
-  /** @deprecated overhaul phase 2/5 removes this. */
-  | 'selectDrink3'
-  | 'selectDrinkNext'
-  | 'selectDrinkPrev'
-  /** @deprecated overhaul phase 2/5 removes this. */
-  | 'special'
-  /** @deprecated overhaul phase 2/5 removes this. */
-  | 'cycleSpecial'
   | 'sneak'
   | 'interact'
   | 'hint'
   | 'callMyko'
-  | 'casebook'
   | 'pause'
-  // --- Overhaul actions (DESIGN.md section 6) ---
+  /** Special slots 1 to 4 (keys 1 to 4). Slot n belongs to drunk level n. */
   | 'special1'
   | 'special2'
   | 'special3'
   | 'special4'
   | 'cycleWeapon'
+  /** The mouse wheel; the direction is `InputFrame.wheelDir`. */
   | 'cycleDrink'
+  /** Tab: the kit and casebook screen. Toggle or hold is the UI's (`GameSettings.tabMode`). */
   | 'openTab'
+  /** Right mouse button: hold to aim the throw, release to throw. */
   | 'aimHold';
 
 /** Physical input a binding refers to. Key names follow `KeyboardEvent.code`. DESIGN.md section 6. */
@@ -188,22 +175,7 @@ export const DEFAULT_BINDINGS = {
   moveDown: [{ device: 'keyboard', code: 'KeyS' }],
   moveRight: [{ device: 'keyboard', code: 'KeyD' }],
   melee: [{ device: 'mouse', button: 'left' }],
-  ranged: [{ device: 'mouse', button: 'right' }],
-  /** @deprecated overhaul phase 2/5 removes this. */
-  dodge: [{ device: 'keyboard', code: 'Space' }],
   drink: [{ device: 'keyboard', code: 'KeyQ' }],
-  /** @deprecated overhaul phase 2/5 removes this. */
-  selectDrink1: [{ device: 'keyboard', code: 'Digit1' }],
-  /** @deprecated overhaul phase 2/5 removes this. */
-  selectDrink2: [{ device: 'keyboard', code: 'Digit2' }],
-  /** @deprecated overhaul phase 2/5 removes this. */
-  selectDrink3: [{ device: 'keyboard', code: 'Digit3' }],
-  selectDrinkNext: [{ device: 'wheel', direction: 'down' }],
-  selectDrinkPrev: [{ device: 'wheel', direction: 'up' }],
-  /** @deprecated overhaul phase 2/5 removes this. */
-  special: [{ device: 'keyboard', code: 'KeyF' }],
-  /** @deprecated overhaul phase 2/5 removes this. */
-  cycleSpecial: [{ device: 'keyboard', code: 'KeyR' }],
   sneak: [
     { device: 'keyboard', code: 'ShiftLeft' },
     { device: 'keyboard', code: 'ShiftRight' },
@@ -211,24 +183,18 @@ export const DEFAULT_BINDINGS = {
   interact: [{ device: 'keyboard', code: 'KeyE' }],
   hint: [{ device: 'keyboard', code: 'KeyH' }],
   callMyko: [{ device: 'keyboard', code: 'KeyM' }],
-  casebook: [{ device: 'keyboard', code: 'Tab' }],
   pause: [{ device: 'keyboard', code: 'Escape' }],
-  // --- Overhaul actions (DESIGN.md section 6) ---
-  // Most collide with a binding that still does something, so they stay
-  // unbound until phase 2 removes the old action:
-  //  - special1..3 collide with selectDrink1..3 (Digit1..3).
-  //  - cycleWeapon is KeyR, which is cycleSpecial.
-  //  - cycleDrink is the wheel, which is selectDrinkNext/Prev.
-  //  - openTab is Tab, which is casebook.
-  //  - aimHold is right click, which is ranged (hold = `held`, release = `released`).
-  special1: [],
-  special2: [],
-  special3: [],
+  special1: [{ device: 'keyboard', code: 'Digit1' }],
+  special2: [{ device: 'keyboard', code: 'Digit2' }],
+  special3: [{ device: 'keyboard', code: 'Digit3' }],
   special4: [{ device: 'keyboard', code: 'Digit4' }],
-  cycleWeapon: [],
-  cycleDrink: [],
-  openTab: [],
-  aimHold: [],
+  cycleWeapon: [{ device: 'keyboard', code: 'KeyR' }],
+  cycleDrink: [
+    { device: 'wheel', direction: 'up' },
+    { device: 'wheel', direction: 'down' },
+  ],
+  openTab: [{ device: 'keyboard', code: 'Tab' }],
+  aimHold: [{ device: 'mouse', button: 'right' }],
 } as const satisfies Readonly<
   Record<InputAction | 'moveUp' | 'moveLeft' | 'moveDown' | 'moveRight', readonly InputBinding[]>
 >;
@@ -248,6 +214,8 @@ export interface InputFrame {
   readonly pressed: ReadonlySet<InputAction>;
   readonly released: ReadonlySet<InputAction>;
   readonly holdMs: Readonly<Partial<Record<InputAction, number>>>;
+  /** With `cycleDrink` pressed: 1 for the wheel rolled down (next), -1 for up (previous). Absent otherwise. */
+  readonly wheelDir?: 1 | -1;
 }
 
 // ---------------------------------------------------------------------------

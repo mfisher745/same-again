@@ -14,21 +14,11 @@ export type Bindings = Readonly<Record<BindingName, readonly InputBinding[]>>;
 
 const ACTIONS: readonly InputAction[] = [
   'melee',
-  'ranged',
-  'dodge',
   'drink',
-  'selectDrink1',
-  'selectDrink2',
-  'selectDrink3',
-  'selectDrinkNext',
-  'selectDrinkPrev',
-  'special',
-  'cycleSpecial',
   'sneak',
   'interact',
   'hint',
   'callMyko',
-  'casebook',
   'pause',
   'special1',
   'special2',
@@ -120,8 +110,9 @@ export class InputTracker {
       }
     }
     this.tapped.clear();
-    if (this.wheelUp > 0) pressed.add('selectDrinkPrev');
-    if (this.wheelDown > 0) pressed.add('selectDrinkNext');
+    // The wheel never stays held; down is next, up is previous (down wins if both turned in one tick).
+    const wheelDir: 1 | -1 | undefined = this.wheelDown > 0 ? 1 : this.wheelUp > 0 ? -1 : undefined;
+    if (wheelDir !== undefined) pressed.add('cycleDrink');
     this.wheelUp = 0;
     this.wheelDown = 0;
 
@@ -140,7 +131,7 @@ export class InputTracker {
     const x = (this.isBindingDown('moveRight') ? 1 : 0) - (this.isBindingDown('moveLeft') ? 1 : 0);
     const y = (this.isBindingDown('moveDown') ? 1 : 0) - (this.isBindingDown('moveUp') ? 1 : 0);
     this.prevHeld = held;
-    return { move: { x, y }, aim: this.aim, held, pressed, released, holdMs };
+    return { move: { x, y }, aim: this.aim, held, pressed, released, holdMs, ...(wheelDir === undefined ? {} : { wheelDir }) };
   }
 
   private bindingDown(b: InputBinding): boolean {
