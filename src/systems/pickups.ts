@@ -78,7 +78,7 @@ export function takeItem(kit: Kit, item: PickupItem): PickupTake {
   }
 }
 
-/** The drink icon that stands in for a kit drink until phase 3 draws the new ones (lager, coffee, tea). */
+/** @deprecated Every drink icon is drawn now: use `icon.drink(id)`. Kept only until `src/ui/model/hud.ts` stops calling it; then delete. */
 export function iconDrink(id: DrinkId | OverhaulDrinkId): DrinkId {
   switch (id) {
     case 'lager':

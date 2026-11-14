@@ -3,10 +3,11 @@
  * be exercised with placeholder shapes. Not part of the game; it uses an
  * in-memory save and borrows real section IDs so their tuning applies
  * (`c1.fight.chipper` waves, `c1.puzzle.kegs`, `c2.stealth.bog` and its alarm).
+ * Andrew starts with a few moves, the hurley and two light beers (bottles are on the ground, top left); there is no food and no checkpoint.
  *
  * Layout (tiles): pickups top left, a suit patrolling the top right with a
  * noticeboard to hide by, the keg puzzle bottom left, the lads' fight bottom
- * right, an examinable clue and a checkpoint in the middle.
+ * right and an examinable clue in the middle.
  *
  * Dressing and ambience demo (west half): a solid tractor to walk behind and
  * in front of, the animated bog lights, a keg prop that a punch swaps to a
@@ -16,7 +17,7 @@
  */
 
 import type { ChapterModule, ScreenAmbient } from './chapter';
-import type { AbilityId, ChapterNumber, CheckpointId, ScreenId, StealthSectionDef, Vec2 } from './types';
+import type { ChapterNumber, CheckpointId, ScreenId, StealthSectionDef, Vec2 } from './types';
 import { gridFromAscii, tileCentre } from '../systems/grid';
 
 const T = (col: number, row: number): Vec2 => tileCentre({ col, row });
@@ -47,23 +48,10 @@ const NIGHT: ScreenAmbient = {
   lights: [{ x: 4 * 16 + 24, y: 6 * 16 + 4, radius: 56, colour: 'amberLight' }],
 };
 
-const ALL_ABILITIES: readonly AbilityId[] = [
-  'punchCombo',
-  'bottleThrow',
-  'stumble',
-  'stoutSlam',
-  'actNatural',
-  'hurley',
-  'sliotarStrike',
-  'poitinBreath',
-  'borrowedGlove',
-];
-
 export function createSandboxModule(chapter: ChapterNumber = 1): ChapterModule {
   const p = `c${chapter}` as const;
   const screenId: ScreenId = `${p}.sandbox`;
-  const startCp: CheckpointId = `${p}.sandbox.start`;
-  const midCp: CheckpointId = `${p}.sandbox.mid`;
+  // `StealthSectionDef.checkpointId` is still required by the type (deprecated); nothing is placed there.
   const stealthCp: CheckpointId = `${p}.sandbox.stealth`;
   const stealthDef: StealthSectionDef = {
     id: 'c2.stealth.bog',
@@ -92,16 +80,12 @@ export function createSandboxModule(chapter: ChapterNumber = 1): ChapterModule {
       titleTextId: 'ui.title',
       screens: [{ id: screenId, region: 'kilnamoe', widthTiles: 30, heightTiles: 17 }],
       startScreenId: screenId,
-      checkpoints: [
-        { id: startCp, kind: 'chapterStart', screenId, position: T(3, 7) },
-        { id: midCp, kind: 'other', screenId, position: T(15, 8) },
-        { id: stealthCp, kind: 'stealth', screenId, position: T(12, 7) },
-      ],
+      checkpoints: [],
       sections: [
         { id: `${p}.explore.sandbox`, kind: 'explore', mykoCallable: false },
         { id: 'c1.puzzle.kegs', kind: 'puzzle', mykoCallable: true },
-        { id: 'c2.stealth.bog', kind: 'stealth', mykoCallable: false, checkpointId: stealthCp },
-        { id: 'c1.fight.chipper', kind: 'fight', mykoCallable: true, reward: { pickups: [{ kind: 'food', foodId: 'spiceBag' }] } },
+        { id: 'c2.stealth.bog', kind: 'stealth', mykoCallable: false },
+        { id: 'c1.fight.chipper', kind: 'fight', mykoCallable: true },
       ],
       stealthSections: [stealthDef],
       puzzle: { id: 'c1.puzzle.kegs', chapter: 1, kind: 'push' },
@@ -144,7 +128,7 @@ export function createSandboxModule(chapter: ChapterNumber = 1): ChapterModule {
     pickups: [
       { id: 'sandbox.stout', item: { kind: 'drink', drinkId: 'stout', count: 2 }, screenId, position: T(3, 2) },
       { id: 'sandbox.whiskey', item: { kind: 'drink', drinkId: 'whiskey', count: 1 }, screenId, position: T(5, 2) },
-      { id: 'sandbox.crisps', item: { kind: 'food', foodId: 'crisps' }, screenId, position: T(7, 2) },
+      { id: 'sandbox.lager', item: { kind: 'drink', drinkId: 'lager', count: 2 }, screenId, position: T(7, 2) },
       { id: 'sandbox.empties', item: { kind: 'empties', count: 4 }, screenId, position: T(9, 2) },
     ],
     examinables: [
@@ -198,7 +182,9 @@ export function createSandboxModule(chapter: ChapterNumber = 1): ChapterModule {
       let off: (() => void) | null = null;
       return {
         onStart: () => {
-          for (const id of ALL_ABILITIES) ctx.unlockAbility(id);
+          for (const id of ['shoulder', 'stoutSlam', 'sameAgain'] as const) ctx.learnMove(id);
+          ctx.gainWeapon('hurley');
+          ctx.give({ kind: 'drink', drinkId: 'lightBeer', count: 2 });
           ctx.setObjective('sandbox.objective');
           off = ctx.onMeleeHit(
             { x: 10 * 16, y: 5 * 16, width: 16, height: 16 },

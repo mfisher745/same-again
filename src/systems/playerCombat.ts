@@ -99,6 +99,10 @@ export class PlayerCombat {
   private pointer: Vec2 = { x: 0, y: 0 };
   private seq = 0;
   lastRefusal: ActionRefusal | null = null;
+  /** The latest melee swing, for the view's animation. `seq` counts up with each swing. */
+  lastSwing: { readonly seq: number; readonly weaponId: WeaponId; readonly comboIndex: number; readonly swingMs: number } | null = null;
+  /** Counts up with each bottle thrown, for the view's throw animation. */
+  throwSeq = 0;
 
   constructor(private readonly host: PlayerCombatHost) {
     this.weapon = createWeaponState(host.player.kit.slots.melee);
@@ -146,6 +150,11 @@ export class PlayerCombat {
   /** Act Natural is holding him unseen. */
   get hidden(): boolean {
     return this.moves.hidden;
+  }
+
+  /** The throw is being aimed (right mouse held with a bottle). */
+  get aiming(): boolean {
+    return this.aim.aiming;
   }
 
   /** The dotted path the view draws while the throw is being aimed, or null. DESIGN.md 7.2 "Thrown bottles". */
@@ -196,6 +205,7 @@ export class PlayerCombat {
     if (!spent.changed) return;
     p.setKit(spent.kit);
     p.faceAim();
+    this.throwSeq += 1;
     const t = this.tuning.throw;
     if (!t) return;
     h.spawnProjectile({
@@ -223,6 +233,7 @@ export class PlayerCombat {
     const { state, result } = swing(this.weapon, p.level);
     this.weapon = state;
     this.swingLeftMs = result.swingMs;
+    this.lastSwing = { seq: (this.lastSwing?.seq ?? 0) + 1, weaponId: result.weaponId, comboIndex: result.comboIndex, swingMs: result.swingMs };
     p.faceAim();
     const arcDeg = result.sweepArcDeg > 0 ? result.sweepArcDeg : this.tuning.meleeArcDeg;
     const r = TUNING.combat.characterHitRadius;
