@@ -31,6 +31,8 @@ export interface HudSpecialView {
 
 export interface HudModel {
   readonly buzz: {
+    /** The chapter script has hidden the meter (chapter 1 until the first pint): draw none of it. */
+    readonly hidden: boolean;
     /** 0..1 of the way to the floor. */
     readonly fraction: number;
     /** Where Grand, Bit much and Fecked begin, as 0..1 fractions of the meter. */
@@ -101,6 +103,7 @@ export function buildHudModel(source: UiStateSource): HudModel {
   }) as unknown as HudModel['specials'];
   return {
     buzz: {
+      hidden: meter.hidden === true,
       fraction: clamp01(meter.value / floor),
       marks: [table.grand.min / floor, table.bitMuch.min / floor, table.fecked.min / floor],
       level: meter.level,
