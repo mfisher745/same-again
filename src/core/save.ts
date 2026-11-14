@@ -8,8 +8,8 @@
  */
 
 import { TUNING } from '../content/tuning';
-import { SAVE_VERSION } from './types';
-import type { AudioSettings, SaveState } from './types';
+import { SAVE_VERSION_OVERHAUL } from './types';
+import type { AudioSettings, OverhaulSaveState } from './types';
 
 /** The subset of `Storage` we use. */
 export interface StorageLike {
@@ -54,31 +54,42 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-/** Light structural check: enough to refuse garbage, not a full schema. */
-export function isSaveState(v: unknown): v is SaveState {
+const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
+
+/** Light structural check on the kit: enough to refuse garbage, not a full schema. */
+function isKit(v: unknown): boolean {
   if (!isObject(v)) return false;
-  if (v['version'] !== SAVE_VERSION) return false;
+  if (!isObject(v['drinks']) || Object.values(v['drinks']).some((n) => typeof n !== 'number')) return false;
+  if (typeof v['carryLimit'] !== 'number' || typeof v['bottles'] !== 'number') return false;
+  if (v['hotDrink'] !== null && typeof v['hotDrink'] !== 'string') return false;
+  if (!isStringArray(v['weapons']) || !isStringArray(v['moves'])) return false;
+  const slots = v['slots'];
+  if (!isObject(slots) || typeof slots['melee'] !== 'string') return false;
+  if (slots['drink'] !== null && typeof slots['drink'] !== 'string') return false;
+  const specials = slots['specials'];
+  return Array.isArray(specials) && specials.length === 4 && specials.every((x) => x === null || typeof x === 'string');
+}
+
+/**
+ * Light structural check: enough to refuse garbage, not a full schema. An old
+ * (version 1) save fails the version test and is discarded; there is no migration.
+ */
+export function isSaveState(v: unknown): v is OverhaulSaveState {
+  if (!isObject(v)) return false;
+  if (v['version'] !== SAVE_VERSION_OVERHAUL) return false;
   const chapter = v['chapter'];
   if (typeof chapter !== 'number' || chapter < 1 || chapter > 10 || !Number.isInteger(chapter)) return false;
-  if (typeof v['checkpointId'] !== 'string') return false;
-  const respawn = v['respawn'];
-  if (!isObject(respawn) || typeof respawn['screenId'] !== 'string' || !isObject(respawn['position'])) return false;
-  const player = v['player'];
-  if (!isObject(player)) return false;
-  if (typeof player['health'] !== 'number' || typeof player['buzz'] !== 'number') return false;
-  if (!Array.isArray(player['drinkSlots']) || player['drinkSlots'].length !== 3) return false;
-  if (!Array.isArray(player['unlockedAbilities'])) return false;
-  if (typeof v['mykoCallsLeft'] !== 'number') return false;
+  if (!isKit(v['kit'])) return false;
+  if (typeof v['mykoCallsLeft'] !== 'number' || typeof v['lootSeed'] !== 'number') return false;
   for (const key of ['mykoCalls', 'finishedChapters', 'completedSectionIds', 'cleanStealthRunIds', 'collectedPickupIds', 'casebook']) {
     if (!Array.isArray(v[key])) return false;
   }
-  if (!isObject(v['hintsGiven']) || !isObject(v['flags'])) return false;
-  // Optional fields added after version 1 (older saves simply lack them).
-  for (const key of ['playedDialogue', 'brokenProps']) {
-    const list = v[key];
-    if (list !== undefined && (!Array.isArray(list) || list.some((x) => typeof x !== 'string'))) return false;
+  for (const key of ['openedShortcuts', 'playedDialogue', 'brokenProps']) {
+    if (!isStringArray(v[key])) return false;
   }
-  if (v['lootSeed'] !== undefined && typeof v['lootSeed'] !== 'number') return false;
+  if (!isObject(v['hintsGiven']) || !isObject(v['flags'])) return false;
+  const settings = v['settings'];
+  if (!isObject(settings) || (settings['tabMode'] !== 'toggle' && settings['tabMode'] !== 'hold')) return false;
   return true;
 }
 
@@ -89,7 +100,7 @@ function clamp01(n: unknown, fallback: number): number {
 export class SaveStore {
   constructor(private readonly storage: StorageLike = defaultStorage()) {}
 
-  load(): SaveState | null {
+  load(): OverhaulSaveState | null {
     const raw = this.storage.getItem(SAVE_KEY);
     if (raw === null) return null;
     try {
@@ -100,7 +111,7 @@ export class SaveStore {
     }
   }
 
-  write(state: SaveState): void {
+  write(state: OverhaulSaveState): void {
     this.storage.setItem(SAVE_KEY, JSON.stringify(state));
   }
 

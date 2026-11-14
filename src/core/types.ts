@@ -452,8 +452,11 @@ export type PickupItem =
   | { readonly kind: 'food'; readonly foodId: FoodId }
   | { readonly kind: 'empties'; readonly count: number };
 
-/** Why a pickup stayed on the ground. DESIGN.md section 7.1. */
-export type PickupRefusal = 'noFreeSlot' | 'slotFull' | 'emptiesFull' | 'noEffect';
+/**
+ * Why a pickup stayed on the ground. DESIGN.md section 7.1 "The kit". The text
+ * is `pickup.refused.<reason>`; `kitFull` takes `{max}`.
+ */
+export type PickupRefusal = 'kitFull' | 'hotDrinkHeld';
 
 /** A pickup placed in a level. DESIGN.md section 7.1. */
 export interface PickupDef {
@@ -1215,83 +1218,11 @@ export interface ChapterDef {
 // Save state (DESIGN.md sections 7.1, 7.5, 7.6)
 // ---------------------------------------------------------------------------
 
-/** Bumped whenever `SaveState` changes shape. DESIGN.md section 7.6. */
-export const SAVE_VERSION = 1 as const;
-
-/**
- * Player state captured at each save. Death restores exactly this.
- * DESIGN.md sections 7.1 and 7.6.
- *
- * @deprecated overhaul phase 2/5 removes this.
- */
-export interface PlayerSnapshot {
-  readonly health: number;
-  readonly buzz: number;
-  readonly empties: number;
-  readonly drinkSlots: DrinkSlots;
-  readonly selectedDrink: DrinkSlotIndex;
-  readonly selectedSpecial: SpecialAbilityId | null;
-  readonly unlockedAbilities: readonly AbilityId[];
-  readonly hangover: HangoverState;
-}
-
-/**
- * Where Andrew reappears after death. DESIGN.md sections 7.2 and 7.6.
- *
- * @deprecated overhaul phase 2/5 removes this.
- */
-export interface RespawnPoint {
-  readonly screenId: ScreenId;
-  readonly position: Vec2;
-}
-
-/**
- * Everything persisted for a game in local storage. Written at each
- * checkpoint and immediately whenever a Myko call is used (that save acts as
- * a checkpoint). Death reloads it. DESIGN.md sections 7.5 and 7.6.
- *
- * @deprecated overhaul phase 2/5 removes this.
- */
-export interface SaveState {
-  readonly version: typeof SAVE_VERSION;
-  readonly chapter: ChapterNumber;
-  /** Last checkpoint reached. */
-  readonly checkpointId: CheckpointId;
-  readonly respawn: RespawnPoint;
-  readonly player: PlayerSnapshot;
-  /** Calls left for the whole game. Starts at `tuning.myko.callsPerGame`, never refills. */
-  readonly mykoCallsLeft: number;
-  readonly mykoCalls: readonly MykoCallRecord[];
-  /** Chapters finished, for Chapter Select. */
-  readonly finishedChapters: readonly ChapterNumber[];
-  readonly completedSectionIds: readonly SectionId[];
-  readonly cleanStealthRunIds: readonly StealthSectionId[];
-  readonly collectedPickupIds: readonly PickupId[];
-  readonly casebook: readonly CasebookEntry[];
-  /** Hints already given, per objective (0, 1 or 2). */
-  readonly hintsGiven: Readonly<Record<ObjectiveId, number>>;
-  /**
-   * Chapter script flags (talked to Dympna, lesson shown and so on), so a
-   * script can rebuild its state after death or Continue. Keys are prefixed
-   * with the chapter, e.g. `c1.dympnaTalked`.
-   */
-  readonly flags: Readonly<Record<string, ChapterFlagValue>>;
-  /**
-   * Dialogue sequences already played in this save (DESIGN.md 7.5 "Nothing
-   * is said twice"). Absent in older saves (treated as empty).
-   */
-  readonly playedDialogue?: readonly DialogueId[];
-  /** Breakable props already broken, by prop key (`PropPlacement.id` or `<screen>#prop<i>`). */
-  readonly brokenProps?: readonly string[];
-  /** Seed for breakable loot, fixed for the life of the save. Absent = 0. */
-  readonly lootSeed?: number;
-}
-
 /** Value of a chapter script flag stored in the save. */
 export type ChapterFlagValue = boolean | number | string;
 
 /**
- * Audio settings, stored under their own key, separate from `SaveState`.
+ * Audio settings, stored under their own key, separate from the save.
  * New Game keeps them. DESIGN.md section 9.
  */
 export interface AudioSettings {
@@ -1560,7 +1491,7 @@ export interface Tuning {
 // ---------------------------------------------------------------------------
 
 /** Why a save was written. DESIGN.md section 7.6. */
-export type SaveReason = 'checkpoint' | 'mykoCall' | 'chapterComplete';
+export type SaveReason = 'sectionDone' | 'mykoCall' | 'chapterComplete';
 
 /**
  * Payload for every game event, keyed by event name. Systems, UI, audio and
@@ -1583,20 +1514,18 @@ export interface GameEventPayloads {
   'player:healed': { readonly amount: number; readonly health: Health };
   /** @deprecated overhaul phase 2/5 removes this. */
   'player:died': { readonly checkpointId: CheckpointId };
-  /** @deprecated overhaul phase 2/5 removes this. */
-  'player:respawned': { readonly respawn: RespawnPoint };
   'enemy:damaged': { readonly hit: HitInfo; readonly health: Health };
   'enemy:defeated': { readonly instanceId: string; readonly enemyId: EnemyId; readonly by: CompletionSource };
   'enemy:telegraph': { readonly instanceId: string; readonly attackId: string; readonly durationMs: number };
   'enemy:revealed': { readonly instanceId: string; readonly enemyId: EnemyId };
   'boss:phaseChanged': { readonly bossId: BossId; readonly phaseId: string };
-  'drink:consumed': { readonly drinkId: DrinkId };
+  'drink:consumed': { readonly drinkId: OverhaulDrinkId };
   /** @deprecated overhaul phase 2/5 removes this. */
   'drink:selected': { readonly index: DrinkSlotIndex; readonly drinkId: DrinkId | null };
   /** @deprecated overhaul phase 2/5 removes this. */
   'food:consumed': { readonly foodId: FoodId };
   'pickup:collected': { readonly pickupId: PickupId; readonly item: PickupItem };
-  'pickup:refused': { readonly pickupId: PickupId; readonly reason: PickupRefusal };
+  'pickup:refused': { readonly pickupId: PickupId; readonly reason: PickupRefusal; /** The carry limit, for `{max}`. */ readonly max: number };
   'empties:changed': { readonly count: number };
   'ability:used': { readonly abilityId: AbilityId };
   'ability:unlocked': { readonly abilityId: AbilityId };
@@ -1686,8 +1615,6 @@ export const GameEvents = {
   PlayerHealed: 'player:healed',
   /** @deprecated overhaul phase 2/5 removes this. */
   PlayerDied: 'player:died',
-  /** @deprecated overhaul phase 2/5 removes this. */
-  PlayerRespawned: 'player:respawned',
   EnemyDamaged: 'enemy:damaged',
   EnemyDefeated: 'enemy:defeated',
   EnemyTelegraph: 'enemy:telegraph',

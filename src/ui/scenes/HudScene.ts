@@ -350,7 +350,7 @@ export class HudScene extends Phaser.Scene {
               : format('pickup.empties', { n: item.count });
         this.setNotice(this.pickup, msg, NOTICE_MS.pickup);
       }),
-      bus.on(GameEvents.PickupRefused, ({ reason }) => this.setNotice(this.pickup, text(`pickup.refused.${reason}`), NOTICE_MS.pickup)),
+      bus.on(GameEvents.PickupRefused, ({ reason, max }) => this.setNotice(this.pickup, format(`pickup.refused.${reason}`, { max: String(max) }), NOTICE_MS.pickup)),
       bus.on(GameEvents.BarReturned, () => this.clearDialogueOnReset()),
     );
     const onShow = (req: PromptRequest): void => this.showPrompt(req.textId);

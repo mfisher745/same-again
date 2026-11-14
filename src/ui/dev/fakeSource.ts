@@ -9,8 +9,6 @@ import type {
   DeductionBoardDef,
   DeductionSectionId,
   DialogueId,
-  DrinkSlotIndex,
-  DrinkSlots,
   EvidenceId,
   GameEventBus,
   GameEventName,
@@ -19,7 +17,8 @@ import type {
   Health,
   MeterSnapshot,
   ObjectiveId,
-  SaveState,
+  Kit,
+  OverhaulSaveState,
   SpecialAbilityId,
 } from '../../core/types';
 import { levelFor, overhaulTuning, stateFor } from '../../systems/meter';
@@ -51,9 +50,15 @@ export class FakeSource implements UiStateSource {
   spiritActive = false;
   teaHoldActive = false;
   inSun = false;
-  emptiesCount = 4;
-  slots: DrinkSlots = [{ drinkId: 'stout', count: 3 }, { drinkId: 'whiskey', count: 1 }, null];
-  selected: DrinkSlotIndex = 0;
+  kitState: Kit = {
+    drinks: { stout: 3, whiskey: 1 },
+    carryLimit: 6,
+    hotDrink: null,
+    bottles: 4,
+    weapons: ['fists'],
+    moves: [],
+    slots: { drink: 'stout', specials: [null, null, null, null], melee: 'fists' },
+  };
   special: SpecialAbilityId | null = 'stoutSlam';
   abilities: AbilityId[] = ['punchCombo', 'bottleThrow'];
   callsLeft = 2;
@@ -61,7 +66,7 @@ export class FakeSource implements UiStateSource {
   entries: CasebookEntry[] = [];
   bossState: { bossId: BossId; health: Health } | null = null;
   board: DeductionBoardDef | null = null;
-  saveState: SaveState | null = null;
+  saveState: OverhaulSaveState | null = null;
   settings: AudioSettings = { musicVolume: 0.7, effectsVolume: 0.8 };
   paused = false;
   log: string[] = [];
@@ -80,9 +85,7 @@ export class FakeSource implements UiStateSource {
       inSun: this.inSun,
     };
   };
-  empties = (): number => this.emptiesCount;
-  drinkSlots = (): DrinkSlots => this.slots;
-  selectedDrink = (): DrinkSlotIndex => this.selected;
+  kit = (): Kit => this.kitState;
   selectedSpecial = (): SpecialAbilityId | null => this.special;
   unlockedAbilities = (): readonly AbilityId[] => this.abilities;
   mykoCallsLeft = (): number => this.callsLeft;
@@ -102,7 +105,7 @@ export class FakeSource implements UiStateSource {
     this.log.push(`finished ${id}`);
     this.bus.emit('dialogue:finished', { sequenceId: id });
   }
-  save = (): SaveState | null => this.saveState;
+  save = (): OverhaulSaveState | null => this.saveState;
   audioSettings = (): AudioSettings => this.settings;
   setAudioSettings(s: AudioSettings): void {
     this.settings = s;

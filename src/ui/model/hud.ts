@@ -5,7 +5,8 @@
 
 import { TUNING } from '../../content/tuning';
 import { SPECIAL_ABILITIES } from '../../core/types';
-import type { AbilityId, BossId, DrinkId, DrunkState, SpecialAbilityId, TextId } from '../../core/types';
+import type { AbilityId, BossId, DrinkId, DrunkState, Kit, OverhaulDrinkId, SpecialAbilityId, TextId } from '../../core/types';
+import { heldDrinks } from '../../systems/kit';
 import type { UiStateSource } from '../contract';
 
 export type PipFill = 'full' | 'half' | 'empty';
@@ -63,13 +64,43 @@ export interface HudModel {
   readonly hangover: boolean;
 }
 
+/**
+ * The drink cell the old HUD draws for each of three places: the drink in the
+ * slot first (selected), then the next two held drinks. A stand-in until the
+ * HUD is redone for the kit (docs/overhaul-plan.md phase 3).
+ */
+export function hudDrinkCells(kit: Kit): readonly [HudSlotView, HudSlotView, HudSlotView] {
+  const held = heldDrinks(kit);
+  const first = kit.slots.drink;
+  const order = first === null ? held : [first, ...held.filter((id) => id !== first)];
+  const cell = (i: number): HudSlotView => {
+    const id = order[i];
+    if (id === undefined) return { drinkId: null, count: 0, selected: false };
+    const count = id === 'coffee' || id === 'tea' ? 1 : (kit.drinks[id] ?? 0);
+    return { drinkId: iconDrink(id), count, selected: i === 0 };
+  };
+  return [cell(0), cell(1), cell(2)];
+}
+
+/** The drink icon that stands in for a kit drink until phase 3 draws the new ones (lager, coffee, tea). */
+export function iconDrink(id: OverhaulDrinkId): DrinkId {
+  switch (id) {
+    case 'lager':
+      return 'lightBeer';
+    case 'coffee':
+    case 'tea':
+      return 'water';
+    default:
+      return id;
+  }
+}
+
 const clamp01 = (n: number): number => (Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0);
 
 export function buildHudModel(source: UiStateSource): HudModel {
   const meter = source.meter();
   const table = source.levelTable();
-  const slots = source.drinkSlots();
-  const selectedIndex = source.selectedDrink();
+  const kit = source.kit();
   // The session only ever selects a usable special (unlocked, with what it requires), so nothing else is checked here.
   const special = source.selectedSpecial();
   const boss = source.boss();
@@ -85,10 +116,7 @@ export function buildHudModel(source: UiStateSource): HudModel {
     else if (cost.kind === 'buzz' && meter.value < cost.amount) reason = 'buzz';
     else if (cost.kind === 'recharge' && (source.specialRecharge?.() ?? 0) > 0) reason = 'recharge';
   }
-  const view = (i: 0 | 1 | 2): HudSlotView => {
-    const slot = slots[i];
-    return { drinkId: slot?.drinkId ?? null, count: slot?.count ?? 0, selected: selectedIndex === i };
-  };
+  const cells = hudDrinkCells(kit);
   const floor = Math.max(1, meter.floor);
   return {
     pips: [],
@@ -100,9 +128,9 @@ export function buildHudModel(source: UiStateSource): HudModel {
       flashing: meter.spiritActive,
     },
     heat: null,
-    slots: [view(0), view(1), view(2)],
-    empties: source.empties(),
-    throwUnlocked: unlocked.includes('bottleThrow'),
+    slots: cells,
+    empties: kit.bottles,
+    throwUnlocked: true,
     melee: unlocked.includes('hurley') ? 'hurley' : unlocked.includes('punchCombo') ? 'punchCombo' : null,
     dodgeUnlocked: unlocked.includes('stumble'),
     special: {

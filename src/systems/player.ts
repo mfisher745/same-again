@@ -21,7 +21,6 @@ import type {
   Kit,
   MeterSnapshot,
   OverhaulDrinkId,
-  PlayerSnapshot,
   TileGrid,
   Vec2,
 } from '../core/types';
@@ -30,10 +29,7 @@ import { decayVelocity } from './combat';
 import { angleOf, facingFromAngle, scale, normalize, sub } from './geometry';
 import { moveBox } from './grid';
 import { applyHit } from './hits';
-import type { ConsumableTarget } from './inventory';
-import { createKit } from './kit';
-import { Inventory } from './inventory';
-import { adjustMeter, createMeter, drink, levelFor, levelTable, restValue, setInSun, snapshot, stepMeter } from './meter';
+import { createMeter, drink, levelFor, levelTable, setInSun, snapshot, stepMeter } from './meter';
 import type { MeterResult, MeterState } from './meter';
 
 /** What the old abilities see while they last (removed with them): no multipliers, specials open. */
@@ -48,7 +44,7 @@ const NEUTRAL_EFFECTS: BuzzStateEffects = {
   screenWobble: 0,
 };
 
-export class Player implements ConsumableTarget {
+export class Player {
   readonly instanceId = 'andrew';
   pos: Vec2 = { x: 0, y: 0 };
   facing: Facing = 'down';
@@ -74,18 +70,17 @@ export class Player implements ConsumableTarget {
   private stunMs = 0;
 
   /** What he carries (DESIGN.md 7.1 "The kit"). Replace through `setKit`. */
-  kit: Kit = createKit();
-  readonly inventory: Inventory;
+  kit: Kit;
   readonly abilities: Abilities;
 
   constructor(
     private readonly bus: GameEventBus,
-    snap: PlayerSnapshot,
+    kit: Kit,
     readonly chapter: ChapterNumber,
   ) {
     this.meter = createMeter(chapter);
-    this.inventory = new Inventory(bus, { slots: snap.drinkSlots, selected: snap.selectedDrink, empties: snap.empties });
-    this.abilities = new Abilities(bus, snap.unlockedAbilities, snap.selectedSpecial);
+    this.kit = kit;
+    this.abilities = new Abilities(bus, [], null);
   }
 
   get level(): DrunkLevel {
@@ -116,19 +111,6 @@ export class Player implements ConsumableTarget {
   /** Bridge for the old abilities, which go with step 4. */
   effects(): BuzzStateEffects {
     return NEUTRAL_EFFECTS;
-  }
-
-  snapshot(): PlayerSnapshot {
-    return {
-      health: TUNING.player.maxHealth,
-      buzz: this.meter.value,
-      empties: this.inventory.empties,
-      drinkSlots: this.inventory.slots(),
-      selectedDrink: this.inventory.selected,
-      selectedSpecial: this.abilities.selectedSpecial(),
-      unlockedAbilities: this.abilities.unlocked(),
-      hangover: { active: false },
-    };
   }
 
   /** Back in the bar: a fresh meter (bottom of Grand), nothing in flight. */
@@ -178,14 +160,9 @@ export class Player implements ConsumableTarget {
     this.applyMeter(stepMeter(this.meter, dtMs));
   }
 
-  /** Drink through the meter. */
+  /** Drink through the meter (the kit has already given the drink up). */
   drinkDrink(id: OverhaulDrinkId): void {
     this.applyMeter(drink(this.meter, id));
-  }
-
-  /** Move the meter by a number of points (a bridge for old consumables; the kit drinks through `drinkDrink`). */
-  addBuzz(amount: number): void {
-    this.applyMeter(adjustMeter(this.meter, amount));
   }
 
   /** Movement and aim for one tick. Returns the distance moved. */
@@ -248,33 +225,9 @@ export class Player implements ConsumableTarget {
     return true;
   }
 
-  // ConsumableTarget (bridge for the old inventory; removed with it)
-  heal(): void {}
-  healFull(): void {}
-  cureHangover(): void {}
-  resetHeat(): void {}
-  addTimed(): void {}
-
   /** Noise radius of Andrew's footsteps right now; 0 when silent. DESIGN.md 7.3. */
   footstepNoiseRadius(): number {
     if (!this.moving) return 0;
     return this.sneaking ? TUNING.player.sneakNoiseRadius : TUNING.player.footstepNoiseRadius;
   }
 }
-
-/** A fresh Chapter 1 snapshot. */
-export function freshPlayerSnapshot(): PlayerSnapshot {
-  return {
-    health: TUNING.player.maxHealth,
-    buzz: 0,
-    empties: 0,
-    drinkSlots: [null, null, null],
-    selectedDrink: 0,
-    selectedSpecial: null,
-    unlockedAbilities: [],
-    hangover: { active: false },
-  };
-}
-
-/** The meter value a chapter starts at (bottom of Grand). */
-export const startingMeterValue = (chapter: ChapterNumber): number => restValue(chapter);

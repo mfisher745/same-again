@@ -12,15 +12,14 @@ import type {
   DeductionBoardDef,
   DeductionSectionId,
   DialogueId,
-  DrinkSlotIndex,
-  DrinkSlots,
   EvidenceId,
   GameEventBus,
+  Kit,
   DrunkLevelTable,
   Health,
   MeterSnapshot,
   ObjectiveId,
-  SaveState,
+  OverhaulSaveState,
   SpecialAbilityId,
 } from '../core/types';
 
@@ -30,9 +29,8 @@ export interface UiStateSource {
   meter(): MeterSnapshot;
   /** Where each level sits on the meter in this chapter (grows by chapter). */
   levelTable(): DrunkLevelTable;
-  empties(): number;
-  drinkSlots(): DrinkSlots;
-  selectedDrink(): DrinkSlotIndex;
+  /** What he carries: drinks, hot drink, bottles, weapons, moves and the six slots. */
+  kit(): Kit;
   selectedSpecial(): SpecialAbilityId | null;
   unlockedAbilities(): readonly AbilityId[];
   /** 0..1 how much of the Borrowed Glove's recharge is left (1 = just used). Optional: the HUD shows no recharge without it. */
@@ -51,7 +49,7 @@ export interface UiStateSource {
   /** The UI calls this when it has finished showing a sequence. */
   dialogueFinished(sequenceId: DialogueId): void;
   /** Stored save, for Continue and Chapter Select; null if none. */
-  save(): SaveState | null;
+  save(): OverhaulSaveState | null;
   audioSettings(): AudioSettings;
   setAudioSettings(settings: AudioSettings): void;
   newGame(): void;

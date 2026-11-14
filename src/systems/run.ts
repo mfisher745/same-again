@@ -51,6 +51,7 @@ import type {
   FightSectionId,
   GameEventBus,
   HotDrinkId,
+  Kit,
   HitInfo,
   InputFrame,
   MykoCallKind,
@@ -59,12 +60,15 @@ import type {
   NoiseEvent,
   ObjectiveDef,
   ObjectiveId,
+  OverhaulDrinkId,
   PickupDef,
   PickupItem,
   PickupId,
+  PickupRefusal,
   Reward,
   SaveReason,
-  SaveState,
+  GameSettings,
+  OverhaulSaveState,
   ScreenId,
   SectionId,
   SectionKind,
@@ -73,7 +77,7 @@ import type {
   TileGrid,
   Vec2,
 } from '../core/types';
-import { SAVE_VERSION } from '../core/types';
+import { SAVE_VERSION_OVERHAUL } from '../core/types';
 import type { AbilityAction } from './abilities';
 import { BarFlow } from './barFlow';
 import type { BarFlowHost, BarLocation, BarReturnRecord } from './barFlow';
@@ -89,7 +93,8 @@ import { FightRunner } from './fight';
 import { add, distance, normalize, rectContains, scale } from './geometry';
 import { isShade } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
-import { applyConsumable, wouldHaveEffect } from './inventory';
+import { cycleDrink, drinkFromInventory, drinkSelected } from './kit';
+import { takeItem } from './pickups';
 import { Myko } from './myko';
 import type { CallTarget, MykoHost } from './myko';
 import { Player } from './player';
@@ -121,7 +126,7 @@ export type RunEffect = 'door' | 'push' | 'deflect' | 'thud';
 
 export interface RunOptions {
   readonly module: ChapterModule;
-  readonly save: SaveState;
+  readonly save: OverhaulSaveState;
   readonly bus: GameEventBus;
   readonly rng: Random;
   readonly dialogue: DialogueLookup;
@@ -129,8 +134,8 @@ export interface RunOptions {
   readonly pool: (poolId: string) => readonly DialogueId[];
   /** True after Continue. */
   readonly resumed: boolean;
-  readonly writeSave: (state: SaveState, reason: SaveReason) => void;
-  readonly onChapterComplete: (endState: DrunkState, snapshot: SaveState) => void;
+  readonly writeSave: (state: OverhaulSaveState, reason: SaveReason) => void;
+  readonly onChapterComplete: (endState: DrunkState, snapshot: OverhaulSaveState) => void;
   /** Sound effects with no bus event (door, push, deflect). */
   readonly playEffect?: (id: RunEffect) => void;
   /**
@@ -138,7 +143,7 @@ export interface RunOptions {
    * snapshot): used for things that must survive a return to the bar before
    * the next finished section, namely played dialogue and broken props.
    */
-  readonly patchSave?: (patch: (state: SaveState) => SaveState) => void;
+  readonly patchSave?: (patch: (state: OverhaulSaveState) => OverhaulSaveState) => void;
 }
 
 interface SectionEntry {
@@ -175,6 +180,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private readonly finished: readonly ChapterNumber[];
   /** The script flags as the last save held them; a return to the bar puts them back. */
   private savedFlags: Record<string, ChapterFlagValue>;
+  private readonly settings: GameSettings;
+  private openedShortcuts: string[];
 
   // Sections
   private readonly sections = new Map<CompletableSectionId, SectionEntry>();
@@ -229,10 +236,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.calls = [...save.mykoCalls];
     this.finished = save.finishedChapters;
     this.savedFlags = { ...save.flags };
+    this.settings = save.settings;
+    this.openedShortcuts = [...save.openedShortcuts];
 
-    this.player = new Player(this.bus, save.player, this.chapter);
+    this.player = new Player(this.bus, save.kit, this.chapter);
     this.dialogue = new DialogueRunner(this.bus, opts.dialogue, {
-      played: save.playedDialogue ?? [],
+      played: save.playedDialogue,
       context: {
         clock: () => this.clock,
         screenId: () => this.screen.id,
@@ -241,10 +250,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
         staleMs: TUNING.myko.commentStaleMs,
       },
     });
-    this.lootSeed = save.lootSeed ?? 0;
+    this.lootSeed = save.lootSeed;
     this.casebook = new Casebook(this.bus, save.casebook);
     this.myko = new Myko(this.mykoHost());
-    this.dressing = new Dressing(this.module.screens, save.brokenProps ?? [], TUNING.breakables.defaultHits);
+    this.dressing = new Dressing(this.module.screens, save.brokenProps, TUNING.breakables.defaultHits);
 
     const bar = this.barLocation();
     const screen = this.layout(bar.screenId) ?? this.module.screens[0];
@@ -380,18 +389,18 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     return this.module.def.objectives.find((o) => o.id === this.objectiveId) ?? null;
   }
 
-  /** Builds the SaveState for the current progress. Loading it puts Andrew in the chapter's bar. */
-  snapshot(): SaveState {
+  /** Builds the save for the current progress. Loading it puts Andrew in the chapter's bar at the bottom of Grand. */
+  snapshot(): OverhaulSaveState {
     return {
-      version: SAVE_VERSION,
+      version: SAVE_VERSION_OVERHAUL,
       chapter: this.chapter,
-      checkpointId: `c${this.chapter}.bar` as `c${ChapterNumber}.${string}`,
-      respawn: this.barLocation(),
-      player: this.player.snapshot(),
+      completedSectionIds: [...this.completed],
+      kit: this.player.kit,
       mykoCallsLeft: this.callsLeft,
       mykoCalls: [...this.calls],
+      openedShortcuts: [...this.openedShortcuts],
+      settings: this.settings,
       finishedChapters: [...this.finished],
-      completedSectionIds: [...this.completed],
       cleanStealthRunIds: [...this.cleanRuns],
       collectedPickupIds: [...this.collected],
       casebook: [...this.casebook.entries()],
@@ -446,14 +455,19 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     p.tickMeter(dtMs);
     if (p.meter.returnReason) this.handleReturn();
 
-    this.handleInventoryInput(live);
+    this.handleKitInput(live);
     const actions = p.abilities.update(dtMs, live, {
       effects: p.effects(),
       buzz: p.meter.value,
-      empties: p.inventory.empties,
+      empties: p.kit.bottles,
       // Moves cost no Buzz now; the old costs go with the old abilities.
       spendBuzz: () => true,
-      spendEmpties: (n) => p.inventory.spendEmpties(n),
+      // The old bottle throw spends from the kit's bottles until the throw is rebuilt.
+      spendEmpties: (n) => {
+        if (p.kit.bottles < n) return false;
+        p.setKit({ ...p.kit, bottles: p.kit.bottles - n });
+        return true;
+      },
       canAct: p.canAct,
       held: p.held,
     });
@@ -647,7 +661,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.completed.add(sectionId);
     if (this.currentSection === sectionId) this.currentSection = null;
     this.bus.emit(GameEvents.SectionCompleted, { sectionId, kind, by });
-    this.save('checkpoint');
+    this.save('sectionDone');
     if (sectionId.endsWith('.alarm')) {
       const stealthId = sectionId.slice(0, -'.alarm'.length) as StealthSectionId;
       this.stealthRunners.get(stealthId)?.runner.resolve();
@@ -794,16 +808,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   }
 
   give(item: PickupItem): void {
-    if (item.kind === 'food') {
-      const def = TUNING.food[item.foodId];
-      applyConsumable(def.effects, this.player);
-      this.bus.emit(GameEvents.FoodConsumed, { foodId: item.foodId });
-      return;
-    }
-    const res = this.player.inventory.take(item);
-    const leftover = res.ok ? res.leftover : item;
-    if (leftover) {
-      this.spawnPickup({ id: `drop.${Math.floor(this.clock)}.${this.pickupsLive.size}`, item: leftover, screenId: this.screen.id, position: this.player.pos });
+    const res = takeItem(this.player.kit, item);
+    if (res.inert) return;
+    this.player.setKit(res.kit);
+    // What does not fit is left on the ground, still counted as given (DESIGN.md 7.3).
+    if (res.leftover) {
+      this.spawnPickup({ id: `drop.${Math.floor(this.clock)}.${this.pickupsLive.size}`, item: res.leftover, screenId: this.screen.id, position: this.player.pos });
     }
   }
 
@@ -1253,7 +1263,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.pickupsLive.clear();
     this.insideTriggers.clear();
     for (const p of this.module.pickups) {
-      if (p.screenId === id && !this.collected.has(p.id)) this.pickupsLive.set(p.id, { def: p, item: p.item });
+      if (p.screenId === id && !this.collected.has(p.id) && !takeItem(this.player.kit, p.item).inert) this.pickupsLive.set(p.id, { def: p, item: p.item });
     }
     // Loot of props broken earlier that was never picked up.
     for (const prop of this.dressing.propsOn(id)) if (prop.broken) this.dropLoot(prop, this.propCentre(prop));
@@ -1269,19 +1279,27 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.script?.onScreenEntered?.(id);
   }
 
-  private handleInventoryInput(input: InputFrame): void {
-    const inv = this.player.inventory;
-    if (input.pressed.has('selectDrink1')) inv.select(0);
-    if (input.pressed.has('selectDrink2')) inv.select(1);
-    if (input.pressed.has('selectDrink3')) inv.select(2);
-    if (input.pressed.has('selectDrinkNext')) inv.cycle(1);
-    if (input.pressed.has('selectDrinkPrev')) inv.cycle(-1);
-    if (input.pressed.has('drink') && this.player.canAct) {
-      const id = inv.drinkSelected();
-      if (!id) return;
-      applyConsumable(TUNING.drinks[id].effects, this.player);
-      this.myko.maybeComment('drink', 'myko.drink', TUNING.myko.drinkCommentChance);
-    }
+  /** Drink (Q), cycle the drink slot (wheel). DESIGN.md 6 and 7.1. */
+  private handleKitInput(input: InputFrame): void {
+    const p = this.player;
+    if (input.pressed.has('selectDrinkNext')) p.setKit(cycleDrink(p.kit, 1).kit);
+    if (input.pressed.has('selectDrinkPrev')) p.setKit(cycleDrink(p.kit, -1).kit);
+    if (input.pressed.has('drink') && p.canAct) this.drinkResult(drinkSelected(p.kit));
+  }
+
+  /** Drink something held, straight from the Tab screen. False if he does not hold it. */
+  drinkFromInventory(id: OverhaulDrinkId): boolean {
+    if (!this.player.canAct) return false;
+    return this.drinkResult(drinkFromInventory(this.player.kit, id));
+  }
+
+  private drinkResult(r: { readonly consumed: OverhaulDrinkId | null; readonly kit: Kit }): boolean {
+    if (r.consumed === null) return false;
+    this.player.setKit(r.kit);
+    this.player.drinkDrink(r.consumed);
+    this.bus.emit(GameEvents.DrinkConsumed, { drinkId: r.consumed });
+    this.myko.maybeComment('drink', 'myko.drink', TUNING.myko.drinkCommentChance);
+    return true;
   }
 
   private resolveAction(a: AbilityAction): void {
@@ -1471,36 +1489,24 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
         continue;
       }
       if (this.refusedNear.has(live.def.id)) continue;
-      const item = live.item;
-      if (item.kind === 'food') {
-        const def = TUNING.food[item.foodId];
-        const ok = wouldHaveEffect(def.effects, {
-          healthMissing: 0,
-          hungover: false,
-          buzz: p.meter.value,
-          heat: 0,
-        });
-        if (!ok) {
-          this.refuse(live.def.id, 'noEffect');
-          continue;
-        }
-        applyConsumable(def.effects, p);
-        this.bus.emit(GameEvents.FoodConsumed, { foodId: item.foodId });
-        this.collect(live, item, null);
+      const res = takeItem(p.kit, live.item);
+      if (res.inert) {
+        // Food and water are not things in the game now: it just is not there.
+        this.pickupsLive.delete(live.def.id);
         continue;
       }
-      const res = p.inventory.take(item);
-      if (!res.ok) {
-        this.refuse(live.def.id, res.reason);
+      if (res.refusal && !res.taken) {
+        this.refuse(live.def.id, res.refusal);
         continue;
       }
-      this.collect(live, res.taken, res.leftover);
+      p.setKit(res.kit);
+      if (res.taken) this.collect(live, res.taken, res.leftover);
     }
   }
 
-  private refuse(id: PickupId, reason: import('../core/types').PickupRefusal): void {
+  private refuse(id: PickupId, reason: PickupRefusal): void {
     this.refusedNear.add(id);
-    this.bus.emit(GameEvents.PickupRefused, { pickupId: id, reason });
+    this.bus.emit(GameEvents.PickupRefused, { pickupId: id, reason, max: this.player.kit.carryLimit });
   }
 
   private collect(live: LivePickup, taken: PickupItem, leftover: PickupItem | null): void {

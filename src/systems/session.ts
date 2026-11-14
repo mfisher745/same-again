@@ -22,18 +22,15 @@ import { EventBus } from '../core/events';
 import type { Random } from '../core/random';
 import { seededRandom } from '../core/random';
 import { MemoryStorage, SaveStore } from '../core/save';
-import { GameEvents, SAVE_VERSION } from '../core/types';
+import { GameEvents, SAVE_VERSION_OVERHAUL } from '../core/types';
 import type {
   AbilityId,
   AudioSettings,
   CasebookEntry,
   ChapterNumber,
-  CheckpointId,
   DeductionBoardDef,
   DeductionSectionId,
   DialogueId,
-  DrinkSlotIndex,
-  DrinkSlots,
   EvidenceId,
   GameEventBus,
   DrunkLevelTable,
@@ -41,15 +38,15 @@ import type {
   Health,
   MeterSnapshot,
   ObjectiveId,
-  SaveState,
+  Kit,
+  OverhaulSaveState,
   SpecialAbilityId,
   BossId,
   TextId,
 } from '../core/types';
-import { abilitiesForChapterStart } from './abilities';
+import { gainWeapon, createKit, learnMove, pickUpDrink, topUpBottles } from './kit';
 import { createMeter, levelTable, snapshot } from './meter';
 import type { DialogueLookup } from './dialogue';
-import { freshPlayerSnapshot } from './player';
 import { ChapterRun } from './run';
 import type { RunEffect } from './run';
 
@@ -78,33 +75,21 @@ export function poolOrEmpty(id: string): readonly DialogueId[] {
 
 interface PendingRun {
   readonly module: ChapterModule;
-  readonly save: SaveState;
+  readonly save: OverhaulSaveState;
   readonly resumed: boolean;
   /** Sandbox and missing-chapter runs never touch the real save. */
   readonly store: SaveStore;
 }
 
-export function chapterStartCheckpoint(module: ChapterModule): CheckpointId {
-  const def = module.def;
-  return def.checkpoints.find((c) => c.kind === 'chapterStart')?.id ?? `c${def.number}.start`;
+/** A save positioned at the start of a chapter: loading it puts Andrew in the chapter's bar at the bottom of Grand. */
+export function saveAtChapterStart(module: ChapterModule, base: Omit<OverhaulSaveState, 'chapter'>): OverhaulSaveState {
+  return { ...base, chapter: module.def.number };
 }
 
-/** A save positioned at the start of a chapter. */
-export function saveAtChapterStart(module: ChapterModule, base: Omit<SaveState, 'chapter' | 'checkpointId' | 'respawn'>): SaveState {
-  const def = module.def;
-  const cpId = chapterStartCheckpoint(module);
-  const cp = def.checkpoints.find((c) => c.id === cpId);
-  const screen = module.screens.find((s) => s.id === def.startScreenId) ?? module.screens[0];
-  const respawn = cp
-    ? { screenId: cp.screenId, position: cp.position }
-    : { screenId: def.startScreenId, position: screen?.playerStart ?? { x: 0, y: 0 } };
-  return { ...base, chapter: def.number, checkpointId: cpId, respawn };
-}
-
-export function emptyProgress(): Omit<SaveState, 'chapter' | 'checkpointId' | 'respawn'> {
+export function emptyProgress(): Omit<OverhaulSaveState, 'chapter'> {
   return {
-    version: SAVE_VERSION,
-    player: freshPlayerSnapshot(),
+    version: SAVE_VERSION_OVERHAUL,
+    kit: createKit(),
     mykoCallsLeft: TUNING.myko.callsPerGame,
     mykoCalls: [],
     finishedChapters: [],
@@ -112,16 +97,38 @@ export function emptyProgress(): Omit<SaveState, 'chapter' | 'checkpointId' | 'r
     cleanStealthRunIds: [],
     collectedPickupIds: [],
     casebook: [],
+    openedShortcuts: [],
+    settings: { tabMode: 'toggle' },
     hintsGiven: {},
     flags: {},
+    playedDialogue: [],
+    brokenProps: [],
+    lootSeed: 0,
   };
 }
 
+/**
+ * The kit a chapter expects at its start (Chapter Select): the moves learned
+ * and the weapons gained in earlier chapters, a few stout, and Andrew still in
+ * the bar with nothing hot (the bar offers it). docs/chapters/README.md "Carry-over rules".
+ */
+export function kitForChapterStart(n: ChapterNumber): Kit {
+  const o = TUNING.overhaul;
+  let kit = createKit();
+  if (!o) return kit;
+  const moves = Object.values(o.moves).filter((m) => m.learnedInChapter < n).sort((a, b) => a.level - b.level);
+  for (const m of moves) kit = learnMove(kit, m.id, { autoAssign: true }).kit;
+  const weapons = Object.values(o.weapons).filter((w) => w.gainedInChapter < n);
+  for (const w of weapons) kit = gainWeapon(kit, w.id).kit;
+  // Chapter 1 hands Andrew his first pint itself.
+  if (n > 1) for (let i = 0; i < 3; i++) kit = pickUpDrink(kit, 'stout').kit;
+  return topUpBottles(kit).kit;
+}
+
 /** Chapter Select start state. docs/chapters/README.md "Carry-over rules". */
-export function chapterSelectSave(module: ChapterModule, existing: SaveState | null, priorEvidence: readonly EvidenceId[]): SaveState {
+export function chapterSelectSave(module: ChapterModule, existing: OverhaulSaveState | null, priorEvidence: readonly EvidenceId[]): OverhaulSaveState {
   const n = module.def.number;
-  const base = existing ?? { ...emptyProgress(), chapter: n, checkpointId: chapterStartCheckpoint(module), respawn: { screenId: module.def.startScreenId, position: { x: 0, y: 0 } } };
-  const abilities = abilitiesForChapterStart(n);
+  const base = existing ?? { ...emptyProgress(), chapter: n };
   const casebook: CasebookEntry[] = [...base.casebook];
   for (const id of priorEvidence) {
     // Filed under the chapter the clue came from (its ID prefix), not the one being started.
@@ -129,28 +136,18 @@ export function chapterSelectSave(module: ChapterModule, existing: SaveState | n
     const chapter = (from >= 1 && from < n ? from : n) as ChapterNumber;
     if (!casebook.some((e) => e.kind === 'evidence' && e.evidenceId === id)) casebook.push({ kind: 'evidence', evidenceId: id, chapter });
   }
-  const specials = abilities.filter((a): a is SpecialAbilityId => a === 'stoutSlam' || a === 'poitinBreath' || a === 'borrowedGlove');
   return saveAtChapterStart(module, {
     ...base,
-    player: {
-      health: TUNING.player.maxHealth,
-      buzz: 0,
-      empties: 0,
-      // Chapter 1's tutorial hands Andrew his first pint; a full stout slot would refuse it.
-      drinkSlots: n === 1 ? freshPlayerSnapshot().drinkSlots : TUNING.chapterSelect.startingDrinks,
-      selectedDrink: 0,
-      selectedSpecial: specials[0] ?? null,
-      unlockedAbilities: abilities,
-      hangover: { active: false },
-    },
+    kit: kitForChapterStart(n),
     casebook,
     // Sections of this and later chapters start fresh.
     completedSectionIds: base.completedSectionIds.filter((id) => chapterOf(id) < n),
+    cleanStealthRunIds: base.cleanStealthRunIds.filter((id) => chapterOf(id) < n),
     collectedPickupIds: [],
     flags: Object.fromEntries(Object.entries(base.flags).filter(([k]) => chapterOf(k) < n)),
     // Lines of this and later chapters may play again; earlier chapters' and shared lines stay played.
-    playedDialogue: (base.playedDialogue ?? []).filter((id) => chapterOf(id) < n),
-    brokenProps: (base.brokenProps ?? []).filter((k) => chapterOf(k) < n),
+    playedDialogue: base.playedDialogue.filter((id) => chapterOf(id) < n),
+    brokenProps: base.brokenProps.filter((k) => chapterOf(k) < n),
   });
 }
 
@@ -160,8 +157,8 @@ export function chapterOf(id: string): number {
   return m ? Number(m[1]) : 0;
 }
 
-/** Applies the end-of-chapter rules and positions the save at the next chapter. */
-export function carryOver(snap: SaveState, _endState: DrunkState, next: ChapterModule): SaveState {
+/** Applies the end-of-chapter rules and positions the save at the next chapter. The kit carries over; Buzz does not. */
+export function carryOver(snap: OverhaulSaveState, _endState: DrunkState, next: ChapterModule): OverhaulSaveState {
   const ended = snap.chapter;
   const finished = snap.finishedChapters.includes(ended) ? snap.finishedChapters : [...snap.finishedChapters, ended];
   // Buzz does not carry over: every chapter starts at the bottom of Grand in its bar (DESIGN.md 7.1).
@@ -247,7 +244,7 @@ export class GameSession {
   }
 
   /** Starts a module directly with an in-memory save (sandbox, tests). */
-  startModule(module: ChapterModule, save?: SaveState): void {
+  startModule(module: ChapterModule, save?: OverhaulSaveState): void {
     const store = new SaveStore(new MemoryStorage());
     const s = save ?? saveAtChapterStart(module, emptyProgress());
     store.write(s);
@@ -267,7 +264,7 @@ export class GameSession {
       dialogue: contentDialogue,
       pool: poolOrEmpty,
       resumed: p.resumed,
-      writeSave: (state: SaveState) => p.store.write(state),
+      writeSave: (state: OverhaulSaveState) => p.store.write(state),
       onChapterComplete: (endState, snap) => this.onChapterComplete(endState, snap),
       playEffect: (id) => this.playEffect?.(id),
       patchSave: (patch) => {
@@ -328,7 +325,7 @@ export class GameSession {
     return fb ? { module: fb, store: new SaveStore(new MemoryStorage()) } : null;
   }
 
-  private onChapterComplete(endState: DrunkState, snap: SaveState): void {
+  private onChapterComplete(endState: DrunkState, snap: OverhaulSaveState): void {
     const p = this.pending;
     if (!p) return;
     const ended = snap.chapter;
@@ -373,14 +370,8 @@ export function createUiState(session: GameSession) {
     levelTable(): DrunkLevelTable {
       return levelTable(run()?.chapter ?? 1);
     },
-    empties(): number {
-      return run()?.player.inventory.empties ?? 0;
-    },
-    drinkSlots(): DrinkSlots {
-      return run()?.player.inventory.slots() ?? [null, null, null];
-    },
-    selectedDrink(): DrinkSlotIndex {
-      return run()?.player.inventory.selected ?? 0;
+    kit(): Kit {
+      return run()?.player.kit ?? session.store.load()?.kit ?? createKit();
     },
     selectedSpecial(): SpecialAbilityId | null {
       return run()?.player.abilities.selectedSpecial() ?? null;
@@ -420,7 +411,7 @@ export function createUiState(session: GameSession) {
     dialogueFinished(sequenceId: DialogueId): void {
       run()?.dialogueFinished(sequenceId);
     },
-    save(): SaveState | null {
+    save(): OverhaulSaveState | null {
       return session.store.load();
     },
     audioSettings(): AudioSettings {
