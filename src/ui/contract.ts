@@ -20,6 +20,7 @@ import type {
   ObjectiveId,
   OverhaulSaveState,
   MoveSlotView,
+  ThrowAim,
   TextId,
   WeaponId,
 } from '../core/types';
@@ -36,6 +37,8 @@ export interface UiStateSource {
   moveSlots(): readonly MoveSlotView[];
   /** The melee weapon in use. */
   weapon(): WeaponId;
+  /** The dotted path of the throw while the button is held (hold right mouse), or null. */
+  throwPreview(): ThrowAim | null;
   /** The latest refusal of a move (`ui.move.*`); `seq` rises with each. Null before the first. */
   refusal(): { readonly textId: TextId; readonly seq: number } | null;
   mykoCallsLeft(): number;

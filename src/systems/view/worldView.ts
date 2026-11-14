@@ -255,9 +255,14 @@ export class WorldView {
       }
     }
 
-    // Aim reticle.
+    // Aim reticle, and the throw's dotted path while right mouse is held (the same path the bottle takes).
     const pl = r.player;
     g.lineStyle(1, PALETTE.white, 0.6).strokeCircle(pl.aimPoint.x, pl.aimPoint.y, 3);
+    const preview = r.combat.throwPreview();
+    if (preview) {
+      for (const pt of preview.path) g.fillStyle(PALETTE.bone, 0.9).fillCircle(pt.x, pt.y, 1);
+      g.lineStyle(1, PALETTE.bone, 0.9).strokeCircle(preview.landing.x, preview.landing.y, 3);
+    }
   }
 
   /** `?debug=1`: checkpoints, examinable boxes, triggers, section areas, entrances, spawn points, hiding radii, puzzle bounds. */

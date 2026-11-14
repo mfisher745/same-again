@@ -24,13 +24,14 @@ import type {
   OverhaulTuning,
   ScreenId,
   SpecialSlotIndex,
+  ThrowAim,
   TextId,
   TileGrid,
   Vec2,
   WeaponId,
 } from '../core/types';
 import type { EnemyActor } from './enemies';
-import { distance } from './geometry';
+import { angleTo, distance } from './geometry';
 import { knockbackVector, shapeHits } from './combat';
 import { cycleWeapon } from './kit';
 import { breakHide, consumeMark, consumeRepeat, cooldownLeft, createMovesState, moveDef, moveUsedPayload, resolveOnTarget, selectTargets, slotWorks, tickMoves, useSlot } from './moves';
@@ -39,6 +40,10 @@ import type { Player } from './player';
 import { createWeaponState, swing, switchWeapon, tickWeapon } from './weapons';
 import type { SwingResult, WeaponState } from './weapons';
 import type { Guard } from './stealth';
+import type { ProjectileSpawn } from './projectiles';
+import { beginAim, cancelAim, createThrowAimState, currentPreview, release, tickAim } from './throwAim';
+import type { ThrowAimState } from './throwAim';
+import { spendBottle } from './kit';
 
 /** What the combat needs from the running chapter. */
 export interface PlayerCombatHost {
@@ -58,6 +63,7 @@ export interface PlayerCombatHost {
   /** A swing near a stealth guard raises the alarm. */
   alarmGuardsHit(shape: AttackShape, angleDeg: number): void;
   emitNoise(n: NoiseEvent): void;
+  spawnProjectile(spawn: ProjectileSpawn): void;
   addFx(kind: 'swing' | 'slam' | 'glove' | 'hit', pos: Vec2, angleDeg: number, radius: number, arcDeg: number, ttlMs: number): void;
 }
 
@@ -88,6 +94,9 @@ export class PlayerCombat {
   weapon: WeaponState;
   /** Time until the next swing is allowed. */
   private swingLeftMs = 0;
+  /** Hold right mouse to aim a bottle, release to throw (`throwAim.ts`). */
+  private aim: ThrowAimState = createThrowAimState();
+  private pointer: Vec2 = { x: 0, y: 0 };
   private seq = 0;
   lastRefusal: ActionRefusal | null = null;
 
@@ -130,6 +139,7 @@ export class PlayerCombat {
   reset(): void {
     this.moves = createMovesState();
     this.swingLeftMs = 0;
+    this.aim = cancelAim();
     this.weapon = createWeaponState(this.host.player.kit.slots.melee);
   }
 
@@ -138,9 +148,20 @@ export class PlayerCombat {
     return this.moves.hidden;
   }
 
-  handleInput(input: InputFrame): void {
+  /** The dotted path the view draws while the throw is being aimed, or null. DESIGN.md 7.2 "Thrown bottles". */
+  throwPreview(): ThrowAim | null {
     const p = this.host.player;
-    if (!p.canAct) return;
+    return currentPreview(this.aim, p.pos, this.pointer, p.level);
+  }
+
+  handleInput(input: InputFrame, dtMs: number): void {
+    const p = this.host.player;
+    this.pointer = input.aim;
+    if (!p.canAct) {
+      this.aim = cancelAim();
+      return;
+    }
+    this.handleThrow(input, dtMs);
     if (input.pressed.has('cycleWeapon')) {
       const r = cycleWeapon(p.kit, 1);
       if (r.changed) p.setKit(r.kit);
@@ -150,6 +171,48 @@ export class PlayerCombat {
       if (input.pressed.has(`special${slot}` as const)) this.useSlot(slot);
     }
     if (input.pressed.has('melee')) this.swingMelee();
+  }
+
+  // -------------------------------------------------------------------------
+  // The throw
+  // -------------------------------------------------------------------------
+
+  private handleThrow(input: InputFrame, dtMs: number): void {
+    const h = this.host;
+    const p = h.player;
+    if (input.pressed.has('aimHold')) {
+      const r = beginAim(this.aim, p.kit.bottles);
+      this.aim = r.state;
+      if (r.refusal === 'noBottle') this.refuseText('ui.throw.noBottle');
+    } else if (this.aim.aiming) {
+      this.aim = tickAim(this.aim, dtMs);
+    }
+    if (!input.released.has('aimHold') || !this.aim.aiming) return;
+    const r = release(this.aim, p.pos, this.pointer, p.level, p.kit.bottles);
+    this.aim = r.state;
+    const req = r.request;
+    if (!req) return;
+    const spent = spendBottle(p.kit);
+    if (!spent.changed) return;
+    p.setKit(spent.kit);
+    p.faceAim();
+    const t = this.tuning.throw;
+    if (!t) return;
+    // The flight speed is the old bottle's until the throw has its own number (missing from `ThrowTuning`).
+    const flight = TUNING.abilities.bottleThrow.shape;
+    const flightSpeed = flight.kind === 'projectile' ? flight.speed : t.range;
+    h.spawnProjectile({
+      owner: 'player',
+      source: { kind: 'player', abilityId: 'bottleThrow' },
+      screenId: h.screenId(),
+      from: req.origin,
+      angleDeg: angleTo(req.origin, req.landing),
+      aimPoint: req.landing,
+      shape: { kind: 'projectile', speed: flightSpeed, range: t.range, pierce: 0, lobbed: true, deflectable: false, impactNoiseRadius: req.noiseRadius },
+      damage: req.damage,
+      knockback: req.knockback,
+      frame: 'bottle',
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -218,8 +281,12 @@ export class PlayerCombat {
   }
 
   private refuse(reason: MoveRefusal): void {
+    this.refuseText(`ui.move.${reason}`);
+  }
+
+  private refuseText(textId: TextId): void {
     this.seq += 1;
-    this.lastRefusal = { textId: `ui.move.${reason}`, seq: this.seq };
+    this.lastRefusal = { textId, seq: this.seq };
   }
 
   /** The reach for "who is near enough" on single-target moves (first guess: a thrown bottle's range). */

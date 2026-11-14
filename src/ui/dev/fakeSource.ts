@@ -17,6 +17,7 @@ import type {
   MeterSnapshot,
   MoveSlotView,
   TextId,
+  ThrowAim,
   WeaponId,
   ObjectiveId,
   Kit,
@@ -95,6 +96,7 @@ export class FakeSource implements UiStateSource {
   kit = (): Kit => this.kitState;
   moveSlots = (): readonly MoveSlotView[] => this.slots;
   weapon = (): WeaponId => this.weaponId;
+  throwPreview = (): ThrowAim | null => null;
   refusal = (): { textId: TextId; seq: number } | null => this.lastRefusal;
   mykoCallsLeft = (): number => this.callsLeft;
   mykoCallHoldProgress = (): number => this.holdProgress;

@@ -464,7 +464,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
     this.handleKitInput(live);
     this.combat.tick(dtMs);
-    this.combat.handleInput(live);
+    this.combat.handleInput(live, dtMs);
     if (live.pressed.has('interact')) this.interact();
 
     // Footsteps.
@@ -1387,6 +1387,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       meleeWorldHits: (shape, swing) => this.meleeWorldHits(shape, swing),
       alarmGuardsHit: (shape, angle) => this.alarmGuardsHit(shape, angle),
       emitNoise: (n) => this.emitNoise(n),
+      spawnProjectile: (s) => this.spawnProjectile(s),
       addFx: (kind, pos, angleDeg, radius, arcDeg, ttlMs) => this.fx.push({ kind, pos, angleDeg, radius, arcDeg, ttlMs }),
     };
   }

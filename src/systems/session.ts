@@ -40,6 +40,7 @@ import type {
   Kit,
   OverhaulSaveState,
   MoveSlotView,
+  ThrowAim,
   WeaponId,
   BossId,
   TextId,
@@ -384,6 +385,10 @@ export function createUiState(session: GameSession) {
     /** The melee weapon in use. */
     weapon(): WeaponId {
       return run()?.player.kit.slots.melee ?? 'fists';
+    },
+    /** The throw's preview while aiming. */
+    throwPreview(): ThrowAim | null {
+      return run()?.combat.throwPreview() ?? null;
     },
     /** The latest refusal of a move (`ui.move.*`), for the HUD to flash. */
     refusal(): ActionRefusal | null {
