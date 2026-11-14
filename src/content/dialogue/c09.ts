@@ -32,6 +32,7 @@ export const C09: DialogueFile = {
     'c9.card.hall': 'Containment',
     'name.announcement': 'Announcement',
     'name.stickyNote': 'Sticky note',
+    'name.security': 'Security',
 
     'c9.objective.offices': 'Search the offices.',
     'c9.objective.glove': 'Check the lost property.',
@@ -78,14 +79,25 @@ export const C09: DialogueFile = {
     ...ohio.sequences,
     ...other.sequences,
 
+    // --- The bar: the staff social area ---
+    scene(
+      'c9.bar.open',
+      ['andrew', "It's an office."],
+      ['myko', "It's an office."],
+      ['andrew', "There's a staff room. A dartboard, a fridge, a kettle. There's a sheet for a party."],
+      ['myko', 'Any names on it?'],
+      ['andrew', 'Forty.'],
+      ['myko', "Then they're better than Halloran. Have a tea. I'll ring you from the lift."],
+    ),
+    scene('c9.bar.tea', ['andrew', "... It's good tea."], ['myko', 'Why do you sound annoyed?', 'by phone'], ['andrew', "It's better than at home."]),
+    box('c9.bar.hotDrink', ['myko', "The kettle's still there. Nobody's guarding it. They trust each other. It's unsettling.", 'by phone']),
+    box('c9.bar.return', ['myko', "The staff room again. Somebody's left a biscuit out on a plate. I'd say it's for you.", 'by phone']),
     scene(
       'c9.open',
-      ['andrew', "It's an office."],
-      ['myko', "It's an office.", 'by phone'],
       ['andrew', "There's desks. There's a kitchenette. There's a plant."],
-      ['myko', "How's the plant?"],
+      ['myko', "How's the plant?", 'by phone'],
       ['andrew', 'Thriving.'],
-      ['myko', "Then they're better than Halloran. Stand at the water cooler when they look up. It works on every species."],
+      ['myko', 'Stand at the water cooler when they look up. It works on every species.'],
     ),
     box('c9.offices.overheard.1', ['npc:name.clerk', 'Did you see the memo about the memo?']),
     box('c9.offices.overheard.2', ['npc:name.clerk', "Somebody's using the long-range array for personal calls again."]),
@@ -95,13 +107,7 @@ export const C09: DialogueFile = {
     box('c9.offices.overheard.6', ['npc:name.clerk', "Meeting's moved to Ganymede. The room. Not the – the room."]),
     box('c9.offices.contract', ['andrew', "It's a lease. They rent this. From Meridian. Since 1962."], ['myko', 'Who’s the landlord?', 'by phone'], ['andrew', 'Halloran’s head office.'], ['myko', "He's never been told. He's a form in."]),
     box('c9.offices.directory', ['andrew', "Staff directory. Four hundred. Gary's in it."], ['myko', 'Is he smiling?', 'by phone'], ['andrew', 'He is.'], ['myko', 'Good man Gary.']),
-    scene(
-      'c9.offices.clean',
-      ['myko', "Not one of them looked twice. There's a kettle in that kitchenette. Have a tea.", 'by phone'],
-      ['andrew', "... It's good tea."],
-      ['myko', "Why do you sound annoyed?"],
-      ['andrew', "It's better than at home."],
-    ),
+    box('c9.offices.clean', ['myko', "Not one of them looked twice. There's a bottle in that kitchenette, left over from a leaving do. Tequila. I doubt they knew what it was for.", 'by phone']),
     box('c9.offices.caught', ['npc:name.clerk', 'Excuse me. Do you have a visitor badge? I’m going to have to raise a ticket.']),
 
     // --- The Glove ---
@@ -111,14 +117,14 @@ export const C09: DialogueFile = {
       ['npc:name.stickyNote', '“Found in Lab 2. Please collect. It keeps turning the lights off. – Facilities”'],
       ['myko', "Borrow it. You'll bring it back.", 'by phone'],
       ['andrew', 'Will I?'],
-      ['myko', "No. F. Try it on something that isn't you."],
+      ['myko', "No. It's in your kit, a 3. And it works the switches on the walls, with E."],
     ),
     box('c9.glove.done', ['myko', "It stopped them dead. All of them. And it recharges itself. You've never owned anything that recharges itself.", 'by phone']),
 
     // --- Gravity rooms ---
     scene(
       'c9.gravity.intro',
-      ['andrew', "There's a switch on the wall. I used the glove on it and I fell sideways."],
+      ['andrew', "There's a switch on the wall. I put the glove to it and I fell sideways."],
       ['myko', "You fell toward the switch's wall. So did the crate. Down is wherever you last told it to be. Think before you press.", 'by phone'],
     ),
     box('c9.gravity.room2', ['myko', "Two switches. The crate has to end up on that plate. You can end up wherever, nobody minds.", 'by phone']),
@@ -156,7 +162,7 @@ export const C09: DialogueFile = {
     scene(
       'c9.fight.intro',
       ['npc:name.clerk', 'Sir, you are not on the list for this level. Security has been informed. Please remain where you are and they will be with you shortly.'],
-      ['myko', "Shields on the front. Go round, or freeze them, or put the ball through. You've everything now. Use all of it.", 'by phone'],
+      ['myko', "Shields on the front. Go round, or hold them, or fall through them, or put one out the door. You've everything now. Use all of it.", 'by phone'],
     ),
     box('c9.fight.end', ['myko', "That's the lot. One of them apologised going down. I heard it.", 'by phone']),
 
@@ -187,11 +193,19 @@ export const C09: DialogueFile = {
     box('c9.lockdown.shut', ['myko', "It caught you. Back you go. It's only a door. It's a very heavy door, but it's only a door.", 'by phone']),
 
     scene(
+      'c9.weapon.wand',
+      ['npc:name.security', 'Lift access is not my department.'],
+      ['andrew', "So you're letting me through."],
+      ['npc:name.security', 'I am putting this down and going on my break.'],
+      ['myko', "He's left you his stick. Take it. It beeps. Press R.", 'by phone'],
+    ),
+
+    scene(
       'c9.closing',
       ['andrew', "Five. I have all five."],
       ['myko', "In a carrier bag."],
       ['andrew', "It's what I had."],
-      ['myko', "The proof of life beyond the stars, in a bag from a chipper in Carrick. That's about right."],
+      ['myko', "The proof of life beyond the stars, in a bag from a chip shop in Carrick. That's about right."],
       ['andrew', "Is that music?"],
       ['myko', "It's a lift, Andrew. They all have it. The base is fine, by the way. But there's no windows. The Starlite had a window."],
     ),
@@ -200,17 +214,17 @@ export const C09: DialogueFile = {
     box('c9.hint.offices.1', ['myko', "Filing cabinet, noticeboard. Offices are the same everywhere. Stop at the boring spots on the way.", 'by phone']),
     box('c9.hint.offices.2', ['myko', 'Cooler, then the noticeboard for the directory, then the kitchenette queue, then the cabinet by the plant.', 'by phone']),
     box('c9.hint.glove.1', ['myko', "There's a box by the lift for things people have left behind. One of them is humming.", 'by phone']),
-    box('c9.hint.glove.2', ['myko', 'Lost property, beside the lift lobby. E. Then R until the glove’s up, and F.', 'by phone']),
+    box('c9.hint.glove.2', ['myko', 'Lost property, beside the lift lobby. E. Then Tab, and put it on 3.', 'by phone']),
     box('c9.hint.gravity.1', ['myko', "Everything loose falls toward the switch you hit, and stops at the first thing in the way. Use the stopping.", 'by phone']),
     box('c9.hint.gravity.2', ['myko', 'Room two: left switch, then top. Room three: top first to park the crate, then left, and you’ll land against it.', 'by phone']),
     box('c9.hint.labs.1', ['myko', "There's a big window with something big behind it. And a room of filing after.", 'by phone']),
     box('c9.hint.labs.2', ['myko', 'Hangar window, E, with the fragment. Then the records room, third drawer.', 'by phone']),
     box('c9.hint.fight.1', ['myko', "Don't hit the shield. Hit anything that isn't the shield.", 'by phone']),
-    box('c9.hint.fight.2', ['myko', 'Glove to freeze them, walk round, hurley. Sliotar goes through shields. Fire for the clerks.', 'by phone']),
+    box('c9.hint.fight.2', ['myko', 'Glove to freeze them, walk round, hit from behind. The Stumble goes through shields. Barred takes one out altogether.', 'by phone']),
     box('c9.hint.board.1', ['myko', 'The lease says where the signal leaves from.', 'by phone']),
     box('c9.hint.board.2', ['myko', 'The contract, the directory, and Pruitt’s gate clipboard, since that’s where you got the lanyard.', 'by phone']),
     box('c9.hint.lockdown.1', ['myko', "You're not there to win. You're there to leave.", 'by phone']),
-    box('c9.hint.lockdown.2', ['myko', 'Run. Space through the gaps. Glove the switches in bays two and four. Tape in three. Lift.', 'by phone']),
+    box('c9.hint.lockdown.2', ['myko', 'Go. Walk the gaps between them. E on the switches in bays two and four. Tape in three. Lift.', 'by phone']),
 
     // --- Myko calls ---
     scene(
@@ -225,7 +239,7 @@ export const C09: DialogueFile = {
       ['myko', 'That one.'],
       ['andrew', "You didn't even fall."],
       ['myko', "I leaned. You'd the right idea, you just had it in the wrong order, three times, at speed."],
-      ['myko', "It's physics. You were never going to be good at it. You got a C in pass science and you copied that off me."],
+      ['myko', "It's physics. You were always the biology one. You only passed physics because you sat beside me."],
     ),
     scene(
       'c9.call.lockdown',

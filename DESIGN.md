@@ -33,7 +33,7 @@ Words and references the writing can draw on:
 | How much | Examples |
 |---|---|
 | Freely | grand, sound, eejit, the craic, fair play, lads, "sure look", "I will, yeah" (meaning no), "c'mere to me", "go 'way", a pint, tea as the answer to everything, a mammy's guilt, the county team's bad year, saying "bye" six times to end a phone call |
-| Now and then, where the line makes the meaning obvious | gobshite, yer man, yer one, giving out, slagging, notions, knackered, the dole, the parish lotto, the mart, a lock-in, turf, a chicken fillet roll, a spice bag |
+| Now and then, where the line makes the meaning obvious | gobshite, yer man, yer one, giving out, slagging, notions, knackered, the dole, the parish lotto, the mart, the chipper, a lock-in, turf, a chicken fillet roll, a spice bag |
 | Leave out | banjaxed, scarlet, deadly (it reads as its opposite), the messages, the press, the jacks, a naggin, "now we're sucking diesel", "it's a soft day", the immersion, hang sandwiches, a 99, the Angelus, a removal, the NCT |
 
 Voice samples. These set the register; they are not required lines.
@@ -129,17 +129,17 @@ The number after a special move is the drunk level whose slot it goes in.
 | # | Title | Location | The bar | What happens | New this chapter | Finale | Weapon won |
 |---|---|---|---|---|---|---|---|
 | 1 | A Quiet Pint | Feeney's pub and Main Street, Kilnamoe, at night | Feeney's | Tutorial. The meter, punching, drinking and throwing a bottle. A row outside the chipper. The lights over the bog. | The Buzz meter, the kit, **The Shoulder** (1), **Stout Slam** (2) | Big Tom Brennan, who wants the tenner back | Big Tom's hurley |
-| 2 | The Bog | The bog and Brennan's farm, before dawn | A lean-to at the edge of the bog with a crate, two chairs and an honesty box | First investigation: scorched turf, the fragment, tyre tracks. First stealth, past the "Department" men. | Casebook, stealth, **Reflex Test** (1), **The Stumble** (3) | Escape from a very committed ram | None |
+| 2 | The Bog | The bog and Brennan's farm, before dawn | A lean-to at the edge of the bog with a crate, two chairs, a flask and an honesty box | First investigation: scorched turf, the fragment, tyre tracks. First stealth, past the "Department" men. | Casebook, stealth, **Reflex Test** (1), **The Stumble** (3) | Escape from a very committed ram | None |
 | 3 | Regional Office | Meridian depot on the edge of town | The depot's staff social club: a locked room with a dartboard and a fridge | Break in, find the shipping manifest, solve the loading-bay crate puzzle. | First deduction board, **Same Again** (2), **One for the Road** (4) | Mr Halloran and his forklift | Halloran's clipboard |
-| 4 | Southie | Boston: airport, an "Irish" bar, the docks | Colleen-Ann's bar | Americans explain Ireland to Andrew. Find the freight contractor. | American beers, **Bedside Manner** (2) | Bar brawl, then the dock foreman | The foreman's souvenir shillelagh |
+| 4 | Southie | Boston: an "Irish" bar and the docks | Colleen-Ann's bar | Americans explain Ireland to Andrew. Find the freight contractor. | American beers, **Bedside Manner** (2) | Bar brawl, then the dock foreman | The foreman's souvenir shillelagh |
 | 5 | The Paper Trail | Washington DC: a federal records office | The bar of the hotel across the street, at ten in the morning | The stealth chapter. A redacted-file puzzle. Agents appear in numbers. | Agents, **Act Natural** (1), **Lock-in** (3) | Agent Pruitt, round one, in the archive stacks | Pruitt's umbrella |
 | 6 | Flyover Country | Ohio: a bus station, a motel, cornfields | The motel lounge | Crop circles as a maze puzzle. Surveillance drones. Myko is having the best week of his life and says so throughout. | Drones, **Second Opinion** (3) | The combine harvester | None |
-| 7 | Gift Shop | Roswell, New Mexico | A themed bar beside the gift shop. The drinks are green. | Everyone is dressed as an alien. Some of them are aliens. Work out which. | Aliens in disguise, tequila, **Last Orders** (4) | Three "mascots" who are not mascots | An inflatable alien |
+| 7 | Gift Shop | Roswell, New Mexico | A themed bar on the strip. The drinks are green. | Everyone is dressed as an alien. Some of them are aliens. Work out which. | Aliens in disguise, tequila, **Last Orders** (4) | Three "mascots" who are not mascots | An inflatable alien |
 | 8 | The Long Road | Nevada desert, the perimeter | A roadhouse at the last junction before the fence | Sensors, patrol trucks and heat. Out in the sun the meter drains twice as fast and drink goes half as far again. | Heat and sensor stealth, **Barred** (4) | Agent Pruitt, round two. He lets Andrew through and retires. | None |
 | 9 | Level Minus Four | Inside the base | The staff social area. It is very like the one in the Meridian depot. | Alien technology, gravity-switch puzzles and the last five pieces of proof. | Alien enemies, **The Borrowed Glove** (3) | The containment hall lockdown | A security wand |
 | 10 | Disclosure | Base control room, then Feeney's | The drinks cabinet in the Administrator's outer office | The final fight, the broadcast, the world's reaction and home. | Everything | The Administrator, then the epilogue | None |
 
-Locations are small. Each chapter uses two or three connected screens, and no chapter needs more than about 120 by 80 tiles in total. The bar is on the first screen, so the walk back from it is short.
+Locations are small. Each chapter uses two to four connected screens, counting the bar, and no chapter needs more than about 120 by 80 tiles in total. The bar is on the first screen, so the walk back from it is short.
 
 ## 6. Controls
 

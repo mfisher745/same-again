@@ -14,6 +14,7 @@ export const C03: DialogueFile = {
 
     'c3.objective.yard': 'Get across the yard.',
     'c3.objective.office': 'Search the office.',
+    'c3.objective.cabinet': 'Open the filing cabinet.',
     'c3.objective.crates': 'Clear a way to the bay office.',
     'c3.objective.manifest': 'Get the manifest.',
     'c3.objective.bay': 'Deal with the night shift.',
@@ -32,6 +33,9 @@ export const C03: DialogueFile = {
     'c3.clue.visitors.title': 'Visitors’ book',
     'c3.clue.visitors.body': 'Opened 2011. No entries.',
     'c3.clue.visitors.margin': 'Sign it. Make his year.',
+    'c3.clue.logbook.title': 'Watchman’s logbook',
+    'c3.clue.logbook.body': 'Night log, Meridian depot. Nine years of entries. Every one says “Nothing.” Last night’s says “Nothing” twice.',
+    'c3.clue.logbook.margin': 'He was thorough about it.',
     'c3.clue.manifest.title': 'Shipping manifest',
     'c3.clue.manifest.body': 'Forty containers a year, Kilnamoe to Pier Nine Freight, Boston. Contents: “agricultural”. Container numbers all start MAS.',
     'c3.clue.manifest.margin': 'Forty containers of nothing. That’s a lot of nothing to post.',
@@ -51,15 +55,25 @@ export const C03: DialogueFile = {
     caption('c3.caption.title', 'Regional Office'),
     caption('c3.caption.yard', 'Meridian Agri-Solutions. Kilnamoe depot.'),
 
+    // --- The bar: the depot's staff social club ---
+    scene(
+      'c3.bar.open',
+      ['andrew', "What's this?"],
+      ['myko', "Staff social club. It says so on the door. A dartboard, a fridge, a kettle, and a sheet for the Christmas party."],
+      ['andrew', "There's no names on the sheet."],
+      ['myko', "There's never been a party. Take a tea. The watchman doesn't come round this side. There's nothing here to mind."],
+    ),
+    box('c3.bar.hotDrink', ['myko', "Kettle's there. The milk is a risk. I'd go without."]),
+    box('c3.bar.return', ['myko', "The social club. You're the most use it's had since it opened."]),
     scene(
       'c3.open',
-      ['myko', "There's a gap behind the skip. There's always a gap behind the skip. I'll be in the hedge.", 'by phone'],
+      ['myko', "I'll be in the hedge. I'll ring you."],
       ['andrew', "There's the van. Twin wheels."],
-      ['myko', "So it is. Don't wave at it."],
+      ['myko', "So it is. Don't wave at it.", 'by phone'],
     ),
     box('c3.watchman.1', ['npc:name.watchman', 'No. I said the blue bin. The blue one. I have to go, I’m at work.', 'on his phone']),
     box('c3.watchman.2', ['npc:name.watchman', 'Nothing ever happens here. That’s the job. I’m minding nothing.', 'on his phone']),
-    box('c3.yard.clean', ['myko', "Lovely. There's a pint on the step of that cabin. I don't know whose. Yours now.", 'by phone']),
+    box('c3.yard.clean', ['myko', "Lovely. He's left his logbook on the chair. Nine years of it. Have a read.", 'by phone']),
     box('c3.yard.caught', ['myko', "That's the watchman's first incident in nine years. Don't ruin it for him by losing.", 'by phone']),
 
     // --- Office ---
@@ -74,22 +88,21 @@ export const C03: DialogueFile = {
     box('c3.office.brochure', ['andrew', "What's a yield optimiser?"], ['myko', "It's the thing on the page after the soil harmoniser. Keep up.", 'by phone']),
     box('c3.office.certificate', ['andrew', 'He gave himself an award.'], ['myko', "And he framed it. That's follow-through.", 'by phone']),
 
-    // --- The Stumble ---
+    // --- Same Again (a second move for slot 2) ---
     scene(
-      'c3.stumble.lesson',
-      ['myko', 'What was that bang?', 'by phone'],
-      ['andrew', 'A drum came off the shelf. I fell over a pallet. It missed me.'],
-      ['myko', 'You fell out of the way.'],
-      ['andrew', 'I suppose.'],
-      ['myko', "Do that on purpose, then. Space. Nobody can hit a man who's already falling."],
+      'c3.sameAgain.lesson',
+      ['andrew', "The cabinet's locked."],
+      ['myko', 'Hit it.', 'by phone'],
+      ['andrew', 'I hit it. It dented.'],
+      ['myko', "Then hit it the same again, before it's finished being hit the first time. It's in your kit. Tab, put it on 2, and your next three land twice each."],
     ),
-    box('c3.stumble.done', ['myko', "That's it. All the grace of a bag of turf, and nothing laid a finger on you.", 'by phone']),
+    box('c3.sameAgain.done', ['andrew', "It's open. There's a bottle in it. Filed under W."], ['myko', 'A man with a system. Take it.', 'by phone']),
 
     // --- Crates ---
     scene(
       'c3.crates.intro',
       ['andrew', "The manifest's in that glass office. There's crates in the way."],
-      ['myko', "Same as the kegs. Push, don't pull. If you make a hames of it there's a lever by the door puts them all back.", 'by phone'],
+      ['myko', "Same as the kegs. Push, don't pull. If you make a mess of it there's a lever by the door puts them all back.", 'by phone'],
     ),
     box('c3.crates.reset', ['myko', "Again, so. Nobody's timing you. I am, but I won't say.", 'by phone']),
     box('c3.crates.done', ['myko', 'Through. You should put that on a CV. You should get a CV.', 'by phone']),
@@ -108,7 +121,7 @@ export const C03: DialogueFile = {
       ['npc:name.worker', 'Here. You can’t be in here. This is a restricted loading bay.'],
       ['andrew', 'What’s restricted about it?'],
       ['npc:name.worker', "I don't know. Nobody's told us."],
-      ['myko', "They throw boxes. Fall through them. You've been practising.", 'by phone'],
+      ['myko', "They throw boxes. Walk between them. And you've bottles. The lads up top don't like getting one back.", 'by phone'],
     ),
     scene(
       'c3.bay.end',
@@ -132,10 +145,21 @@ export const C03: DialogueFile = {
       ['myko', "It does. I checked it twice hoping it didn't."],
     ),
 
+    // --- One for the Road (slot 4) ---
+    scene(
+      'c3.oneForTheRoad.lesson',
+      ['myko', "C'mere to me. One more thing before you go in to him."],
+      ['myko', "If you're ever fecked. Properly. Floor coming up to meet you. You've one punch in you then that would stop a bull."],
+      ['andrew', 'One?'],
+      ['myko', "One, and then it needs a minute. It's on 4. You'll know when you're there. There'll be two of him."],
+      ['andrew', 'Which one do I hit?'],
+      ['myko', 'The one on the left. It always is.'],
+    ),
+
     // --- Halloran ---
     scene(
       'c3.halloran.intro',
-      ['halloran', 'Can I help you gentlemen? Halloran. Regional manager.'],
+      ['halloran', 'Can I help you? Halloran. Regional manager.'],
       ['andrew', 'What region?'],
       ['halloran', 'This one.'],
       ['andrew', 'Which is what?'],
@@ -145,7 +169,7 @@ export const C03: DialogueFile = {
     scene(
       'c3.halloran.phase2',
       ['halloran', "I didn't want to use the pallet. Head office are very strict about the pallets."],
-      ['myko', "He's hiding behind it now. Get round the back of him. Fall, if you have to.", 'by phone'],
+      ['myko', "He's hiding behind it now. Step off the line and get round the back of him.", 'by phone'],
     ),
     box('c3.halloran.stuck', ['halloran', 'Bear with me. It does this.']),
     scene(
@@ -153,10 +177,11 @@ export const C03: DialogueFile = {
       ['halloran', "That's the gas gone."],
       ['halloran', 'Do you have an appointment at all?'],
       ['andrew', 'No.'],
-      ['halloran', "Then I can't really speak to you. You'd want to ring ahead."],
+      ['halloran', "Then I can't really speak to you. You'd want to sign in. Here."],
       ['andrew', 'What’s in the containers?'],
-      ['halloran', "I've never been told. I've asked. I've a form in."],
+      ['halloran', "I've never been told. I've asked. I've a form in. Hang on to the clipboard. I've another."],
     ),
+    box('c3.weapon.clipboard', ['myko', "He's given you his clipboard. Press R. It's quick, I'll say that. Nobody finishes a thought while they're being hit with a clipboard.", 'by phone']),
 
     scene(
       'c3.closing',
@@ -166,7 +191,7 @@ export const C03: DialogueFile = {
       ['myko', 'How much have you?'],
       ['andrew', 'Fourteen euro.'],
       ['myko', "That'll get you to Longford. Give me a second."],
-      ['myko', "Right. Two seats. Thursday. Don't ask."],
+      ['myko', "Right. Thursday. Don't ask."],
       ['andrew', 'Where did you get the money?'],
       ['myko', "I said don't ask. Bring a jumper, they've the air conditioning."],
     ),
@@ -176,12 +201,14 @@ export const C03: DialogueFile = {
     box('c3.hint.yard.2', ['myko', 'Go when he’s on the phone. Bottle towards the vans to shift the other two. Door’s by the dead plant.', 'by phone']),
     box('c3.hint.office.1', ['myko', "It's an office. Read the walls. People put the important things on walls.", 'by phone']),
     box('c3.hint.office.2', ['myko', 'The map in Halloran’s room and the brochure on reception. E at both.', 'by phone']),
+    box('c3.hint.cabinet.1', ['myko', "It's locked and you've no key. You've never had a key to anything. Hit it.", 'by phone']),
+    box('c3.hint.cabinet.2', ['myko', 'Tab, put Same Again on 2. Press 2, then hit the cabinet.', 'by phone']),
     box('c3.hint.crates.1', ['myko', "Don't push anything into a corner. A crate in a corner is there for life.", 'by phone']),
     box('c3.hint.crates.2', ['myko', 'Left column first, push them up out of the road. Then the middle one right. Then straight through.', 'by phone']),
     box('c3.hint.manifest.1', ['myko', "It's the glass room you just spent ten minutes getting to. Go in it.", 'by phone']),
     box('c3.hint.manifest.2', ['myko', 'Clipboard on the desk. E.', 'by phone']),
     box('c3.hint.bay.1', ['myko', "The lads up top are no use up close. The trouble is getting close.", 'by phone']),
-    box('c3.hint.bay.2', ['myko', 'Space through the boxes, get under the gantry, three digs each. Do the hi-vis lads after.', 'by phone']),
+    box('c3.hint.bay.2', ['myko', 'Walk the gaps, get under the gantry, three punches each. Bottles for the ones you can’t reach.', 'by phone']),
     box('c3.hint.board.1', ['myko', "You want the three that all say the same word. It's a place."]),
     box('c3.hint.board.2', ['myko', 'The map, the manifest and your bit of metal. Boston, Boston, and a number that matches.']),
     box('c3.hint.halloran.1', ['myko', "He can't turn that thing. Be somewhere he has to turn to.", 'by phone']),

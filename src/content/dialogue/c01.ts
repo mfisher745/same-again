@@ -29,6 +29,11 @@ export const C01: DialogueFile = {
     'c1.objective.row': 'Sort out the queue.',
     'c1.objective.bigTom': 'Deal with Big Tom.',
     'c1.objective.road': 'Walk out the bog road.',
+    'c1.objective.hotDrink': 'Take the tea or the coffee.',
+    'c1.objective.kit': 'Look at what you are carrying.',
+    'c1.objective.gate': 'Open the yard gate.',
+    'c1.objective.bins': 'Get the bottle behind the bins.',
+    'c1.objective.hurley': 'Mind the hurley.',
 
     // Casebook entries for Myko calls (the casebook itself arrives in chapter 2;
     // these are filed retrospectively on its first page).
@@ -68,7 +73,18 @@ export const C01: DialogueFile = {
       ['dympna', 'Item three is whatever you’re having now. Go on.'],
       ['myko', 'She’s put it on the slate, Andrew. The slate has an extension built on it at this stage.'],
     ),
-    box('c1.pub.buzz', ['myko', "That's you grand. Stay around there. Under it you're no use and over it you're a hazard."]),
+    box('c1.pub.buzz', ['myko', "That's you grand. Stay around there. Let it run dry and you'll wake up back on that stool. Go over the top and it's the same stool."]),
+    scene(
+      'c1.pub.hotDrink',
+      ['dympna', 'Item four. Tea or coffee. Take it with you.'],
+      ['andrew', 'Is that on the slate?'],
+      ['dympna', "It is not. It's the one thing in here that isn't. Don't make me regret it."],
+      ['myko', "Mind that. Wherever you've got yourself to, too far up or too far down, it puts you back where you are now."],
+    ),
+    box('c1.pub.kit', ['myko', "Tab. Have a look at what you're carrying. It won't take long."]),
+    // Back at the bar (the first time, then the offer each visit).
+    scene('c1.bar.return', ['dympna', 'You’re back.'], ['andrew', 'I am.'], ['dympna', "The kettle's on. Don't tell me about it."]),
+    box('c1.bar.hotDrink', ['dympna', 'Tea or coffee. Same as before. Still not on the slate.']),
     scene(
       'c1.pub.listEnd',
       ['dympna', 'That’s the list. I’ll read it again tomorrow.'],
@@ -82,7 +98,7 @@ export const C01: DialogueFile = {
     box('c1.pub.trophies', ['andrew', 'Table quiz. Three years.'], ['myko', 'Non-consecutive. Tell them it was non-consecutive.']),
     box('c1.pub.dartboard', ['andrew', 'There’s no darts.'], ['myko', 'There was. Then there was the incident. Now there’s a board.']),
     box('c1.pub.photo', ['andrew', 'County team, ’94.'], ['myko', 'Look how happy they are. They’d no idea.']),
-    box('c1.pub.telly', ['andrew', 'Is that the Angelus?'], ['myko', "It's been the Angelus for a while. I think it's stuck."]),
+    box('c1.pub.telly', ['andrew', 'Is that the news?'], ['myko', "It's the weather. It's been the weather for an hour. I think that's all there is."]),
 
     // --- The fruit machine ---
     scene(
@@ -109,9 +125,29 @@ export const C01: DialogueFile = {
     box('c1.yard.kegs', ['myko', 'Full ones. Put your shoulder to them, they slide. Not that one first. Well, whatever you think yourself.']),
     box('c1.yard.done', ['myko', "Look at that. A man who can leave a pub. They said it couldn't be done."]),
 
+    // --- The Shoulder (slot 1) ---
+    scene(
+      'c1.shoulder.lesson',
+      ['andrew', "The gate's stuck."],
+      ['myko', "You've just moved two kegs with your shoulder. A gate is only a keg that's been nailed to something."],
+      ['myko', 'Press 1. And remember it. It works on people, and people go back further.'],
+    ),
+    box('c1.shoulder.done', ['myko', "There. Don't apologise to it."]),
+
     // --- Main Street ---
-    box('c1.street.whiskey', ['andrew', 'Someone’s left a naggin behind the bins.'], ['myko', "Someone's hidden a naggin behind the bins. There's a difference, but go on."]),
-    box('c1.street.empties', ['myko', "You're keeping the empty."], ['andrew', 'Might need it.'], ['myko', "That's a habit, not a plan. I'll let you know if it ever becomes a plan."]),
+    scene(
+      'c1.throw.lesson',
+      ['andrew', "There's a bottle behind those bins. A full one."],
+      ['myko', "And the bins are in your way. You've empties in your pocket from inside. Right click."],
+      ['andrew', 'At the bins?'],
+      ['myko', "At the bins. They've had worse. Most things out here will break if you ask them properly."],
+    ),
+    box(
+      'c1.street.whiskey',
+      ['andrew', 'Whiskey.'],
+      ['myko', "Somebody hid that, and they'll be thinking about it all night. Mind it. That's not a pint. It sends you up a full floor, and then every thump costs you double."],
+    ),
+    box('c1.street.empties', ['myko', "You're keeping the bottle."], ['andrew', 'Might need it.'], ['myko', "For throwing. Every one you drink is one you can throw. It's the nearest thing you have to a system."]),
 
     // --- The row outside the chipper ---
     scene(
@@ -121,9 +157,19 @@ export const C01: DialogueFile = {
       ['npc:name.ladInQueue', 'You were looking at the sky.'],
       ['andrew', 'I was ahead of you and looking at the sky.'],
       ['myko', 'Lads. It’s chips.', 'to nobody'],
-      ['npc:name.ladInQueue', 'Who asked you, lamppost?'],
-      ['myko', "Ah, he's upset me now, Andrew. I'm here in an advisory capacity. I advise you to hit him."],
+      ['npc:name.ladInQueue', 'Are you going to stand there all night, anorak?'],
+      ['andrew', 'I might.'],
+      ['myko', "I'm here in an advisory capacity. I advise you to hit him."],
     ),
+    box('c1.hit.lesson', ['myko', "He's knocked a bit of the drink out of you. That's what a thump does when you're grand or under. Higher up, it sends you spinning the other way."]),
+    // --- Stout Slam (slot 2), before the pair arrive ---
+    scene(
+      'c1.slam.lesson',
+      ['myko', "When they're both on top of you, put your foot down. The way you put the pint down at the quiz when it went to a tiebreak."],
+      ['andrew', 'That was an accident.'],
+      ['myko', 'Three people fell over. Press 2. You need to be grand for it, and you are.'],
+    ),
+    box('c1.slam.needDrink', ['myko', "You've let yourself go dry. Drink something first. It only works when you're grand."]),
     box('c1.chipper.wave2', ['myko', "He has friends. Two of them. That's more than I'd have guessed."]),
     scene(
       'c1.chipper.end',
@@ -163,9 +209,19 @@ export const C01: DialogueFile = {
       ['npc:name.bigTom', "I'll sit down a minute."],
       ['npc:name.bigTom', 'The tenner, though. In fairness.'],
       ['andrew', "I don't have it, Tom."],
-      ['myko', 'Here. Tom. Tenner. Go home.'],
-      ['npc:name.bigTom', 'Sound, Myko.'],
+      ['myko', 'Try the inside pocket.'],
+      ['andrew', "... That's not mine."],
+      ['myko', "It's in your coat."],
+      ['npc:name.bigTom', 'Sound, Andrew.'],
       ['myko', "That's you owing me now. I'm much worse."],
+    ),
+    // --- The hurley: the first weapon ---
+    scene(
+      'c1.weapon.hurley',
+      ['npc:name.bigTom', 'Mind that for me.'],
+      ['andrew', 'Your hurley?'],
+      ['npc:name.bigTom', "I'm not carrying it home like this. I'll want it back, Andrew. Same as the tenner."],
+      ['myko', "He's lent you a stick. Press R when you want it. That's the most anyone in this town has ever trusted you with."],
     ),
 
     // --- The lights ---
@@ -179,7 +235,7 @@ export const C01: DialogueFile = {
       'c1.lights.seen',
       ['andrew', 'There.'],
       ['andrew', 'Myko. There. Three of them.'],
-      ['myko', 'Hang on, this lighter’s banjaxed.'],
+      ['myko', "Hang on, this lighter's had it."],
       ['andrew', "They're going down behind the hill."],
       ['myko', 'Got it. What am I looking at?'],
       ['andrew', "They're gone."],
@@ -196,7 +252,7 @@ export const C01: DialogueFile = {
       ['andrew', 'I know what the drink looks like.'],
       ['myko', "You do, in fairness. Nobody knows it better."],
       ['andrew', 'It landed out there. I’m going out in the morning.'],
-      ['myko', "Grand. I'll come and look at your field. I've nothing on."],
+      ['myko', "Grand. I'll come and look at your field. I've nothing else on."],
     ),
 
     // --- Hints (nudge, then the answer; both wrapped in an insult) ---
@@ -218,6 +274,16 @@ export const C01: DialogueFile = {
     box('c1.hint.row.2', ['myko', 'Step back when he winds up, then three in a row. And have a drink, you hit harder when you’re grand.']),
     box('c1.hint.bigTom.1', ['myko', "He runs in a straight line and he doesn't steer. There's a tractor there. I'm only saying."]),
     box('c1.hint.bigTom.2', ['myko', 'Stand in front of the tractor or the gate, let him run, step aside. Hit him while he’s seeing stars.']),
+    box('c1.hint.hotDrink.1', ['myko', "She's offering you something for free. Take it before she hears herself."]),
+    box('c1.hint.hotDrink.2', ['myko', 'The urn at the end of the bar. E. Pick one.']),
+    box('c1.hint.kit.1', ['myko', "You've pockets. Look in them."]),
+    box('c1.hint.kit.2', ['myko', 'Tab. The drink goes in the drink slot. That is the whole lesson.']),
+    box('c1.hint.gate.1', ['myko', "It's stuck, not locked. There's a difference, and the difference is your shoulder."]),
+    box('c1.hint.gate.2', ['myko', 'Face the gate and press 1.']),
+    box('c1.hint.bins.1', ['myko', "You can't reach it. You can reach it with something you can throw."]),
+    box('c1.hint.bins.2', ['myko', 'Right click at the bins. Then pick up what was behind them.']),
+    box('c1.hint.hurley.1', ['myko', "He's left you something against the tractor. He asked nicely."]),
+    box('c1.hint.hurley.2', ['myko', 'E at the hurley. R swaps between it and your fists.']),
     box('c1.hint.road.1', ['myko', "You were the one who wanted to look at the sky. It's out the road. Away from the chips."]),
     box('c1.hint.road.2', ['myko', 'Keep going right, past the tractor, out of the town. All four hundred yards of it.']),
 

@@ -19,20 +19,28 @@ const ohio = mykoPool('c8.ohio', [
 const other = mykoPool('c8.tangent', [
   "A lizard just looked at me like I owed him money. Everyone's Big Tom in the end.",
   "If you die out here I'm telling Dympna you paid the slate. It's what you'd want.",
-  "I'd murder a 99. Just the one. With the flake.",
+  "I'd love a bag of chips. Just the one. With vinegar.",
   "Do you ever think the aliens came all that way and got Leitrim? Imagine their faces.",
+]);
+
+/** Out in the sun (DESIGN.md 7.1, heat). */
+const sun = mykoPool('c8.sun', [
+  "It's burning off you twice as fast out here. Get under something.",
+  "The sun's drinking it before you are. Shade, Andrew.",
+  'Stand under that rock a minute. The aliens will keep.',
+  "Mind what you drink in this heat. It goes half as far again. That's not a bonus, it's a warning.",
 ]);
 
 export const C08: DialogueFile = {
   text: {
     'c8.title': 'The Long Road',
-    'c8.card.road': 'Nevada. Somewhere on Route 9.',
+    'c8.card.road': 'Nevada. The last roadhouse before the fence.',
     'c8.card.perimeter': 'The perimeter',
     'c8.card.gate': 'Gate C',
     'name.attendant': 'Attendant',
 
-    'c8.objective.station': 'Stock up at the gas station.',
-    'c8.objective.breath': 'Clear the wash.',
+    'c8.objective.station': 'Ask at the roadhouse.',
+    'c8.objective.wash': 'Follow the wash to the perimeter.',
     'c8.objective.perimeter': 'Cross the perimeter.',
     'c8.objective.junctions': 'Switch off the sensor lines.',
     'c8.objective.fence': 'Get through the fence.',
@@ -42,10 +50,10 @@ export const C08: DialogueFile = {
     'c8.junction.diagram': 'Toggles lines {a} and {b}',
 
     'c8.clue.schedule.title': 'Fuel log',
-    'c8.clue.schedule.body': 'Gas station fuel log. Two patrol trucks fill up at 15:00 and 03:00 every day. Paid on account: Meridian Basin.',
+    'c8.clue.schedule.body': 'Roadhouse fuel log. Two patrol trucks fill up at 15:00 and 03:00 every day. Paid on account: Meridian Basin.',
     'c8.clue.schedule.margin': 'He let you read his book. He didn’t even look up.',
     'c8.clue.car.title': 'Government car',
-    'c8.clue.car.body': 'Grey saloon parked behind the station. DC plates. On the seat: a thermos, and a brochure for a house on a lake.',
+    'c8.clue.car.body': 'Plain grey car parked behind the roadhouse. DC plates. On the seat: a thermos, and a brochure for a house on a lake.',
     'c8.clue.car.margin': 'He’s ahead of us. On a bus he’d have been behind us.',
     'c8.clue.shift.title': 'Clipboard',
     'c8.clue.shift.body': 'Dropped at the fence. Gate C shift change is at midnight. For ten minutes there is one man on.',
@@ -64,14 +72,16 @@ export const C08: DialogueFile = {
   },
   sequences: [
     caption('c8.caption.title', 'The Long Road'),
-    caption('c8.caption.road', 'Nevada. Somewhere on Route 9.'),
+    caption('c8.caption.road', 'Nevada. The last roadhouse before the fence.'),
     caption('c8.caption.perimeter', 'The perimeter'),
     caption('c8.caption.gate', 'Gate C'),
     ...ohio.sequences,
     ...other.sequences,
+    ...sun.sequences,
 
+    // --- The bar: the last roadhouse ---
     scene(
-      'c8.open',
+      'c8.bar.open',
       ['andrew', "It's very warm."],
       ['myko', "It's a desert, Andrew. They don't put them somewhere mild."],
       ['andrew', "You're still wearing the coat."],
@@ -84,41 +94,55 @@ export const C08: DialogueFile = {
       ['andrew', 'A secret one?'],
       ['npc:name.attendant', 'Yep.'],
       ['andrew', 'With aliens?'],
-      ['npc:name.attendant', "Couldn't say. They buy a lot of windshield fluid. You want water? You want water."],
+      ['npc:name.attendant', "Couldn't say. They buy a lot of windshield fluid. You want a beer? You want a beer."],
     ),
+    scene(
+      'c8.bar.dollar',
+      ['andrew', "I've a dollar."],
+      ['npc:name.attendant', 'That’s one beer.'],
+      ['andrew', "It's all I have."],
+      ['npc:name.attendant', 'Then that’s one beer.'],
+      ['myko', "He earned that dollar fighting aliens. Tell him. No, don't. He wouldn't look up."],
+    ),
+    box('c8.bar.hotDrink', ['npc:name.attendant', 'Coffee’s in the pot. Tea, I got a bag someplace. Help yourself.']),
+    box('c8.bar.return', ['npc:name.attendant', 'Sun get you? Sun gets everybody. Sit down.']),
     box('c8.attendant.2', ['npc:name.attendant', "Last fella in a suit asked me the same stuff. Bought a coffee. Sat in his car an hour looking at a brochure."]),
-    box('c8.attendant.3', ['npc:name.attendant', "Three waters is what I got. Truck comes Friday."]),
+    box('c8.attendant.3', ['npc:name.attendant', "Truck comes Friday. Till then it's beer, coffee and one jar of pickles."]),
     box('c8.attendant.4', ['npc:name.attendant', "Walk it? Out there? Your funeral, friend. Take a hat."]),
     box('c8.car', ['andrew', "DC plates. There's a brochure. A lake house."], ['myko', "That's Pruitt. He drove. Sensible man, he's seen the bus."]),
 
-    // --- Poitín Breath ---
+    // --- The sun ---
     scene(
-      'c8.breath.lesson',
-      ['andrew', "The wash is blocked. Tumbleweed and wire. I can't shift it."],
-      ['myko', 'Hold on.'],
-      ['andrew', "Is that poitín?"],
-      ['myko', "From home. I've carried it since Kilnamoe. For emergencies."],
-      ['andrew', "You've had that the whole time?"],
-      ['myko', "It's for emergencies, Andrew, not for you. Take a sup. Don't swallow. Here's the lighter. F. Point away from the coat."],
+      'c8.sun.lesson',
+      ['myko', "Feel that? It's burning off you twice as fast out here."],
+      ['andrew', 'So I drink more.'],
+      ['myko', "You do. And in this heat it goes half as far again, so you'll be over the top before you've finished being under it. Shade. That's the only place you're normal."],
     ),
+
+    // --- Barred (a move for slot 4) ---
     scene(
-      'c8.breath.done',
-      ['andrew', "..."],
-      ['myko', "That's the lobster lighter. I told you it'd come in. Give me the bottle back."],
+      'c8.barred.lesson',
+      ['myko', "There's a lad at the end of the wash, on his own, looking at a box in the ground."],
+      ['myko', 'How many pubs have you been put out of, Andrew?'],
+      ['andrew', 'Four.'],
+      ['myko', 'Five. You forget Carrick. So you know the grip. Collar and belt, and out he goes.'],
+      ['andrew', "I've only had it done to me."],
+      ['myko', "Then you've had the best teachers. It's in your kit, on 4. You'll need to be as bad as you were in Carrick."],
     ),
+    box('c8.barred.done', ['myko', "Out the door, and there wasn't even a door. He landed on his friend. That's two barred for the price of one."]),
 
     // --- Perimeter ---
     scene(
       'c8.perimeter.open',
-      ['myko', "Right. Posts in the ground that feel you running. Masts that see you when you're hot. Trucks with lights. I'll be at the road with the magnet.", 'by phone'],
-      ['andrew', 'So walk, stay cool, hide from trucks.'],
-      ['myko', "Sneak. Shade. Water. You've never done any of the three in your life. Good luck."],
+      ['myko', "Posts in the ground that feel you running. Masts that see anything running hot, and you run hot when you've had a bit much. Trucks with a lad on the back.", 'by phone'],
+      ['andrew', 'So sneak, stay level, hide from trucks.'],
+      ['myko', "Sneak. Shade. Moderation. You've never done any of the three in your life. Good luck. I'll be at the road with the magnet."],
     ),
     box('c8.perimeter.ground', ['myko', "You're tramping. Those posts can feel it. Shift, Andrew. Slow.", 'by phone']),
-    box('c8.perimeter.thermal', ['myko', "The mast's turning toward you. You're glowing. Get under that rock and drink something clear.", 'by phone']),
+    box('c8.perimeter.thermal', ['myko', "The mast's turning toward you. You're glowing. Get under that rock and let it settle.", 'by phone']),
     box('c8.perimeter.truck', ['myko', "Truck. Behind the outcrop. Now. Don't look at the lights, they're not for you.", 'by phone']),
-    box('c8.perimeter.clean', ['myko', "Across, and not a light on you. Someone left a cooler at that marker. Two waters and a tequila. That's a desert picnic.", 'by phone']),
-    box('c8.perimeter.caught', ['myko', "That's the siren. They'll come from the fence side. Use the breath if they bunch.", 'by phone']),
+    box('c8.perimeter.clean', ['myko', "Across, and not a light on you. There's a service gate in the fence there. It opens from this side, straight back to the road. That's your short cut.", 'by phone']),
+    box('c8.perimeter.caught', ['myko', "That's the siren. They'll come from the fence side. Hold them if they bunch, or put one out.", 'by phone']),
 
     // --- Junction puzzle ---
     scene(
@@ -154,7 +178,7 @@ export const C08: DialogueFile = {
     // --- Pruitt, round two ---
     scene(
       'c8.pruitt.intro',
-      ['pruitt', 'Evening, gentlemen.'],
+      ['pruitt', 'Evening.'],
       ['andrew', 'Agent Pruitt.'],
       ['pruitt', "They sent me out ahead of you. I said you'd come to the quiet gate. Nobody listens. I brought a chair."],
       ['andrew', "I'm going in."],
@@ -175,8 +199,9 @@ export const C08: DialogueFile = {
       ['pruitt', "Here. My lanyard. It'll open the lift. I never did find out what's down there. They never told me, and after a while you stop asking."],
       ['andrew', "I'll tell you."],
       ['pruitt', "You know, I don't think I want to know. I've a lake to look at. Go on."],
-      ['myko', 'Enjoy the lake, Pruitt.'],
-      ['pruitt', "I intend to. Mind him. He's the type that's right."],
+      ['andrew', 'Enjoy the lake.'],
+      ['pruitt', "I intend to. Mind yourself. You're the type that's right."],
+      ['myko', "He never asked for the umbrella back. That's a gentleman."],
     ),
 
     scene(
@@ -191,20 +216,20 @@ export const C08: DialogueFile = {
     ),
 
     // --- Hints ---
-    box('c8.hint.station.1', ['myko', "Water. I know. But water. All of it he has."]),
-    box('c8.hint.station.2', ['myko', 'Three waters from the fridge, the bourbon, the crisps. And read his book on the counter.']),
-    box('c8.hint.breath.1', ['myko', "It's dry sticks and you've a mouthful of poitín and a lighter. Join it up."]),
-    box('c8.hint.breath.2', ['myko', 'Be at least Grand. Face the tumbleweed. F.']),
-    box('c8.hint.perimeter.1', ['myko', 'Rock to rock. Drink at each one. Slow between.', 'by phone']),
-    box('c8.hint.perimeter.2', ['myko', 'Hold Shift past the posts, keep the heat under half near a mast, and get behind an outcrop when you hear an engine.', 'by phone']),
+    box('c8.hint.station.1', ['myko', "Talk to the man. He won't look up, but he'll answer."]),
+    box('c8.hint.station.2', ['myko', 'Read his book on the counter. And have a look at the grey car round the back.']),
+    box('c8.hint.wash.1', ['myko', "The dry river bed. It runs straight at the fence, and there's shade down the one side."]),
+    box('c8.hint.wash.2', ['myko', 'Follow the wash north and keep to the shaded side. There’s one agent at the end of it.']),
+    box('c8.hint.perimeter.1', ['myko', 'Rock to rock. Let it settle at each one. Slow between.', 'by phone']),
+    box('c8.hint.perimeter.2', ['myko', 'Hold Shift past the posts, stay at Grand or under near a mast, and get behind an outcrop when you hear an engine.', 'by phone']),
     box('c8.hint.junctions.1', ['myko', "Work out which box touches a line nothing else does. Start with that.", 'by phone']),
     box('c8.hint.junctions.2', ['myko', 'Near box, far box, near box again, then the middle one.', 'by phone']),
     box('c8.hint.fence.1', ['myko', "Stay out of the headlights. They shoot faster when they can see what they're doing.", 'by phone']),
-    box('c8.hint.fence.2', ['myko', 'Pull them into the dark by the fence post, breathe on them when they bunch. Sliotar along the wire.', 'by phone']),
+    box('c8.hint.fence.2', ['myko', 'Pull them into the dark by the fence post and hold them there. Poke along the wire with the umbrella.', 'by phone']),
     box('c8.hint.board.1', ['myko', "When's the gate thin? And what have you in your pocket since Roswell?"]),
     box('c8.hint.board.2', ['myko', 'The fuel log, the clipboard, and the parking permit.']),
     box('c8.hint.pruitt.1', ['myko', "He's not trying to win. He's trying to finish. Just stay standing till he's done."]),
-    box('c8.hint.pruitt.2', ['myko', 'Out of the flash circle, off the lit strip when the truck’s due, bat the darts back. Wear him to under half.']),
+    box('c8.hint.pruitt.2', ['myko', 'Out of the flash circle, off the lit strip when the truck’s due, bottles while he works the barrier. Wear him to under half.']),
 
     // --- Myko calls ---
     scene(
@@ -223,10 +248,10 @@ export const C08: DialogueFile = {
     ),
     scene(
       'c8.call.pruitt',
-      ['myko', 'Pruitt. A word.'],
+      ['myko', 'There.'],
       ['pruitt', '... Is that the time?'],
-      ['myko', "It's near enough."],
-      ['pruitt', "It is. It's near enough. Thirty-four years. Go on through, the pair of you."],
+      ['andrew', "It's near enough."],
+      ['pruitt', "It is. It's near enough. Thirty-four years. Go on through."],
       ['andrew', 'What did you say to him?'],
       ['myko', "I told him about the ice machine at the Starlite. He's thinking of going by."],
     ),
@@ -234,5 +259,6 @@ export const C08: DialogueFile = {
   pools: {
     ...ohio.pool,
     ...other.pool,
+    ...sun.pool,
   },
 };
