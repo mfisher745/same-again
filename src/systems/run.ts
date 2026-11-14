@@ -445,7 +445,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       this.begun = true;
       this.begin();
     }
-    this.clock += dtMs;
+    // The run's clock (script timers, dialogue staleness) stands still while a return waits, so timers resume, not burst.
+    if (!this.barFlow.pending) this.clock += dtMs;
     for (const f of this.fx) f.ttlMs -= dtMs;
     while (this.fx.length > 0 && (this.fx[0]?.ttlMs ?? 1) <= 0) this.fx.shift();
     this.dressing.tick(dtMs);
