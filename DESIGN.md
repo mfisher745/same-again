@@ -4,10 +4,11 @@ Owner: `creative-director`. Every other agent builds against this document and d
 
 ## 1. Summary
 
-A comedic top-down action-adventure for PC browsers, played with mouse and keyboard. Andrew, a drinker from a small Irish town with a chip on his shoulder, is sure that aliens are real and surer still that proving it will finally show everyone. Over ten chapters he follows the evidence from a bog in County Leitrim across the United States to a base in the Nevada desert. He is right about everything. He proves it to the whole world, and the world does not care. His best mate Myko does.
+A comedic top-down action-adventure for PC browsers, played with mouse and keyboard. Andrew, a drinker from a small Irish town with a chip on his shoulder, is sure that aliens are real and surer still that proving it will finally show everyone. Over ten chapters he follows the evidence from a bog in County Leitrim across the United States to a base in the Nevada desert. He is right about everything. He proves it to the whole world, and the world does not care. His best mate Myko does. Whether Myko is there at all is never settled.
 
 - Length: 10 chapters of about 6 minutes each, about one hour in total.
 - Play per chapter: a mix of investigation, a puzzle, stealth and combat.
+- The one thing the player manages throughout is how drunk Andrew is. There is no health. Too sober or too drunk and he is back at the bar (7.1).
 - Delivery: a static site on GitHub Pages, installable as a PWA and playable offline.
 - Assets: everything is generated in code. There are no downloaded images, fonts or audio.
 
@@ -62,7 +63,7 @@ Voice samples. These set the register; they are not required lines.
 ### Andrew (player character)
 
 - 38, from Kilnamoe, County Leitrim (a fictional town). On the dole since he lost his licence. Three-time winner of the Feeney's table quiz, which he mentions.
-- He was a doctor, the GP in Kilnamoe, until he was struck off the register. The reason is never stated: not by him, not by Myko, not by the narrator, and not in a joke that gives it away. Nobody asks. People at home still call him Doctor out of habit and still tell him their symptoms, and he says he can't look at it. When he is hit he knows exactly what has been broken.
+- He was a doctor, the GP in Kilnamoe, until he was struck off the register. The reason is never stated: not by him, not by Myko, not by the narrator, and not in a joke that gives it away. Nobody asks. People at home still call him Doctor out of habit and still tell him their symptoms, and he says he can't look at it. Several of his special moves come from the old job (7.2).
 - Short and slight. He is about half a head shorter than Myko and he is not pudgy. He wears a worn green-grey anorak, jeans and runners, and has a full dark beard and tired eyes.
 - He has a chip on his shoulder. He wants to prove himself to the world, and it does not matter how. Aliens are what turned up. If it had been a record-breaking turnip he would have gone after that with the same face.
 - He believes in aliens with complete, calm certainty. He is polite, stubborn and hopeless with money, and he is braver than he should be once he has had a few.
@@ -73,7 +74,7 @@ Voice samples. These set the register; they are not required lines.
 
 - Andrew's best mate since school. Nobody remembers why he's called Myko, and he won't say.
 - He is half a head taller than Andrew, thin, with a long coat, untidy brown hair, no hat and a permanent half-smile.
-- He is sardonic and condescending to Andrew in almost every line. He is also completely loyal. He pays for the flights, carries the bags and never once suggests going home.
+- He is sardonic and condescending to Andrew in almost every line. He is also completely loyal. He pays for the flights, carries the bags and never once suggests going home. Nobody sees him do any of it.
 - He drinks, but he prefers to smoke cannabis. He is usually mildly stoned, which is shown by a rolled cigarette, slow blinks, the odd tangent and, about once a minute when he is standing still, a puff of smoke that hangs around his head until he moves. It is never shown as a how-to and it is never a power-up.
 - His commentary does most of the narration. A narrator caption appears only for chapter titles, location cards and the blackout when Myko is called in.
 - He sometimes offers an idea or a hint. Some of his ideas are good.
@@ -82,11 +83,22 @@ Voice samples. These set the register; they are not required lines.
 - From chapter 7 onwards, most of his tangents are about Ohio. Roswell, Nevada and an alien base are all compared with it and found wanting.
 - At the end he is the only person in the world who is excited by what Andrew found.
 
+**Is Myko there?**
+
+The game never says. It must be possible to play it through believing he is Andrew's oldest friend, and possible to play it through believing Andrew made him up, and neither player should be able to prove the other wrong.
+
+- Nobody except Andrew ever speaks to Myko, answers him, looks at him or mentions him. Other characters talk to Andrew. Where one of them seems to react to something Myko said, Andrew has also said or done something that explains it.
+- Everything Myko does happens where nobody can see it, or could have been Andrew. The flights get paid for. The bags arrive. When he is called in, the screen is black and comes back with the work done.
+- Nothing shows that he is not there, either. He knows things Andrew does not, and some of his hints are right. He has a shadow, his smoke hangs in the air, and doors do not behave oddly around him. There is no visual tell in either direction.
+- The player is never given a count: of glasses, tickets, beds or seats.
+- Nobody raises the question, including Andrew and the narrator. No line winks at it. A line that tells the player which answer is right gets cut.
+- When Andrew is stone sober (7.1), Myko says nothing. It is the only time in the game he has nothing to say. That is as close as the game comes.
+
 ### Supporting cast
 
 | Character | Where | Role |
 |---|---|---|
-| Dympna Feeney | Kilnamoe | Landlady of Feeney's. Unimpressed by everything. Gives the tutorial as a list of things Andrew owes her. |
+| Dympna Feeney | Kilnamoe | Landlady of Feeney's. Unimpressed by everything. Gives the tutorial as a list of things Andrew owes her. Makes the tea. |
 | Mr Halloran | Kilnamoe | "Regional manager" of Meridian Agri-Solutions. Boss of chapter 3. |
 | Colleen-Ann | Boston | Bartender who is extremely proud of being Irish and has never been. A useful ally. |
 | Agent Pruitt | DC onwards | Senior agent of the Office of Atmospheric Records. Tired, courteous and three years from his pension. Boss of chapters 5 and 8. |
@@ -97,117 +109,165 @@ Voice samples. These set the register; they are not required lines.
 
 Andrew sees lights over the bog outside Kilnamoe. In the morning there is a scorched ring in the turf and a metal fragment stamped with a part number. Men in suits arrive and say they are from the Department of Agriculture. The fragment traces to the local depot of Meridian Agri-Solutions, a company that sells nothing anyone in town has ever bought. Its shipping records point to Boston.
 
-Myko pays for two flights. In America the trail runs west: a freight contractor in Boston, a federal records office in Washington, a test site in the Ohio cornfields, a gift shop in Roswell and at last a base in the Nevada desert. Along the way the enemies change from local hard men to federal agents to the aliens themselves.
+Myko pays for the flights. In America the trail runs west: a freight contractor in Boston, a federal records office in Washington, a test site in the Ohio cornfields, a gift shop in Roswell and at last a base in the Nevada desert. Along the way the enemies change from local hard men to federal agents to the aliens themselves.
 
 Andrew gathers proof, gets into the base, beats the Administrator and broadcasts everything to every screen on Earth. The broadcast works. Governments confirm it within the hour. It is the third item on the news, after the weather. His video gets 41 views. Back in Feeney's, Dympna says "Aliens, is it? Fair play," and asks if it's the same again.
 
 Myko drops the act about Andrew for the first time in the game. Until now he has only been sincere about Ohio. He is delighted. He has slagged Andrew for twenty years and Andrew was right, and he wants to hear every detail again from the start. Andrew set out to prove himself to the world and the world did not look up. That is the ending: one person cared, and it was the right one. Myko's last tangent is that they should tell them about this in Ohio.
 
+The scene plays the same whichever way the player has read Myko, and it does not choose. Either Andrew has the one friend who matters, or he has nobody, and has made himself a friend who is finally proud of him. Dympna asks is it the same again. She does not say how many.
+
 ## 5. Chapters
 
-Each chapter has an investigation beat, a puzzle or deduction, a stealth section and a combat section, in whatever order suits it. Each ends with a boss or set piece and a short scene with Myko.
+Each chapter starts in a bar, with Buzz at 35. A bar is wherever there is drink, somewhere to sit and a way to get a hot drink; it does not have to be a pub. Andrew comes back to it every time he ends up sober or on the floor (7.1).
 
-| # | Title | Location | What happens | New this chapter | Finale |
-|---|---|---|---|---|---|
-| 1 | A Quiet Pint | Feeney's pub and Main Street, Kilnamoe, at night | Tutorial. Movement, punching and drinking. A row outside the chipper. The lights over the bog. | Punch combo, drinking, the Buzz meter | Big Tom Brennan, who wants the tenner back |
-| 2 | The Bog | The bog and Brennan's farm, before dawn | First investigation: scorched turf, the fragment, tyre tracks. First stealth, past the "Department" men. | Casebook, stealth, **Bottle Throw** | Escape from a very committed ram |
-| 3 | Regional Office | Meridian depot on the edge of town | Break in, find the shipping manifest, solve the loading-bay crate puzzle. | **The Stumble** (dodge), first deduction board | Mr Halloran and his forklift |
-| 4 | Southie | Boston: airport, an "Irish" bar, the docks | First hangover. Americans explain Ireland to Andrew. Find the freight contractor. | Hangover, American drinks, **Stout Slam** | Bar brawl, then the dock foreman |
-| 5 | The Paper Trail | Washington DC: a federal records office | The stealth chapter. A redacted-file puzzle. Agents appear in numbers. | **Act Natural** (blend in), agents | Agent Pruitt, round one, in the archive stacks |
-| 6 | Flyover Country | Ohio: a bus station, a motel, cornfields | Crop circles as a maze puzzle. Surveillance drones. Andrew acquires a hurley from a bewildered sporting goods shop. Myko is having the best week of his life and says so throughout. | **Hurley** (melee upgrade), drones | The combine harvester |
-| 7 | Gift Shop | Roswell, New Mexico | Everyone is dressed as an alien. Some of them are aliens. Work out which. | Aliens in disguise, **Sliotar Strike** (charged shot) | Three "mascots" who are not mascots |
-| 8 | The Long Road | Nevada desert, the perimeter | Sensors, patrol trucks and heat. Water matters as much as drink. | **Poitín Breath**, heat and sensor stealth | Agent Pruitt, round two. He lets them through and retires. |
-| 9 | Level Minus Four | Inside the base | Alien technology, gravity-switch puzzles and the last five pieces of proof. | **The Borrowed Glove** (alien stun gadget), alien enemies | The containment hall lockdown |
-| 10 | Disclosure | Base control room, then Feeney's | The final fight, the broadcast, the world's reaction and home. | All abilities | The Administrator, then the epilogue |
+Each chapter has an investigation beat, a puzzle or deduction, a stealth section and a combat section, in whatever order suits it. Each ends with a boss or set piece and a short scene with Myko. Some bosses leave a melee weapon behind (7.2).
 
-Locations are small. Each chapter uses two or three connected screens, and no chapter needs more than about 120 by 80 tiles in total.
+The number after a special move is the drunk level whose slot it goes in.
+
+| # | Title | Location | The bar | What happens | New this chapter | Finale | Weapon won |
+|---|---|---|---|---|---|---|---|
+| 1 | A Quiet Pint | Feeney's pub and Main Street, Kilnamoe, at night | Feeney's | Tutorial. The meter, punching, drinking and throwing a bottle. A row outside the chipper. The lights over the bog. | The Buzz meter, the kit, **The Shoulder** (1), **Stout Slam** (2) | Big Tom Brennan, who wants the tenner back | Big Tom's hurley |
+| 2 | The Bog | The bog and Brennan's farm, before dawn | A lean-to at the edge of the bog with a crate, two chairs and an honesty box | First investigation: scorched turf, the fragment, tyre tracks. First stealth, past the "Department" men. | Casebook, stealth, **Reflex Test** (1), **The Stumble** (3) | Escape from a very committed ram | None |
+| 3 | Regional Office | Meridian depot on the edge of town | The depot's staff social club: a locked room with a dartboard and a fridge | Break in, find the shipping manifest, solve the loading-bay crate puzzle. | First deduction board, **Same Again** (2), **One for the Road** (4) | Mr Halloran and his forklift | Halloran's clipboard |
+| 4 | Southie | Boston: airport, an "Irish" bar, the docks | Colleen-Ann's bar | Americans explain Ireland to Andrew. Find the freight contractor. | American beers, **Bedside Manner** (2) | Bar brawl, then the dock foreman | The foreman's souvenir shillelagh |
+| 5 | The Paper Trail | Washington DC: a federal records office | The bar of the hotel across the street, at ten in the morning | The stealth chapter. A redacted-file puzzle. Agents appear in numbers. | Agents, **Act Natural** (1), **Lock-in** (3) | Agent Pruitt, round one, in the archive stacks | Pruitt's umbrella |
+| 6 | Flyover Country | Ohio: a bus station, a motel, cornfields | The motel lounge | Crop circles as a maze puzzle. Surveillance drones. Myko is having the best week of his life and says so throughout. | Drones, **Second Opinion** (3) | The combine harvester | None |
+| 7 | Gift Shop | Roswell, New Mexico | A themed bar beside the gift shop. The drinks are green. | Everyone is dressed as an alien. Some of them are aliens. Work out which. | Aliens in disguise, tequila, **Last Orders** (4) | Three "mascots" who are not mascots | An inflatable alien |
+| 8 | The Long Road | Nevada desert, the perimeter | A roadhouse at the last junction before the fence | Sensors, patrol trucks and heat. Out in the sun the meter drains twice as fast. | Heat and sensor stealth, **Barred** (4) | Agent Pruitt, round two. He lets Andrew through and retires. | None |
+| 9 | Level Minus Four | Inside the base | The staff social area. It is very like the one in the Meridian depot. | Alien technology, gravity-switch puzzles and the last five pieces of proof. | Alien enemies, **The Borrowed Glove** (3) | The containment hall lockdown | A security wand |
+| 10 | Disclosure | Base control room, then Feeney's | The drinks cabinet in the Administrator's outer office | The final fight, the broadcast, the world's reaction and home. | Everything | The Administrator, then the epilogue | None |
+
+Locations are small. Each chapter uses two or three connected screens, and no chapter needs more than about 120 by 80 tiles in total. The bar is on the first screen, so the walk back from it is short.
 
 ## 6. Controls
 
 | Input | Action |
 |---|---|
-| WASD | Move |
+| WASD | Move. There is no dodge. |
 | Mouse | Aim |
-| Left click | Melee attack (punch, later hurley) |
-| Right click | Ranged attack (Bottle Throw, later Sliotar Strike when held) |
-| Space | The Stumble (dodge) |
-| Q | Drink the selected drink |
-| 1, 2, 3 or mouse wheel | Select drink |
-| F | Special ability (Stout Slam, Poitín Breath or the Glove; cycle with R) |
+| Left click | Melee attack with the weapon in the melee slot |
+| Right click | Throw a bottle |
+| R | Cycle to the next melee weapon |
+| Q | Drink what is in the drink slot |
+| Mouse wheel | Change what is in the drink slot |
+| 1, 2, 3, 4 | Special moves, one for each drunk level |
 | Shift | Sneak (hold) |
 | E | Interact, talk, examine |
 | H | Ask Myko for a hint |
 | M (hold for 1 second) | Call Myko in (three uses per game) |
-| Tab | Casebook |
+| Tab | Casebook and kit (7.7). Toggle or hold, chosen in Settings. The game is paused while it is open. |
 | Esc | Pause |
 
 ## 7. Systems
 
 ### 7.1 Buzz
 
-Drinking fills the Buzz meter, which runs from 0 to 100 and drains slowly over time.
+There is no health. The one thing the player manages is how drunk Andrew is. The Buzz meter runs from 0 to 100. Drinking raises it, time lowers it, and being hit pushes it the wrong way. At either end Andrew is back at the bar.
 
-| State | Buzz | Effect |
-|---|---|---|
-| Sober | 0 to 19 | Base damage. Steady aim. Special abilities are locked. Andrew remarks on how clear everything is and how little he likes it. |
-| Grand | 20 to 59 | Damage ×1.5, faster attacks, specials unlocked. This is where the player wants to be. |
-| Locked | 60 to 89 | Damage ×2 and knockback resistance. Aim sways, movement drifts, footsteps are louder in stealth and the screen wobbles slightly. |
-| Banjaxed | 90 to 100 | Damage ×2.5 for 8 seconds, then Andrew falls over for 2 seconds and Buzz drops to 30. |
+| Level | State | Buzz | Melee damage | Special slots | What it is like |
+|---|---|---|---|---|---|
+| | Sober | 0 | | | Back to the bar. |
+| 1 | Buzzed | 1 to 34 | ×1 | 1 | Steady. Below 10 the colours start to flatten, and Andrew remarks on how clear everything is and how little he likes it. |
+| 2 | Grand | 35 to 65 | ×1.5 | 1, 2 | Steady. |
+| 3 | Bit much | 66 to 90 | ×2 | 1, 2, 3 | Aim sways, movement drifts, footsteps are louder in stealth and the screen wobbles slightly. |
+| 4 | Fecked | 91 to 99 | ×3 | 1, 2, 3, 4 | All of that, worse. Even sneaking can be heard at short range. |
+| | On the floor | 100 | | | Back to the bar. |
 
-Costs carry over. If a chapter ends at Locked or above, the next one starts with a **hangover**: maximum health is reduced by 25% and the screen is a little too bright until Andrew eats something or drinks tea.
+- **Start.** Every chapter, and every return to the bar, starts at 35: just into Grand.
+- **Drain.** Buzz falls at one constant rate, about 1 point every 3 seconds, from the moment the chapter starts. There is no pause after a drink. From 35 it reaches 0 in under two minutes if Andrew drinks nothing.
+- **Being hit.** Enemies do not damage Andrew. A hit moves the meter away from the middle: at levels 1 and 2 it lowers Buzz, and at levels 3 and 4 it raises it. An ordinary hit moves it about 5, a heavy one about 10 and a boss's worst about 15. Andrew still flinches and is knocked back.
+- **The trade.** Grand is the safe middle. Above it Andrew hits harder and has stronger moves, but his aim goes and every hit shoves him towards the floor. Below it nothing is wrong with him except that he is running out. The player chooses how much to risk.
 
-Every drink leaves an **empty**, and empties are the ammunition for Bottle Throw. Drinking and fighting feed each other.
+**Back to the bar**
 
-Buzz does not start draining until a few seconds after the last drink, so one pint is worth having.
+- **Sober.** At 0 the music stops and the colours go flat. Andrew stands still and looks at where he is and what he is doing. Myko says nothing. The screen fades and they are at the bar.
+- **On the floor.** At 100 Andrew falls over. Myko runs over, which he does nowhere else, and blows out a cloud of smoke that fills the screen. The screen goes to black and they are at the bar.
+- Either way Buzz is 35, a hot drink is on offer again and Andrew has at least two bottles. Myko has a line about it, drawn from a pool: one pool for sober, one for the floor.
+- **Progress is kept.** Clues, solved puzzles, stealth sections already passed, opened doors and beaten encounters all stay as they were. Guards from a section Andrew has passed are gone. A fight or boss he was in the middle of starts again from its beginning. The punishment is the walk back.
+- This replaces death and checkpoints. Nothing else sends Andrew back.
 
-**Breakables.** Most loose objects in the world can be broken with a melee hit or a thrown bottle: crates, barrels, bins, boxes, flowerpots, vending machines and their like. A broken object usually drops a drink, food or an empty. If Andrew can walk up to it and it is not part of a puzzle or the plot, he should be able to break it. What drops comes from the region (stout and crisps in Kilnamoe, light beer in America).
+**The kit**
+
+Drinks are not drunk when they are picked up. They go into Andrew's kit (7.7), and he drinks from the drink slot with Q or straight from the kit screen. There is no limit on what he carries. The kit carries over from chapter to chapter; Buzz does not.
 
 | Drink | Found | Effect |
 |---|---|---|
-| Pint of stout | Ireland, the Boston bar | Buzz +20, heals 15 |
-| Whiskey | Everywhere | Buzz +30 |
-| Poitín | Rare, hidden | Buzz +60. Fuels Poitín Breath. |
-| American light beer | USA, very common | Buzz +2 |
-| Bourbon | USA | Buzz +30, short speed boost |
-| Craft IPA | USA cities | Buzz +15. Myko has an opinion about each one. |
-| Tequila | The Southwest | Buzz +40, more sway |
+| Pint of stout | Ireland, the Boston bar | Buzz +15 |
+| Can of lager | Ireland | Buzz +10 |
+| American light beer | USA, very common | Buzz +2. Worth more as a bottle. |
+| Craft IPA | USA cities | Buzz +20. Myko has an opinion about each one. |
+| Whiskey | Everywhere, rare | Buzz jumps to the top of the next level up: from Buzzed to 65, from Grand to 90, from Bit much or Fecked to 99. For the next 8 seconds the meter does not drain, and every hit moves it twice as far. |
+| Tequila | Chapter 7 onwards, rarer than whiskey | Buzz goes to 95 from anywhere. For 12 seconds the meter does not drain and every hit moves it three times as far. Then it wears off all at once and Buzz drops by 40. |
+| Coffee | The bar only | Sets Buzz to 35 at once, from above or below. |
+| Tea | The bar only | Brings Buzz to 35 over about 10 seconds, then holds it there with no drain for 20 more. |
 
-| Food | Effect |
-|---|---|
-| Crisps | Heals 10 |
-| Chicken fillet roll, breakfast roll | Heals 40, cures a hangover |
-| Spice bag | Heals fully |
-| Tea | Buzz −25, cures a hangover, steadies aim for 20 seconds |
-| Water (chapter 8) | Resets the heat meter |
+- **Beer** is anything in the first four rows. More kinds can be added by region, each with its own strength. Every beer does the same thing apart from the number.
+- **The hot drink.** Each visit to the bar, at the start of a chapter and after every return, Andrew is offered one free coffee or tea and takes it with him. He carries one at a time. Coffee and tea are not found anywhere else: not in breakables, not on enemies, not as a reward.
+- **Bottles.** Every beer Andrew drinks adds one bottle to his count, whatever the beer was. Bottles are the only thing he throws, there is no limit on how many he carries, and every thrown bottle looks the same. He leaves the bar with at least two. Whiskey and tequila do not leave a bottle.
+- **Breakables.** Most loose objects in the world can be broken with a melee hit or a thrown bottle: crates, barrels, bins, boxes, flowerpots, vending machines and their like. If Andrew can walk up to it and it is not part of a puzzle or the plot, he should be able to break it. A broken object holds a drink or nothing: usually the beer of the region, now and then a whiskey. Never food, never a hot drink.
+- **Enemies** drop drink the same way when they go down: usually the regional beer, rarely a whiskey, and from chapter 7 very rarely a tequila.
+- There is no food, no hangover and no second meter. In chapter 8 the heat is the sun doubling the drain, and shade stops it.
 
 ### 7.2 Combat and abilities
 
-Combat is fast and readable, with a handful of enemies on screen at a time. Enemies telegraph every attack.
+Combat is fast and readable, with a handful of enemies on screen at a time. Enemies telegraph every attack. Andrew has no dodge and no block. He gets out of the way by walking.
 
-| Ability | Chapter | Description |
+**Melee**
+
+Left click attacks with the weapon in the melee slot. R cycles through the weapons Andrew owns. Damage is the weapon's own, multiplied by the drunk level (7.1). Bosses leave weapons behind; Andrew keeps every one.
+
+| Weapon | From | What it is like |
 |---|---|---|
-| Punch combo | 1 | Three hits. The third is a haymaker with knockback. |
-| Bottle Throw | 2 | Ranged. Uses one empty. Also makes a noise where it lands, which distracts guards. |
-| The Stumble | 3 | A dodge that looks like an accident. Brief invulnerability. |
-| Stout Slam | 4 | Area attack around Andrew. Costs 20 Buzz. |
-| Act Natural | 5 | Stand still beside a prop (a queue, a noticeboard, a vending machine) to become invisible to guards. |
-| Hurley | 6 | Replaces the punch. Longer reach, more damage, and it deflects projectiles when timed. |
-| Sliotar Strike | 7 | Hold right click to charge and hit a ball with the hurley. Pierces a line of enemies. |
-| Poitín Breath | 8 | A short cone of fire. Costs 40 Buzz. |
-| The Borrowed Glove | 9 | Alien gadget. Stuns a group and operates gravity switches. Recharges on its own. |
+| Fists | The start | Fast and short. Three hits; the third is a haymaker with knockback. |
+| Big Tom's hurley | Chapter 1 | Longer reach and more damage. Slower. |
+| Halloran's clipboard | Chapter 3 | The fastest. Very little damage, but each hit interrupts whatever the enemy was about to do. |
+| Souvenir shillelagh | Chapter 4 | Heavy and slow, with a lot of knockback. Andrew does not like being seen with it. |
+| Pruitt's umbrella | Chapter 5 | The longest reach. A straight poke that goes through two enemies. |
+| Inflatable alien | Chapter 7 | The widest swing. Hits everything in front of him, does next to no damage and knocks all of it back a long way. |
+| Security wand | Chapter 9 | Fast and strong. Every third hit stuns. |
 
-Death returns the player to the last checkpoint with a line from Myko. Checkpoints sit before every stealth section and every boss.
+**Thrown bottles**
+
+Right click throws one bottle from the count (7.1). It is the only ranged attack in the game. It does a fixed amount of damage that the drunk level does not change, and it makes a noise where it lands, which distracts guards.
+
+**Special moves**
+
+- Andrew has four special slots, on keys 1 to 4. Each slot belongs to a drunk level. A slot works while Andrew is at its level or higher, so at Grand slots 1 and 2 work, and at Fecked all four do.
+- Each level has several moves. The player puts one move in each slot from the kit screen (7.7), and a slot only takes moves of its own level.
+- Moves cost no Buzz. Each has a cooldown, and the stronger the move the longer the cooldown: about 5 seconds at level 1, 12 at level 2, 25 at level 3 and 60 at level 4.
+- If Buzz drops below a slot's level the slot goes dark. Its cooldown keeps running.
+- Level 4 moves are close to a one-shot. They are also the ones Andrew can only use while one drink or two hits from the floor.
+- Moves are learned one or two a chapter (section 5).
+
+| Level | Move | From | What it does |
+|---|---|---|---|
+| 1 | The Shoulder | Chapter 1 | A short charge, shoulder first. Knocks one enemy back. |
+| 1 | Reflex Test | Chapter 2 | A sharp tap below the kneecap. One enemy is staggered and cannot attack for 2 seconds. |
+| 1 | Act Natural | Chapter 5 | Standing still beside a prop (a queue, a noticeboard, a vending machine), Andrew cannot be seen by guards until he moves. Does nothing once a guard has seen him. |
+| 2 | Stout Slam | Chapter 1 | Knocks down everyone close to Andrew. |
+| 2 | Same Again | Chapter 3 | His next three melee hits each land twice. |
+| 2 | Bedside Manner | Chapter 4 | Andrew says something calm. Everyone near him stops to listen for 3 seconds. |
+| 3 | The Stumble | Chapter 2 | A lurch in a straight line that hits everything in the way. It looks like an accident. It does not make him invulnerable. |
+| 3 | Lock-in | Chapter 5 | Nobody leaves. Enemies near Andrew are held where they stand for 4 seconds and take double melee damage. |
+| 3 | Second Opinion | Chapter 6 | Andrew tells one enemy exactly what is about to give way. The next hit on that enemy does four times the damage. |
+| 3 | The Borrowed Glove | Chapter 9 | Alien gadget. Stuns everyone in a wide cone for 4 seconds. Outside the slot, it also operates gravity switches with E. |
+| 4 | One for the Road | Chapter 3 | One punch. It finishes any ordinary enemy and takes a third off a boss. |
+| 4 | Last Orders | Chapter 7 | Andrew calls it. Every ordinary enemy on screen is left with a sliver of health and stunned for 3 seconds. Bosses lose a fifth. |
+| 4 | Barred | Chapter 8 | Andrew picks up one enemy and throws him out. An ordinary enemy is gone; anyone he lands on is badly hurt. A boss cannot be lifted and takes the damage instead. |
+
+When Andrew ends up sober or on the floor he goes back to the bar (7.1). There is no other way to fail.
 
 ### 7.3 Stealth
 
 - Guards have visible vision cones and react to noise.
-- Sneaking is quiet and slow. Buzz at Locked or above makes even sneaking audible at short range.
+- Sneaking (hold Shift) is quiet and slow. At Bit much footsteps are louder, and at Fecked even sneaking can be heard at short range.
 - A guard who sees Andrew fills a detection marker over about one second. If it fills, the stealth section becomes a fight: an alarm sounds and reinforcements arrive.
-- **Getting caught is never a restart.** A clean run is rewarded with an extra clue or a drink, not required.
+- **Getting caught is never a restart.** A clean run is rewarded, not required. The reward is an extra clue or a rare drink: a whiskey, or later a tequila.
 
 ### 7.4 Investigation and puzzles
 
-- Examining things with E adds clues to the **casebook**, written in Andrew's words with Myko's notes in the margin.
+- Examining things with E adds clues to the **casebook**, written in Andrew's words with Myko's notes in the margin. The notes are in a different pen. The handwriting is not very different. The casebook is on the Tab screen beside the kit (7.7).
 - Most chapters end their investigation with a **deduction board**: the player links three clues to name the next lead. A wrong answer costs nothing except a remark from Myko.
 - Each chapter has one physical puzzle (crates, redacted files, the crop-circle maze, telling aliens from people, gravity switches). Each must be solvable in under two minutes.
 - Chapter 9 requires five pieces of proof. They are the items shown in the final broadcast.
@@ -215,11 +275,11 @@ Death returns the player to the last checkpoint with a line from Myko. Checkpoin
 ### 7.5 Myko
 
 - He walks behind Andrew outside combat and stealth. During those he waits at the entrance and talks by phone, unless he is called in.
-- He cannot be hurt and never needs protecting.
+- He cannot be hurt and never needs protecting. Enemies do not look at him.
 - H asks for a hint about the current objective. The first hint is a nudge, the second is the answer, and both arrive wrapped in an insult.
-- He comments without being asked on clues, drinks, deaths, hangovers and long periods of the player doing nothing.
+- He comments without being asked on clues, drinks, returns to the bar and long periods of the player doing nothing. Nobody but Andrew hears any of it (section 3).
 - Commentary must never block play. Lines appear in a box at the bottom of the screen and play continues, except in scripted scenes.
-- Nothing is said twice. A scripted scene, a lesson or a remark tied to a place plays once per save and never again, even after a death or a reload. Only three kinds of line may repeat: hints the player asks for, lines drawn from a pool (death, idle, tangents), and the line for an object the player deliberately examines again. A remark that has been waiting behind other lines is dropped if Andrew has left the screen or the moment it was about.
+- Nothing is said twice. A scripted scene, a lesson or a remark tied to a place plays once per save and never again, even after a return to the bar or a reload. Only three kinds of line may repeat: hints the player asks for, lines drawn from a pool (back at the bar, idle, tangents), and the line for an object the player deliberately examines again. A remark that has been waiting behind other lines is dropped if Andrew has left the screen or the moment it was about.
 - In chapter 6 his unprompted commentary is mostly admiration for Ohio. From chapter 7 on, about two in three of his tangents are about Ohio.
 
 **Calling Myko in**
@@ -234,7 +294,17 @@ Death returns the player to the last checkpoint with a line from Myko. Checkpoin
 
 ### 7.6 Saving
 
-Progress saves automatically to the browser's local storage at each checkpoint, and whenever a Myko call is used. The title screen offers Continue, New Game and Chapter Select for finished chapters.
+Progress saves automatically to the browser's local storage whenever something is finished: a clue found, a puzzle solved, a stealth section passed, an encounter or boss beaten, a move or weapon gained, a Myko call used. The kit is saved with it. Loading a save puts Andrew in the chapter's bar at Buzz 35 with everything finished still finished, exactly as a return to the bar does. The title screen offers Continue, New Game and Chapter Select for finished chapters.
+
+### 7.7 The Tab screen
+
+Tab opens one screen with two parts, the casebook and the kit. The game is paused while it is open. A setting chooses whether Tab toggles the screen (the default) or shows it only while held.
+
+**Kit**
+
+- **Inventory.** Every drink Andrew is carrying with its count, the hot drink if he has one, his bottle count, the weapons he owns and the moves he has learned, grouped by level.
+- **Slots.** One drink slot, four special slots (1 to 4) and one melee slot. The player assigns to a slot by picking it and then picking something that fits: a drink, a move of that slot's level, or a weapon.
+- **Using things.** Any drink, including the hot drink, can be drunk straight from the inventory. It takes effect at once and the meter on the screen shows it.
 
 ## 8. Art direction
 
@@ -243,7 +313,8 @@ Progress saves automatically to the browser's local storage at each checkpoint, 
 - Internal resolution 480 × 270, scaled by whole numbers to fit the window, with no smoothing. A fullscreen option in Settings (and Alt+Enter) lets it fill the screen; the installed PWA opens fullscreen.
 - Tiles are 16 × 16.
 - Andrew is 16 × 28. Myko is 16 × 32. Andrew is about half a head shorter, and the difference must be obvious when they stand together.
-- Four-direction walk cycles of four frames. Attack, hurt, drink and fall-over animations for Andrew.
+- Four-direction walk cycles of four frames. Attack, hurt, drink and fall-over animations for Andrew, and a swing for each melee weapon. Myko has a hurried walk, used only when Andrew is on the floor, and a smoke cloud that grows to fill the screen.
+- Every thrown bottle is the same sprite, whatever was in it.
 - One master palette of 48 colours, with a sub-palette per region:
 
 | Region | Mood | Dominant colours |
@@ -256,7 +327,7 @@ Progress saves automatically to the browser's local storage at each checkpoint, 
 
 - The aliens are small, grey and neatly dressed. They look like people who work in an office, because they do.
 - Andrew's sprite is short and slight, not round. Myko's is tall and thin, bare-headed, with brown hair.
-- HUD: every slot shows its icon and the key or mouse button that uses it. Health top left. Along the bottom: the three drink slots (1, 2, 3, with Q on the selected one), empties with the right mouse button, the melee attack with the left mouse button, the dodge with Space once learned, the special with F, the Buzz meter and its state name in the centre, and Myko calls left (three small cannabis-leaf icons, M). Things Andrew can pick up or examine are drawn as themselves with a small glint, never as abstract markers. Dialogue box with a 32 × 32 portrait.
+- HUD: there is no health bar. The Buzz meter is the largest thing on it, bottom centre, with the four levels marked along it, the state name beside it and a notch at 35. Every slot shows its icon and the key or mouse button that uses it: the drink slot with Q and a count, the four special slots with 1 to 4, the melee weapon with the left mouse button, the bottle count with the right mouse button, and Myko calls left (three small cannabis-leaf icons, M). A special slot is dark while Andrew is below its level and shows its cooldown as it refills. Things Andrew can pick up or examine are drawn as themselves with a small glint, never as abstract markers. Dialogue box with a 32 × 32 portrait.
 - A pixel bitmap font, generated in code.
 
 ## 9. Audio
@@ -266,6 +337,7 @@ All sound is synthesised with Web Audio. Music and effects have separate volume 
 - **Themes.** One theme per region, built from several sections so it does not wear out: a main section, a variation with a second whistle or recorder line in harmony, a sparser section with a plucked guitar-like accompaniment, and now and then a livelier section in the same key. Sections are chosen in a shuffled order so no loop is heard twice running. The Kilnamoe theme is melancholy, with a tin-whistle-like lead in a minor key, and stays away from jig clichés.
 - **Boss music.** When a boss or set piece starts, the regional theme speeds up, gains percussion and a driving bass, and gets more intense again at each phase change. It drops back when the fight ends.
 - **Effects.** About 30 (hits, bottle smash, drink, footsteps, alarm, things breaking).
+- **Sober.** When Buzz reaches 0 the music stops dead. Nothing replaces it until the bar.
 - **Text sound.** A soft, short click per character, like a telegram being printed. It is quiet, slightly lower for Myko, and never tonal enough to be a tune.
 
 ## 10. Technical design
@@ -305,7 +377,7 @@ All sound is synthesised with Web Audio. Music and effects have separate volume 
 2. **Core systems and art, in parallel.** Systems-dev builds the systems. The creative director writes the art generators and all dialogue. The level-builder builds the UI and audio.
 3. **Vertical slice.** Chapter 1 is built, reviewed and tuned until it is fun. Nothing else starts on chapters until it passes.
 4. **Chapters 2 to 10, in parallel** in separate worktrees, each reviewed by the creative director before merge.
-5. **Integration.** Full automated playthrough, balance pass, hangover and save checks across chapter boundaries, PWA install test.
+5. **Integration.** Full automated playthrough, balance pass, return-to-bar and save checks across chapter boundaries, PWA install test.
 6. **Release** to GitHub Pages.
 
 ## 12. Done means
