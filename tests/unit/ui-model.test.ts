@@ -11,6 +11,8 @@ import { FakeSource } from '../../src/ui/dev/fakeSource';
 import { buildHudModel, flatness, meterWidth, perimeterSegments } from '../../src/ui/model/hud';
 import { levelTable } from '../../src/systems/meter';
 import { KIT_SLOTS, assignItem, buildKitView, clearSlot, itemKey, slotContent, slotFor } from '../../src/ui/model/kit';
+import { returnDuration, returnFrame } from '../../src/ui/model/returns';
+import { TUNING } from '../../src/content/tuning';
 import { OverlayTracker } from '../../src/ui/model/overlay';
 import { paginate, wrapText } from '../../src/ui/model/wrap';
 
@@ -560,5 +562,57 @@ describe('Kit tab model', () => {
     expect(s.tabMode()).toBe('toggle');
     s.setTabMode('hold');
     expect(s.tabMode()).toBe('hold');
+  });
+});
+
+describe('Return timelines', () => {
+  const ui = TUNING.ui!;
+  const total = (r: 'sober' | 'floor'): number => returnDuration(r, ui);
+
+  it('the sober return flattens, fades to black, holds, then fades up on the bar', () => {
+    const s = ui.soberReturn;
+    expect(returnFrame('sober', 0, ui)).toMatchObject({ stage: 'flatten', flat: 0, cover: 0, silent: true, done: false });
+    const mid = returnFrame('sober', s.flattenMs / 2, ui);
+    expect(mid.flat).toBeCloseTo(0.5, 5);
+    expect(mid.cover).toBe(0);
+    expect(returnFrame('sober', s.flattenMs + s.fadeMs / 2, ui)).toMatchObject({ stage: 'fade', flat: 1 });
+    expect(returnFrame('sober', s.flattenMs + s.fadeMs + 1, ui)).toMatchObject({ stage: 'black', cover: 1 });
+    const reveal = returnFrame('sober', total('sober') - ui.revealMs / 2, ui);
+    expect(reveal.stage).toBe('reveal');
+    expect(reveal.cover).toBeCloseTo(0.5, 5);
+    expect(reveal.flat).toBe(0);
+    expect(returnFrame('sober', total('sober'), ui)).toMatchObject({ done: true, cover: 0, silent: false });
+  });
+
+  it('the floor return: fall, Myko hurries, smoke grows to fill the screen, black, reveal', () => {
+    const f = ui.floorReturn;
+    expect(returnFrame('floor', 10, ui).stage).toBe('fall');
+    expect(returnFrame('floor', f.fallMs + 1, ui).stage).toBe('hurry');
+    expect(returnFrame('floor', f.fallMs + f.hurryMs / 2, ui).hurry).toBeCloseTo(0.5, 5);
+    const smokeAt = f.fallMs + f.hurryMs;
+    expect(returnFrame('floor', smokeAt, ui).smoke).toBe(0);
+    expect(returnFrame('floor', smokeAt + f.smokeMs / 2, ui).smoke).toBeCloseTo(0.5, 5);
+    expect(returnFrame('floor', smokeAt + f.smokeMs - 1, ui).smoke).toBeGreaterThan(0.99);
+    expect(returnFrame('floor', smokeAt + f.smokeMs + 1, ui)).toMatchObject({ stage: 'black', cover: 1 });
+    expect(returnFrame('floor', total('floor'), ui).done).toBe(true);
+    // The smoke never shrinks.
+    let last = 0;
+    for (let t = 0; t <= total('floor'); t += 50) {
+      const fr = returnFrame('floor', t, ui);
+      if (fr.stage === 'smoke') {
+        expect(fr.smoke).toBeGreaterThanOrEqual(last);
+        last = fr.smoke;
+      }
+    }
+  });
+
+  it('every stage has a frame for any time, and a nonsense time does not break it', () => {
+    for (const r of ['sober', 'floor'] as const) {
+      for (const t of [-5, 0, 1, total(r) / 2, total(r) - 1, total(r) + 1000]) {
+        const fr = returnFrame(r, t, ui);
+        expect(fr.cover).toBeGreaterThanOrEqual(0);
+        expect(fr.cover).toBeLessThanOrEqual(1);
+      }
+    }
   });
 });

@@ -13,7 +13,7 @@ import type { ColourName } from '../../art/palette';
 import { format, sequence, text } from '../../content/dialogue';
 import { isAlienLine } from '../../content/dialogue/speakers';
 import { GameEvents } from '../../core/types';
-import type { DialogueId, DialogueLine, SpeakerId, TextId } from '../../core/types';
+import type { BarReturnReason, DialogueId, DialogueLine, SpeakerId, TextId } from '../../core/types';
 import type { EffectId } from '../../audio';
 import { bindFullscreenHotkey } from '../fullscreen';
 import type { Label, Pic } from '../gfx';
@@ -29,6 +29,8 @@ import {
 } from '../gfx';
 import { BOSS_BAR, DIALOGUE_BOX, DIALOGUE_TEXT, NOTICE_MS, PORTRAIT, SCREEN } from '../layout';
 import { HudStrip } from '../hud/strip';
+import { ReturnDirector } from '../returns/director';
+import { FlatColour } from '../returns/flat';
 import { uiTuning } from '../uiTuning';
 import { DialogueQueue } from '../model/dialogue';
 import type { DialogueView } from '../model/dialogue';
@@ -39,7 +41,7 @@ import { bindPromptHost } from '../prompts';
 import { PROMPT_EVENTS, UiSceneKeys } from '../shared';
 import type { UiShared } from '../shared';
 
-const D = { overlay: 0, hud: 10, notice: 20, box: 30, caption: 40 } as const;
+const D = { overlay: 0, hud: 10, notice: 20, box: 30, caption: 40, ret: 60 } as const;
 const NOTICE_WIDTH_CHARS = 70;
 
 interface Notice {
@@ -57,6 +59,8 @@ export class HudScene extends Phaser.Scene {
   private unsubs: Array<() => void> = [];
 
   private strip!: HudStrip;
+  private flat!: FlatColour;
+  private returns!: ReturnDirector;
   private lastRefusalSeq = -1;
   private refusalNotice!: Notice;
   private bossBacking!: Phaser.GameObjects.Rectangle;
@@ -111,6 +115,8 @@ export class HudScene extends Phaser.Scene {
     });
 
     this.strip = new HudStrip(this, D.hud, (e) => this.shared.hooks.play?.(e));
+    this.flat = new FlatColour(this.game);
+    this.returns = new ReturnDirector(this, this.flat, D.ret, () => this.shared.overlays.hide('return'));
     this.buildBoss();
     this.buildDialogueBox();
     this.buildNotices();
@@ -192,7 +198,7 @@ export class HudScene extends Phaser.Scene {
         this.setNotice(this.pickup, msg, NOTICE_MS.pickup);
       }),
       bus.on(GameEvents.PickupRefused, ({ reason, max }) => this.setNotice(this.pickup, format(`pickup.refused.${reason}`, { max: String(max) }), NOTICE_MS.pickup)),
-      bus.on(GameEvents.BarReturned, () => this.clearDialogueOnReset()),
+      bus.on(GameEvents.BarReturned, ({ reason }) => this.startReturn(reason)),
     );
     const onShow = (req: PromptRequest): void => this.showPrompt(req.textId);
     const onHide = (textId?: TextId): void => this.hidePrompt(textId);
@@ -204,8 +210,10 @@ export class HudScene extends Phaser.Scene {
     );
   }
 
-  private clearDialogueOnReset(): void {
-    // Commentary is not cleared on death: Myko's death line arrives right after.
+  /** The fade (sober) or the fall (floor), with the game paused and the dialogue waiting until it is over. */
+  private startReturn(reason: BarReturnReason): void {
+    this.shared.overlays.show('return');
+    this.returns.start(reason);
   }
 
   private bindInput(): void {
@@ -281,6 +289,9 @@ export class HudScene extends Phaser.Scene {
     for (const key of [UiSceneKeys.Pause, UiSceneKeys.Settings, UiSceneKeys.Tab, UiSceneKeys.Deduction]) this.scene.stop(key);
     this.shared.overlays.hide('pause');
     this.shared.overlays.hide('tab');
+    this.shared.overlays.hide('return');
+    this.returns.cancel();
+    this.flat.clear();
   }
 
   // ----------------------------------------------------------------- notices
@@ -340,10 +351,12 @@ export class HudScene extends Phaser.Scene {
     const { source } = this.shared;
     const m = buildHudModel(source);
     this.strip.update(m, this.time.now);
+    this.returns.update(delta);
+    if (!this.returns.active) this.flat.set(m.buzz.flatness);
     this.drawBoss(m);
     this.showRefusal(m);
 
-    if (!this.shared.overlays.isOpen('pause') && !this.shared.overlays.isOpen('tab')) this.queue.update(delta);
+    if (!this.shared.overlays.isOpen('pause') && !this.shared.overlays.isOpen('tab') && !this.shared.overlays.isOpen('return')) this.queue.update(delta);
     this.drawDialogue(this.queue.view());
 
     const now = this.time.now;
