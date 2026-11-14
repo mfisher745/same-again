@@ -24,7 +24,6 @@ import { seededRandom } from '../core/random';
 import { MemoryStorage, SaveStore } from '../core/save';
 import { GameEvents, SAVE_VERSION_OVERHAUL } from '../core/types';
 import type {
-  AbilityId,
   AudioSettings,
   CasebookEntry,
   ChapterNumber,
@@ -40,12 +39,14 @@ import type {
   ObjectiveId,
   Kit,
   OverhaulSaveState,
-  SpecialAbilityId,
+  MoveSlotView,
+  WeaponId,
   BossId,
   TextId,
 } from '../core/types';
 import { gainWeapon, createKit, learnMove, pickUpDrink, topUpBottles } from './kit';
 import { createMeter, levelTable, snapshot } from './meter';
+import type { ActionRefusal } from './playerCombat';
 import type { DialogueLookup } from './dialogue';
 import { ChapterRun } from './run';
 import type { RunEffect } from './run';
@@ -354,6 +355,9 @@ export class GameSession {
   }
 }
 
+const emptySlotViews = (): readonly MoveSlotView[] =>
+  ([1, 2, 3, 4] as const).map((slot) => ({ slot, moveId: null, lit: false, cooldownLeftMs: 0, cooldownMs: 0 }));
+
 /**
  * The object the UI receives (`UiStateSource` in `src/ui/contract.ts`).
  * Satisfies it structurally without importing the UI.
@@ -373,11 +377,17 @@ export function createUiState(session: GameSession) {
     kit(): Kit {
       return run()?.player.kit ?? session.store.load()?.kit ?? createKit();
     },
-    selectedSpecial(): SpecialAbilityId | null {
-      return run()?.player.abilities.selectedSpecial() ?? null;
+    /** The four special slots: the move in each, whether it is lit, and its cooldown. */
+    moveSlots(): readonly MoveSlotView[] {
+      return run()?.combat.slotViews() ?? emptySlotViews();
     },
-    unlockedAbilities(): readonly AbilityId[] {
-      return run()?.player.abilities.unlocked() ?? [];
+    /** The melee weapon in use. */
+    weapon(): WeaponId {
+      return run()?.player.kit.slots.melee ?? 'fists';
+    },
+    /** The latest refusal of a move (`ui.move.*`), for the HUD to flash. */
+    refusal(): ActionRefusal | null {
+      return run()?.combat.lastRefusal ?? null;
     },
     mykoCallsLeft(): number {
       return run()?.callsRemaining() ?? session.store.load()?.mykoCallsLeft ?? TUNING.myko.callsPerGame;

@@ -77,6 +77,8 @@ import type {
   ChapterNumber,
   BarReturnReason,
   HotDrinkId,
+  MoveId,
+  WeaponId,
   CompletableKind,
   CompletableSectionId,
   CompletionSource,
@@ -235,11 +237,14 @@ export interface ScreenLayout {
 
 /** What a melee swing that touched an `onMeleeHit` area was. */
 export interface MeleeHitInfo {
+  /** The weapon that swung. */
+  readonly weaponId: WeaponId;
+  /** The legacy ability id of the weapon (fists are `punchCombo`). */
   readonly abilityId: AbilityId;
   /** 0-based index in the combo. */
   readonly comboIndex: number;
   readonly comboLength: number;
-  /** The last hit of a combo of two or more (the punch combo's third swing). */
+  /** The last hit of a combo of two or more (the fists' third swing). */
   readonly haymaker: boolean;
 }
 
@@ -406,6 +411,14 @@ export interface ChapterContext {
   openDeduction(): void;
 
   // Player and world
+  /** Learn a move: it goes into its slot if that slot is empty. Emits `move:learned`. */
+  learnMove(id: MoveId): void;
+  /** Gain a weapon (not equipped yet). Emits `weapon:gained`. */
+  gainWeapon(id: WeaponId): void;
+  /**
+   * @deprecated Old scripts name abilities: `hurley` gains the hurley; `stumble`, `stoutSlam`,
+   * `actNatural` and `borrowedGlove` learn the move of that name; the rest do nothing.
+   */
   unlockAbility(id: AbilityId): void;
   give(item: PickupItem): void;
   addEvidence(id: EvidenceId): void;

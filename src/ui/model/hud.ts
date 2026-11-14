@@ -4,9 +4,9 @@
  */
 
 import { TUNING } from '../../content/tuning';
-import { SPECIAL_ABILITIES } from '../../core/types';
 import type { AbilityId, BossId, DrinkId, DrunkState, Kit, OverhaulDrinkId, SpecialAbilityId, TextId } from '../../core/types';
 import { heldDrinks } from '../../systems/kit';
+import { legacyAbilityOf } from '../../systems/playerCombat';
 import type { UiStateSource } from '../contract';
 
 export type PipFill = 'full' | 'half' | 'empty';
@@ -101,20 +101,19 @@ export function buildHudModel(source: UiStateSource): HudModel {
   const meter = source.meter();
   const table = source.levelTable();
   const kit = source.kit();
-  // The session only ever selects a usable special (unlocked, with what it requires), so nothing else is checked here.
-  const special = source.selectedSpecial();
   const boss = source.boss();
   const calls = TUNING.myko.callsPerGame;
   const left = source.mykoCallsLeft();
-  const specialsUnlocked = meter.level > 0;
-  const unlocked = source.unlockedAbilities();
-  const unlockedSpecials = SPECIAL_ABILITIES.filter((id) => unlocked.includes(id));
+  // One special cell stands in for the four slots until the HUD is redone: the highest lit slot with a move,
+  // else the lowest dark one (docs/overhaul-plan.md phase 3).
+  const slots = source.moveSlots().filter((s) => s.moveId !== null);
+  const lit = slots.filter((s) => s.lit);
+  const shownSlot = lit.length > 0 ? lit[lit.length - 1] : slots[0];
+  const moveId = shownSlot?.moveId ?? null;
   let reason: SpecialReason | null = null;
-  if (special !== null) {
-    const cost = TUNING.abilities[special].cost;
-    if (!specialsUnlocked) reason = 'sober';
-    else if (cost.kind === 'buzz' && meter.value < cost.amount) reason = 'buzz';
-    else if (cost.kind === 'recharge' && (source.specialRecharge?.() ?? 0) > 0) reason = 'recharge';
+  if (shownSlot) {
+    if (!shownSlot.lit) reason = 'sober';
+    else if (shownSlot.cooldownLeftMs > 0) reason = 'recharge';
   }
   const cells = hudDrinkCells(kit);
   const floor = Math.max(1, meter.floor);
@@ -131,15 +130,15 @@ export function buildHudModel(source: UiStateSource): HudModel {
     slots: cells,
     empties: kit.bottles,
     throwUnlocked: true,
-    melee: unlocked.includes('hurley') ? 'hurley' : unlocked.includes('punchCombo') ? 'punchCombo' : null,
-    dodgeUnlocked: unlocked.includes('stumble'),
+    melee: source.weapon() === 'hurley' ? 'hurley' : 'punchCombo',
+    dodgeUnlocked: false,
     special: {
-      abilityId: special,
-      labelTextId: special === null ? 'ui.hud.noSpecial' : `ability.${special}.name`,
-      iconAbility: special,
-      locked: special === null || reason !== null,
-      shown: unlockedSpecials.length > 0 || special !== null,
-      cyclable: unlockedSpecials.length > 1,
+      abilityId: moveId === 'stoutSlam' || moveId === 'borrowedGlove' ? moveId : null,
+      labelTextId: moveId === null ? 'ui.hud.noSpecial' : `ability.${moveId}.name`,
+      iconAbility: moveId === null ? null : legacyAbilityOf(moveId) === 'punchCombo' ? 'stoutSlam' : legacyAbilityOf(moveId),
+      locked: moveId === null || reason !== null,
+      shown: slots.length > 0,
+      cyclable: false,
       reason,
     },
     calls: Array.from({ length: calls }, (_, i) => i < left),

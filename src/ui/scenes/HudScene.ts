@@ -338,8 +338,11 @@ export class HudScene extends Phaser.Scene {
         this.queue.enqueue(sequenceId);
       }),
       bus.on(GameEvents.SaveWritten, () => this.flash(this.saved, NOTICE_MS.saved)),
-      bus.on(GameEvents.AbilityUnlocked, ({ abilityId }) => {
-        this.setNotice(this.ability, format('ability.unlocked', { name: text(`ability.${abilityId}.name`) }), NOTICE_MS.ability);
+      bus.on(GameEvents.MoveLearned, ({ moveId }) => {
+        this.setNotice(this.ability, format('ability.unlocked', { name: text(`ability.${moveId}.name`) }), NOTICE_MS.ability);
+      }),
+      bus.on(GameEvents.WeaponGained, ({ weaponId }) => {
+        this.setNotice(this.ability, format('ability.unlocked', { name: text(`weapon.${weaponId}.name`) }), NOTICE_MS.ability);
       }),
       bus.on(GameEvents.PickupCollected, ({ item }) => {
         const msg =

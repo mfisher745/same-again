@@ -1,7 +1,6 @@
 /** A fake `UiStateSource` for the dev harness. All state is public and mutable. */
 
 import type {
-  AbilityId,
   AudioSettings,
   BossId,
   CasebookEntry,
@@ -16,10 +15,12 @@ import type {
   DrunkLevelTable,
   Health,
   MeterSnapshot,
+  MoveSlotView,
+  TextId,
+  WeaponId,
   ObjectiveId,
   Kit,
   OverhaulSaveState,
-  SpecialAbilityId,
 } from '../../core/types';
 import { levelFor, overhaulTuning, stateFor } from '../../systems/meter';
 import type { UiStateSource } from '../contract';
@@ -59,8 +60,14 @@ export class FakeSource implements UiStateSource {
     moves: [],
     slots: { drink: 'stout', specials: [null, null, null, null], melee: 'fists' },
   };
-  special: SpecialAbilityId | null = 'stoutSlam';
-  abilities: AbilityId[] = ['punchCombo', 'bottleThrow'];
+  slots: MoveSlotView[] = [
+    { slot: 1, moveId: 'shoulder', lit: true, cooldownLeftMs: 0, cooldownMs: 5000 },
+    { slot: 2, moveId: 'stoutSlam', lit: true, cooldownLeftMs: 3000, cooldownMs: 12000 },
+    { slot: 3, moveId: null, lit: false, cooldownLeftMs: 0, cooldownMs: 0 },
+    { slot: 4, moveId: null, lit: false, cooldownLeftMs: 0, cooldownMs: 0 },
+  ];
+  weaponId: WeaponId = 'fists';
+  lastRefusal: { textId: TextId; seq: number } | null = null;
   callsLeft = 2;
   holdProgress = 0;
   entries: CasebookEntry[] = [];
@@ -86,8 +93,9 @@ export class FakeSource implements UiStateSource {
     };
   };
   kit = (): Kit => this.kitState;
-  selectedSpecial = (): SpecialAbilityId | null => this.special;
-  unlockedAbilities = (): readonly AbilityId[] => this.abilities;
+  moveSlots = (): readonly MoveSlotView[] => this.slots;
+  weapon = (): WeaponId => this.weaponId;
+  refusal = (): { textId: TextId; seq: number } | null => this.lastRefusal;
   mykoCallsLeft = (): number => this.callsLeft;
   mykoCallHoldProgress = (): number => this.holdProgress;
   casebook = (): readonly CasebookEntry[] => this.entries;

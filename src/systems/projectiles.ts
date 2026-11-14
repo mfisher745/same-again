@@ -135,16 +135,6 @@ export function stepProjectile(p: Projectile, grid: TileGrid, dtMs: number): boo
   return false;
 }
 
-/** Sends a deflectable projectile back the way it came, now owned by the player. */
-export function deflect(p: Projectile, towardDeg: number, abilitySource: DamageSource): void {
-  const speed = Math.hypot(p.vel.x, p.vel.y);
-  p.vel = scale(fromAngle(towardDeg), speed);
-  p.owner = 'player';
-  p.source = abilitySource;
-  p.travelled = 0;
-  p.hit.clear();
-}
-
 /** Whether a straight (or landing lobbed) projectile touches a circle. */
 export function projectileTouches(p: Projectile, centre: Vec2, radius: number): boolean {
   const r = p.shape.lobbed ? TUNING.combat.lobSplashRadius : TUNING.combat.projectileRadius;

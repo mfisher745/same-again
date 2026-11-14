@@ -255,12 +255,9 @@ export class WorldView {
       }
     }
 
-    // Aim reticle and Sliotar charge.
+    // Aim reticle.
     const pl = r.player;
     g.lineStyle(1, PALETTE.white, 0.6).strokeCircle(pl.aimPoint.x, pl.aimPoint.y, 3);
-    const charge = pl.abilities.chargeProgress();
-    // Just above Andrew's head (his sprite is ANDREW_H tall, feet at pos.y + FEET_OFFSET).
-    if (charge > 0) this.bar(pl.pos.x - 8, pl.pos.y + FEET_OFFSET - ANDREW_H - 3, 16, charge, PALETTE.amberLight);
   }
 
   /** `?debug=1`: checkpoints, examinable boxes, triggers, section areas, entrances, spawn points, hiding radii, puzzle bounds. */

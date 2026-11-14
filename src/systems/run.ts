@@ -60,6 +60,7 @@ import type {
   NoiseEvent,
   ObjectiveDef,
   ObjectiveId,
+  MoveId,
   OverhaulDrinkId,
   PickupDef,
   PickupItem,
@@ -70,19 +71,20 @@ import type {
   GameSettings,
   OverhaulSaveState,
   ScreenId,
+  SpecialSlotIndex,
   SectionId,
   SectionKind,
   StealthSectionDef,
   StealthSectionId,
   TileGrid,
   Vec2,
+  WeaponId,
 } from '../core/types';
 import { SAVE_VERSION_OVERHAUL } from '../core/types';
-import type { AbilityAction } from './abilities';
 import { BarFlow } from './barFlow';
 import type { BarFlowHost, BarLocation, BarReturnRecord } from './barFlow';
 import { BossRunner } from './boss';
-import { knockbackVector, scaledDamage, shapeHits, shapeHitsRect } from './combat';
+import { knockbackVector, shapeHits, shapeHitsRect } from './combat';
 import { DialogueRunner } from './dialogue';
 import { Dressing, hashKey, pickLoot, propHitRect } from './dressing';
 import type { InteractPoint, LiveProp } from './dressing';
@@ -93,12 +95,16 @@ import { FightRunner } from './fight';
 import { add, distance, normalize, rectContains, scale } from './geometry';
 import { isShade } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
-import { cycleDrink, drinkFromInventory, drinkSelected } from './kit';
+import { assignDrink, assignMove, assignWeapon, cycleDrink, drinkFromInventory, drinkSelected, gainWeapon, learnMove } from './kit';
 import { takeItem } from './pickups';
 import { Myko } from './myko';
 import type { CallTarget, MykoHost } from './myko';
 import { Player } from './player';
-import { deflect, projectileTouches, spawnProjectile, stepProjectile } from './projectiles';
+import { PlayerCombat } from './playerCombat';
+import { legacyAbilityOf } from './playerCombat';
+import type { PlayerCombatHost } from './playerCombat';
+import type { SwingResult } from './weapons';
+import { projectileTouches, spawnProjectile, stepProjectile } from './projectiles';
 import type { Projectile, ProjectileSpawn } from './projectiles';
 import { PushPuzzle } from './puzzles';
 import { CompletableSection, ScriptedCompletable } from './sections';
@@ -162,6 +168,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   readonly module: ChapterModule;
   readonly chapter: ChapterNumber;
   readonly player: Player;
+  readonly combat: PlayerCombat;
   readonly myko: Myko;
   readonly dialogue: DialogueRunner;
   readonly casebook: Casebook;
@@ -201,7 +208,6 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private readonly firedTriggers = new Set<string>();
   private readonly insideTriggers = new Set<string>();
   readonly fx: FxEvent[] = [];
-  private deflectUntil = 0;
   private clock = 0;
   private footstepMs = 0;
   private defeatedEmitted = new Set<string>();
@@ -240,6 +246,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.openedShortcuts = [...save.openedShortcuts];
 
     this.player = new Player(this.bus, save.kit, this.chapter);
+    this.combat = new PlayerCombat(this.combatHost());
     this.dialogue = new DialogueRunner(this.bus, opts.dialogue, {
       played: save.playedDialogue,
       context: {
@@ -456,22 +463,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (p.meter.returnReason) this.handleReturn();
 
     this.handleKitInput(live);
-    const actions = p.abilities.update(dtMs, live, {
-      effects: p.effects(),
-      buzz: p.meter.value,
-      empties: p.kit.bottles,
-      // Moves cost no Buzz now; the old costs go with the old abilities.
-      spendBuzz: () => true,
-      // The old bottle throw spends from the kit's bottles until the throw is rebuilt.
-      spendEmpties: (n) => {
-        if (p.kit.bottles < n) return false;
-        p.setKit({ ...p.kit, bottles: p.kit.bottles - n });
-        return true;
-      },
-      canAct: p.canAct,
-      held: p.held,
-    });
-    for (const a of actions) this.resolveAction(a);
+    this.combat.tick(dtMs);
+    this.combat.handleInput(live);
     if (live.pressed.has('interact')) this.interact();
 
     // Footsteps.
@@ -492,7 +485,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     // Sections.
     for (const f of this.fights.values()) f.tick(dtMs);
     for (const b of this.bosses.values()) b.tick(dtMs);
-    const hidden = actingNatural(this.hidingPropsHere(), p.pos, p.stillMs, p.abilities.usable('actNatural'));
+    // Act Natural is a move now (`moves.ts`); tall corn hides him without it.
+    const hidden = this.combat.hidden || actingNatural(this.hidingPropsHere(), p.pos, p.stillMs, false);
     for (const { runner, placement } of this.stealthHere()) {
       if (!placement) continue;
       if (!runner.isFinished && !runner.alarmRaised && rectContains(placement.startArea, p.pos)) this.startStealth(runner);
@@ -545,8 +539,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
         this.projectileList = [];
         this.defeatedEmitted.clear();
         this.refusedNear.clear();
-        this.deflectUntil = 0;
         this.fx.length = 0;
+        this.combat.reset();
       },
       barLocation: () => this.barLocation(),
       placeAt: (where) => this.loadScreen(where.screenId, where.position),
@@ -654,6 +648,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     for (const item of reward.pickups ?? []) this.give(item);
     for (const id of reward.evidenceIds ?? []) this.addEvidence(id);
     for (const id of reward.abilityIds ?? []) this.unlockAbility(id);
+    for (const id of reward.moveIds ?? []) this.learnMove(id);
+    for (const id of reward.weaponIds ?? []) this.gainWeapon(id);
   }
 
   markCompleted(sectionId: SectionId, kind: SectionKind, by: CompletionSource): void {
@@ -803,8 +799,58 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.deduction?.closeBoard();
   }
 
+  /** Learn a move; it goes into its slot if that slot is empty (DESIGN.md 7.7). */
+  learnMove(id: MoveId): void {
+    const r = learnMove(this.player.kit, id, { autoAssign: true });
+    if (!r.learned) return;
+    this.player.setKit(r.kit);
+    this.bus.emit(GameEvents.MoveLearned, { moveId: r.learned });
+  }
+
+  /** Gain a weapon. It is not equipped until Andrew picks it (R or the Tab screen). */
+  gainWeapon(id: WeaponId): void {
+    const r = gainWeapon(this.player.kit, id);
+    if (!r.gained) return;
+    this.player.setKit(r.kit);
+    this.bus.emit(GameEvents.WeaponGained, { weaponId: r.gained });
+  }
+
+  /** Old chapter scripts name abilities; each is now a move, a weapon or nothing (the fists, the old throw and the old specials that were dropped). */
   unlockAbility(id: AbilityId): void {
-    this.player.abilities.unlock(id);
+    switch (id) {
+      case 'hurley':
+        this.gainWeapon('hurley');
+        break;
+      case 'stumble':
+      case 'stoutSlam':
+      case 'actNatural':
+      case 'borrowedGlove':
+        this.learnMove(id);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** Put a learned move in its slot (the Tab screen). */
+  assignMove(slot: SpecialSlotIndex, id: MoveId | null): boolean {
+    const r = assignMove(this.player.kit, slot, id);
+    if (r.changed) this.player.setKit(r.kit);
+    return r.changed;
+  }
+
+  /** Equip an owned weapon (the Tab screen). */
+  assignWeapon(id: WeaponId): boolean {
+    const r = assignWeapon(this.player.kit, id);
+    if (r.changed) this.player.setKit(r.kit);
+    return r.changed;
+  }
+
+  /** Put a held drink in the drink slot (the Tab screen). */
+  assignDrink(id: OverhaulDrinkId | null): boolean {
+    const r = assignDrink(this.player.kit, id);
+    if (r.changed) this.player.setKit(r.kit);
+    return r.changed;
   }
 
   give(item: PickupItem): void {
@@ -970,7 +1016,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       this.dialogue.finishAll();
     }
     for (const id of this.module.def.evidence) this.casebook.addEvidence(id, this.chapter);
-    for (const id of this.module.def.newAbilities) this.unlockAbility(id);
+    for (const m of Object.values(TUNING.overhaul?.moves ?? {})) if (m.learnedInChapter === this.chapter) this.learnMove(m.id);
+    for (const w of Object.values(TUNING.overhaul?.weapons ?? {})) if (w.gainedInChapter === this.chapter) this.gainWeapon(w.id);
     this.script.debugWalk?.();
     this.dialogue.finishAll();
     this.completeChapter();
@@ -1302,80 +1349,46 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     return true;
   }
 
-  private resolveAction(a: AbilityAction): void {
-    const p = this.player;
-    const fx = p.effects();
-    const r = TUNING.combat.characterHitRadius;
-    const source = { kind: 'player' as const, abilityId: a.abilityId };
-    switch (a.kind) {
-      case 'dodge':
-        return;
-      case 'melee': {
-        p.faceAim();
-        const range = a.shape.kind === 'arc' ? a.shape.range : 0;
-        const arcDeg = a.shape.kind === 'arc' ? a.shape.arcDeg : 0;
-        this.fx.push({ kind: 'swing', pos: p.pos, angleDeg: p.aimDeg, radius: range, arcDeg, ttlMs: 120 });
-        if (a.deflectWindowMs > 0) this.deflectUntil = this.clock + a.deflectWindowMs;
-        for (const actor of this.actorList) {
-          if (actor.down || !shapeHits(a.shape, p.pos, p.aimDeg, actor.pos, r)) continue;
-          this.damageActor(actor, scaledDamage(a.damage, fx.damageMultiplier), knockbackVector(p.pos, actor.pos, a.knockback, 0), 0, source, p.pos, false);
-        }
-        this.alarmGuardsHit(a.shape, p.aimDeg);
-        if (a.deflectWindowMs > 0) this.tryDeflect();
-        this.meleeWorldHits(a);
-        return;
-      }
-      case 'projectile':
-        p.faceAim();
-        this.spawnProjectile({
-          owner: 'player',
-          source,
-          screenId: this.screen.id,
-          from: p.pos,
-          angleDeg: p.aimDeg,
-          aimPoint: p.aimPoint,
-          shape: a.shape,
-          damage: scaledDamage(a.damage, fx.damageMultiplier),
-          knockback: a.knockback,
-          stunMs: a.stunMs,
-          frame: a.abilityId === 'sliotarStrike' ? 'sliotar' : 'bottle',
-        });
-        return;
-      case 'area': {
-        const kind = a.abilityId === 'poitinBreath' ? 'breath' : a.abilityId === 'borrowedGlove' ? 'glove' : 'slam';
-        const radius = a.shape.kind === 'circle' ? a.shape.radius : a.shape.kind === 'cone' ? a.shape.range : 0;
-        const arcDeg = a.shape.kind === 'cone' ? a.shape.angleDeg : 360;
-        this.fx.push({ kind, pos: p.pos, angleDeg: p.aimDeg, radius, arcDeg, ttlMs: 250 });
-        for (const actor of this.actorList) {
-          if (actor.down || !shapeHits(a.shape, p.pos, p.aimDeg, actor.pos, r)) continue;
-          this.damageActor(actor, scaledDamage(a.damage, fx.damageMultiplier), knockbackVector(p.pos, actor.pos, a.knockback, 0), a.stunMs, source, p.pos, a.abilityId === 'borrowedGlove');
-        }
-        if (a.abilityId === 'borrowedGlove') this.bus.emit(GameEvents.AbilityGlovePulse, { screenId: this.screen.id, position: p.pos, radius });
-        this.emitNoise({ kind: 'combat', position: p.pos, radius });
-        return;
-      }
-    }
-  }
-
-  private meleeWorldHits(a: Extract<AbilityAction, { kind: 'melee' }>): void {
+  /** A swing touched a section hook (`onMeleeHit`) or a breakable. */
+  private meleeWorldHits(shape: AttackShape, swing: SwingResult): void {
     const p = this.player;
     const info: MeleeHitInfo = {
-      abilityId: a.abilityId,
-      comboIndex: a.comboIndex,
-      comboLength: a.comboLength,
-      haymaker: a.comboLength > 1 && a.comboIndex === a.comboLength - 1,
+      weaponId: swing.weaponId,
+      abilityId: legacyAbilityOf(swing.weaponId),
+      comboIndex: swing.comboIndex - 1,
+      comboLength: this.combat.comboLength(swing.weaponId),
+      haymaker: swing.haymaker,
     };
     let thud = false;
     for (const h of [...this.meleeHooks]) {
-      if (h.screenId === this.screen.id && shapeHitsRect(a.shape, p.pos, p.aimDeg, h.area)) {
+      if (h.screenId === this.screen.id && shapeHitsRect(shape, p.pos, p.aimDeg, h.area)) {
         thud = true;
         h.callback(info);
       }
     }
     for (const prop of this.dressing.breakablesOn(this.screen.id)) {
-      if (shapeHitsRect(a.shape, p.pos, p.aimDeg, propHitRect(prop)) && this.hitBreakable(prop) !== 'broken') thud = true;
+      if (shapeHitsRect(shape, p.pos, p.aimDeg, propHitRect(prop)) && this.hitBreakable(prop) !== 'broken') thud = true;
     }
     if (thud) this.opts.playEffect?.('thud');
+  }
+
+  /** What `PlayerCombat` needs from this chapter. */
+  private combatHost(): PlayerCombatHost {
+    return {
+      bus: this.bus,
+      player: this.player,
+      screenId: () => this.screen.id,
+      grid: () => this.grid,
+      actors: () => this.actorList,
+      guardsHere: () => this.guardsHere(),
+      hidingPropsHere: () => this.hidingPropsHere(),
+      damageActor: (a, amount, kb, stunMs, source, from, pierce) => this.damageActor(a, amount, kb, stunMs, source, from, pierce),
+      defeat: (a, by) => this.defeat(a, by),
+      meleeWorldHits: (shape, swing) => this.meleeWorldHits(shape, swing),
+      alarmGuardsHit: (shape, angle) => this.alarmGuardsHit(shape, angle),
+      emitNoise: (n) => this.emitNoise(n),
+      addFx: (kind, pos, angleDeg, radius, arcDeg, ttlMs) => this.fx.push({ kind, pos, angleDeg, radius, arcDeg, ttlMs }),
+    };
   }
 
   private alarmGuardsHit(shape: AttackShape, angle: number): void {
@@ -1404,18 +1417,6 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (actor.enemyId) this.bus.emit(GameEvents.EnemyDefeated, { instanceId: actor.instanceId, enemyId: actor.enemyId, by });
   }
 
-  private tryDeflect(): void {
-    const p = this.player;
-    for (const proj of this.projectileList) {
-      if (proj.done || proj.owner !== 'enemy' || !proj.shape.deflectable) continue;
-      const reach = TUNING.abilities.hurley.shape.kind === 'arc' ? TUNING.abilities.hurley.shape.range : 0;
-      if (distance(proj.pos, p.pos) <= reach + TUNING.combat.projectileRadius) {
-        deflect(proj, p.aimDeg, { kind: 'player', abilityId: 'hurley' });
-        this.opts.playEffect?.('deflect');
-      }
-    }
-  }
-
   private tickProjectiles(dtMs: number): void {
     const r = TUNING.combat.characterHitRadius;
     const p = this.player;
@@ -1430,8 +1431,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
           if (actor.down || proj.hit.has(actor.instanceId) || !projectileTouches(proj, actor.pos, r)) continue;
           proj.hit.add(actor.instanceId);
           const kb = knockbackVector(proj.origin, actor.pos, proj.knockback, 0);
-          const pierceShield = proj.source.kind === 'player' && proj.source.abilityId === 'sliotarStrike';
-          this.damageActor(actor, proj.damage, kb, proj.stunMs, proj.source, proj.pos, pierceShield);
+          this.damageActor(actor, proj.damage, kb, proj.stunMs, proj.source, proj.pos, false);
           if (!proj.shape.lobbed) {
             if (proj.pierceLeft <= 0) {
               proj.done = true;
@@ -1441,13 +1441,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
           }
         }
       } else if (checkHits && proj.owner === 'enemy' && this.playerTargetable() && projectileTouches(proj, p.pos, r)) {
-        if (proj.shape.deflectable && this.clock <= this.deflectUntil) {
-          deflect(proj, p.aimDeg, { kind: 'player', abilityId: 'hurley' });
-          this.opts.playEffect?.('deflect');
-        } else if (!proj.hit.has(p.instanceId)) {
+        if (!proj.hit.has(p.instanceId)) {
           proj.hit.add(p.instanceId);
           this.hitPlayer(
-            { source: proj.source, amount: proj.damage, knockback: knockbackVector(proj.origin, p.pos, proj.knockback, 0), stunMs: 0, holdMs: proj.holdMs },
+            { source: proj.source, amount: proj.damage, knockback: knockbackVector(proj.origin, p.pos, proj.knockback, 0), stunMs: 0, holdMs: proj.holdMs, weight: proj.weight },
           );
           if (!proj.shape.lobbed) proj.done = true;
         }

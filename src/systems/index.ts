@@ -37,8 +37,6 @@ export type {
 export { registerChapter, getChapter, registeredChapters } from '../core/chapter';
 
 // Systems a chapter may use or extend.
-export { Abilities, abilitiesForChapterStart, isSpecial } from './abilities';
-export type { AbilityAction, AbilityRefusal } from './abilities';
 export { BossRunner } from './boss';
 export type { BossBodyPlacement, BossHooks } from './boss';
 export { createMeter, drink as drinkOnMeter, levelFor, restValue, snapshot as meterSnapshot, stepMeter } from './meter';

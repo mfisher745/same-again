@@ -4,7 +4,6 @@
  */
 
 import type {
-  AbilityId,
   AudioSettings,
   BossId,
   CasebookEntry,
@@ -20,7 +19,9 @@ import type {
   MeterSnapshot,
   ObjectiveId,
   OverhaulSaveState,
-  SpecialAbilityId,
+  MoveSlotView,
+  TextId,
+  WeaponId,
 } from '../core/types';
 
 export interface UiStateSource {
@@ -31,10 +32,12 @@ export interface UiStateSource {
   levelTable(): DrunkLevelTable;
   /** What he carries: drinks, hot drink, bottles, weapons, moves and the six slots. */
   kit(): Kit;
-  selectedSpecial(): SpecialAbilityId | null;
-  unlockedAbilities(): readonly AbilityId[];
-  /** 0..1 how much of the Borrowed Glove's recharge is left (1 = just used). Optional: the HUD shows no recharge without it. */
-  specialRecharge?(): number;
+  /** The four special slots: the move in each, whether Andrew is at its level (lit) or it is dark, and its cooldown. */
+  moveSlots(): readonly MoveSlotView[];
+  /** The melee weapon in use. */
+  weapon(): WeaponId;
+  /** The latest refusal of a move (`ui.move.*`); `seq` rises with each. Null before the first. */
+  refusal(): { readonly textId: TextId; readonly seq: number } | null;
   mykoCallsLeft(): number;
   /** 0..1 progress of the M hold; 0 when not held. */
   mykoCallHoldProgress(): number;

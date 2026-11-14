@@ -166,6 +166,14 @@ export class EnemyActor {
     this.statusMs = Math.max(this.statusMs, ms);
   }
 
+  /** Cancels whatever it was about to do (the clipboard): a telegraphed or running attack is dropped. */
+  interrupt(): void {
+    if (this.status !== 'telegraphing' && this.status !== 'attacking') return;
+    this.current = null;
+    this.burstLeft = 0;
+    this.status = 'normal';
+  }
+
   /** Puts the actor down without damage numbers (Myko, completeNow). */
   knockDown(): void {
     this.health = 0;

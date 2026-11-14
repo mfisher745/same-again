@@ -1011,6 +1011,10 @@ export interface Reward {
   readonly pickups?: readonly PickupItem[];
   readonly evidenceIds?: readonly EvidenceId[];
   readonly abilityIds?: readonly AbilityId[];
+  /** Moves learned (DESIGN.md 7.2). */
+  readonly moveIds?: readonly MoveId[];
+  /** Weapons gained (DESIGN.md 7.2). */
+  readonly weaponIds?: readonly WeaponId[];
 }
 
 /** Static definition of a section. docs/chapters/README.md. */
@@ -1971,6 +1975,19 @@ export interface Kit {
   readonly weapons: readonly WeaponId[];
   readonly moves: readonly MoveId[];
   readonly slots: KitSlots;
+}
+
+/** One special slot as the HUD and the Tab screen show it. DESIGN.md 7.2, 7.7. */
+export interface MoveSlotView {
+  readonly slot: SpecialSlotIndex;
+  /** The move in the slot, or null for an empty slot. */
+  readonly moveId: MoveId | null;
+  /** Andrew is at this slot's level or above. A dark slot (false) still runs its cooldown. */
+  readonly lit: boolean;
+  /** Milliseconds left on the cooldown. */
+  readonly cooldownLeftMs: number;
+  /** The full cooldown of the move in the slot; 0 when empty. */
+  readonly cooldownMs: number;
 }
 
 // ---------------------------------------------------------------------------

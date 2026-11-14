@@ -11,7 +11,6 @@
 import { TUNING } from '../content/tuning';
 import { GameEvents } from '../core/types';
 import type {
-  BuzzStateEffects,
   ChapterNumber,
   DrunkLevel,
   Facing,
@@ -24,25 +23,12 @@ import type {
   TileGrid,
   Vec2,
 } from '../core/types';
-import { Abilities } from './abilities';
 import { decayVelocity } from './combat';
-import { angleOf, facingFromAngle, scale, normalize, sub } from './geometry';
+import { angleOf, facingFromAngle, fromAngle, scale, normalize, sub } from './geometry';
 import { moveBox } from './grid';
 import { applyHit } from './hits';
 import { createMeter, drink, levelFor, levelTable, setInSun, snapshot, stepMeter } from './meter';
 import type { MeterResult, MeterState } from './meter';
-
-/** What the old abilities see while they last (removed with them): no multipliers, specials open. */
-const NEUTRAL_EFFECTS: BuzzStateEffects = {
-  damageMultiplier: 1,
-  attackSpeedMultiplier: 1,
-  knockbackResistance: 0,
-  specialsUnlocked: true,
-  aimSwayDeg: 0,
-  movementDrift: 0,
-  footstepNoiseMultiplier: 1,
-  screenWobble: 0,
-};
 
 export class Player {
   readonly instanceId = 'andrew';
@@ -71,7 +57,6 @@ export class Player {
 
   /** What he carries (DESIGN.md 7.1 "The kit"). Replace through `setKit`. */
   kit: Kit;
-  readonly abilities: Abilities;
 
   constructor(
     private readonly bus: GameEventBus,
@@ -80,7 +65,6 @@ export class Player {
   ) {
     this.meter = createMeter(chapter);
     this.kit = kit;
-    this.abilities = new Abilities(bus, [], null);
   }
 
   get level(): DrunkLevel {
@@ -106,11 +90,6 @@ export class Player {
 
   get canAct(): boolean {
     return !this.incapacitated && !this.held;
-  }
-
-  /** Bridge for the old abilities, which go with step 4. */
-  effects(): BuzzStateEffects {
-    return NEUTRAL_EFFECTS;
   }
 
   /** Back in the bar: a fresh meter (bottom of Grand), nothing in flight. */
@@ -201,6 +180,12 @@ export class Player {
     this.moving = moved > 0.01 && tryingToMove;
     this.stillMs = tryingToMove ? 0 : this.stillMs + dtMs;
     return moved;
+  }
+
+  /** A short lurch along `angleDeg` (the Shoulder, the Stumble): up to `distance`, stopping at walls. */
+  lurch(distance: number, angleDeg: number, grid: TileGrid, extraBlocked?: (c: number, r: number) => boolean): void {
+    const d = fromAngle(angleDeg, distance);
+    this.pos = moveBox(grid, this.pos, TUNING.player.bodyWidth, TUNING.player.bodyHeight, d, extraBlocked).position;
   }
 
   /** Faces the aim (used when attacking). */
