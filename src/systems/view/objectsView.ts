@@ -45,6 +45,8 @@ export class ObjectsView {
   private readonly pieces = new Map<string, Phaser.GameObjects.Image>();
   private readonly fixed: Phaser.GameObjects.Image[] = [];
   private readonly floor: Phaser.GameObjects.Graphics;
+  /** The sheep puzzle's gates and flock. Placeholder shapes until there is sheep art (`syncSheep`). */
+  private readonly flock: Phaser.GameObjects.Graphics;
   private examineIcon: Phaser.GameObjects.Image | null = null;
   private puff: Phaser.GameObjects.Sprite | null = null;
   private puffFadeMs = 0;
@@ -55,6 +57,7 @@ export class ObjectsView {
     private readonly run: ChapterRun,
   ) {
     this.floor = scene.add.graphics().setDepth(FLOOR_DEPTH);
+    this.flock = scene.add.graphics();
     this.ensureAnims();
   }
 
@@ -63,6 +66,7 @@ export class ObjectsView {
     if (this.run.screenId !== this.screenId) this.rebuild();
     this.syncPickups();
     this.syncPuzzles();
+    this.syncSheep();
     this.syncExamine();
     this.syncPuff(dtMs, mykoHead);
   }
@@ -70,6 +74,7 @@ export class ObjectsView {
   destroy(): void {
     this.clear();
     this.floor.destroy();
+    this.flock.destroy();
     this.examineIcon?.destroy();
     this.puff?.destroy();
   }
@@ -138,6 +143,24 @@ export class ObjectsView {
       s.glint.destroy();
       this.pickups.delete(id);
     }
+  }
+
+  /** Gates as bars on the tiles they block, sheep as small white bodies, the far pen outlined. Placeholder art. */
+  private syncSheep(): void {
+    const g = this.flock;
+    g.clear();
+    for (const { puzzle, placement } of this.run.sheepPuzzlesHere()) {
+      const pen = placement.layout.targetPen;
+      g.lineStyle(1, PALETTE.amberLight, 0.4).strokeRect(pen.col * TILE, pen.row * TILE, pen.width * TILE, pen.height * TILE);
+      for (const gate of placement.layout.gates) {
+        const pos = puzzle.gatePosition(gate.id) ?? 0;
+        for (const t of gate.positions[pos]) g.fillStyle(PALETTE.steel, 1).fillRect(t.col * TILE + 2, t.row * TILE + 2, TILE - 4, TILE - 4);
+      }
+      for (const s of puzzle.sheep()) {
+        g.fillStyle(PALETTE.white, 1).fillRect(Math.round(s.pos.x) - 5, Math.round(s.pos.y) - 4, 10, 8);
+      }
+    }
+    g.setDepth(2000);
   }
 
   private syncPuzzles(): void {

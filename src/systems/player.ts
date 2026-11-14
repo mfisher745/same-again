@@ -51,6 +51,11 @@ export class Player {
   /** The Buzz meter (DESIGN.md 7.1). Replace through `applyMeter`. */
   meter: MeterState;
 
+  /** A chapter script has hidden the meter (the HUD does not draw it). Survives a return to the bar. */
+  private hiddenMeter = false;
+  /** A chapter script is holding the drain. Survives a return to the bar. */
+  private drainIsHeld = false;
+
   private invulnMs = 0;
   private kb: Vec2 = { x: 0, y: 0 };
   private heldMs = 0;
@@ -73,7 +78,27 @@ export class Player {
   }
 
   meterSnapshot(): MeterSnapshot {
-    return snapshot(this.meter);
+    return { ...snapshot(this.meter), hidden: this.hiddenMeter, drainHeld: this.drainIsHeld };
+  }
+
+  get meterHidden(): boolean {
+    return this.hiddenMeter;
+  }
+
+  get drainHeld(): boolean {
+    return this.drainIsHeld;
+  }
+
+  /** Hide or show the meter. Emits `meter:hiddenChanged` on a change. */
+  setMeterHidden(hidden: boolean): void {
+    if (this.hiddenMeter === hidden) return;
+    this.hiddenMeter = hidden;
+    this.bus.emit(GameEvents.MeterHiddenChanged, { hidden });
+  }
+
+  /** Hold the plain drain (spirit and tea timers still run). */
+  holdDrain(held: boolean): void {
+    this.drainIsHeld = held;
   }
 
   get invulnerable(): boolean {
@@ -137,7 +162,7 @@ export class Player {
   /** Constant drain, spirit window and tea (DESIGN.md 7.1). */
   tickMeter(dtMs: number): void {
     if (this.returning) return;
-    this.applyMeter(stepMeter(this.meter, dtMs));
+    this.applyMeter(stepMeter(this.meter, dtMs, undefined, this.drainIsHeld));
   }
 
   /** Drink through the meter (the kit has already given the drink up). */
@@ -146,7 +171,7 @@ export class Player {
   }
 
   /** Movement and aim for one tick. Returns the distance moved. */
-  move(dtMs: number, input: InputFrame, grid: TileGrid, extraBlocked?: (c: number, r: number) => boolean): number {
+  move(dtMs: number, input: InputFrame, grid: TileGrid, extraBlocked?: (c: number, r: number) => boolean, speedMultiplier = 1): number {
     this.invulnMs = Math.max(0, this.invulnMs - dtMs);
     this.heldMs = Math.max(0, this.heldMs - dtMs);
     this.stunMs = Math.max(0, this.stunMs - dtMs);
@@ -165,6 +190,7 @@ export class Player {
       if (dir.x !== 0 || dir.y !== 0) {
         let speed = TUNING.player.runSpeed;
         if (this.sneaking) speed *= TUNING.player.sneakSpeedMultiplier;
+        speed *= speedMultiplier;
         delta = scale(scale(dir, speed), dtMs / 1000);
         this.facing = facingFromAngle(angleOf(dir));
       }
@@ -183,7 +209,7 @@ export class Player {
     return moved;
   }
 
-  /** A short lurch along `angleDeg` (the Shoulder, the Stumble): up to `distance`, stopping at walls. */
+  /** A short lurch along `angleDeg` (the Shoulder, the Stumble): up to `distance`, stopping at walls and anything `extraBlocked` (checked along the whole path, in `moveBox` steps). */
   lurch(distance: number, angleDeg: number, grid: TileGrid, extraBlocked?: (c: number, r: number) => boolean): void {
     const d = fromAngle(angleDeg, distance);
     this.pos = moveBox(grid, this.pos, TUNING.player.bodyWidth, TUNING.player.bodyHeight, d, extraBlocked).position;

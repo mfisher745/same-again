@@ -5,7 +5,7 @@
 
 import { TUNING } from '../content/tuning';
 import { GameEvents } from '../core/types';
-import type { AlarmFightId, CompletionSource, EnemyId, FightDef, FightSectionId, GameEventBus, Reward, Vec2 } from '../core/types';
+import type { AlarmFightId, CarriedDrinkId, CompletionSource, EnemyId, FightDef, FightSectionId, GameEventBus, Reward, Vec2 } from '../core/types';
 import type { EnemyActor } from './enemies';
 import { CompletableSection } from './sections';
 import type { SectionHost } from './sections';
@@ -29,6 +29,8 @@ export class FightRunner extends CompletableSection {
   private wave = -1;
   private betweenMs = 0;
   private readonly actorsList: EnemyActor[] = [];
+  /** The enemies each wave spawned (guards adopted from a stealth section are not in any wave). */
+  private readonly waveActors: EnemyActor[][] = [];
   private spawnCursor = 0;
   /** Set during a Myko call-in so no new waves arrive. */
   suspended = false;
@@ -74,8 +76,22 @@ export class FightRunner extends CompletableSection {
     this.wave = -1;
     this.betweenMs = 0;
     this.actorsList.length = 0;
+    this.waveActors.length = 0;
     this.spawnCursor = 0;
     this.suspended = false;
+  }
+
+  /**
+   * Whether this fight decides the enemy's drop. Null: it does not (roll the usual chance). Otherwise the wave
+   * has a guaranteed drop: `drink` is the drink if this is the last of the wave to fall, else null (no drop).
+   * Call once the enemy is down.
+   */
+  guaranteedDropFor(actor: EnemyActor): { readonly drink: CarriedDrinkId | null } | null {
+    const index = this.waveActors.findIndex((w) => w.includes(actor));
+    const drink = this.def.waves[index]?.guaranteedDrop;
+    if (index < 0 || !drink) return null;
+    const last = (this.waveActors[index] ?? []).every((a) => a.down);
+    return { drink: last ? drink : null };
   }
 
   /** Adds existing actors (stealth guards joining their alarm fight). */
@@ -119,6 +135,7 @@ export class FightRunner extends CompletableSection {
       }
     }
     this.actorsList.push(...spawned);
+    this.waveActors[index] = spawned;
     this.hooks.onWaveSpawned?.(index, spawned);
   }
 }

@@ -40,10 +40,15 @@ export function canSee(grid: TileGrid, from: Vec2, facingDeg: number, cone: Cone
   return lineOfSight(grid, from, target);
 }
 
-/** A guard hears a noise if it is within the noise's radius and the guard's hearing radius. */
+/**
+ * A guard hears a noise if it is within the noise's radius. Footsteps are decided by that radius alone (DESIGN.md
+ * 7.3: each level is louder than the last); every other noise must also be inside the guard's `hearingRadius`.
+ * A guard with `hearingRadius` 0 (drones) is deaf to everything.
+ */
 export function canHear(listener: Vec2, hearingRadius: number, noise: NoiseEvent): boolean {
   if (hearingRadius <= 0 || noise.radius <= 0) return false;
   const d = distance(listener, noise.position);
+  if (noise.kind === 'footstep' || noise.kind === 'sneakFootstep') return d <= noise.radius;
   return d <= noise.radius && d <= hearingRadius;
 }
 
