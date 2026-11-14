@@ -201,10 +201,7 @@ describe('Myko in a return', () => {
     arrives(run);
   });
 
-  // BUG (systems-dev, src/systems/myko.ts moveStep, `if (d <= slack)`): the last step is `d - slack`, which leaves d a
-  // float epsilon above `slack`, so `hurrying` never clears while he stands at the point; the view keeps playing the
-  // hurry animation on the spot until completeBarReturn(). Remove `.fails` when fixed.
-  it.fails('his hurrying flag clears once he has arrived', () => {
+  it('his hurrying flag clears once he has arrived', () => {
     const run = floorFrom({ x: ANDREW.x - 60, y: ANDREW.y + 10 });
     tickFor(run, UI.floorReturn.hurryMs + 500);
     expect(run.myko.hurrying).toBe(false);

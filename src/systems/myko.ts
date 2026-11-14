@@ -360,7 +360,10 @@ export class Myko {
       if (this.mode === 'scripted') this.hurrying = false;
       return;
     }
-    const step = Math.min(d - slack, (TUNING.myko.walkSpeed * dtMs) / 1000);
+    const reach = (TUNING.myko.walkSpeed * dtMs) / 1000;
+    const step = Math.min(d - slack, reach);
+    // This step lands on the slack boundary: he has arrived (a float epsilon would leave d just above slack).
+    if (this.mode === 'scripted' && reach >= d - slack) this.hurrying = false;
     const dir = normalize(sub(goal, this.pos));
     this.pos = add(this.pos, scale(dir, step));
     this.moving = step > 0;
