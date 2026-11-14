@@ -148,7 +148,7 @@ Locations are small. Each chapter uses two to four connected screens, counting t
 | WASD | Move. There is no dodge. |
 | Mouse | Aim |
 | Left click | Melee attack with the weapon in the melee slot |
-| Right click | Throw a bottle |
+| Right click (hold, then release) | Aim a bottle, with its path shown, then throw it |
 | R | Cycle to the next melee weapon |
 | Q | Drink what is in the drink slot |
 | Mouse wheel | Change what is in the drink slot |
@@ -171,7 +171,7 @@ There is no health. The one thing the player manages is how drunk Andrew is. Dri
 | | Sober | 0 | 0 | | | Back to the bar. |
 | 1 | Buzzed | 1 to 34 | 1 to 51 | ×1 | 1 | Steady. Below 10 the colours start to flatten, and Andrew remarks on how clear everything is and how little he likes it. |
 | 2 | Grand | 35 to 65 | 52 to 98 | ×1.5 | 1, 2 | Steady. |
-| 3 | Bit much | 66 to 90 | 99 to 123 | ×2 | 1, 2, 3 | Aim sways, movement drifts, footsteps are louder in stealth and the screen wobbles slightly. |
+| 3 | Bit much | 66 to 90 | 99 to 123 | ×2 | 1, 2, 3 | Aim sways (the throw preview shows it), movement drifts, footsteps are louder in stealth and the screen wobbles slightly. |
 | 4 | Fecked | 91 to 99 | 124 to 132 | ×3 | 1, 2, 3, 4 | All of that, worse. Even sneaking can be heard at short range. |
 | | On the floor | 100 | 133 | | | Back to the bar. |
 
@@ -235,7 +235,7 @@ Left click attacks with the weapon in the melee slot. R cycles through the weapo
 
 **Thrown bottles**
 
-Right click throws one bottle from the count (7.1). It is the only ranged attack in the game. It does a fixed amount of damage that the drunk level does not change, and it makes a noise where it lands, which distracts guards.
+Holding right click aims a bottle and releasing it throws one from the count (7.1). While the button is held, a dotted arc shows the bottle's path from Andrew to where it will land. The preview is steady at Buzzed and Grand. It starts to sway at Bit much and sways more the drunker Andrew is, most at Fecked. The bottle goes where the preview points at the moment of release, so the sway is something the player times and never a hidden chance of missing. It is the only ranged attack in the game. It does a fixed amount of damage that the drunk level does not change, and it makes a noise where it lands, which distracts guards.
 
 **Special moves**
 

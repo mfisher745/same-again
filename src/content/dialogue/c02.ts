@@ -217,7 +217,7 @@ export const C02: DialogueFile = {
     box('c2.hint.ring.1', ['myko', "It's the big burnt circle. You found it last night with your face."]),
     box('c2.hint.ring.2', ['myko', 'Middle of the bog. Stand at the ring, the shiny bit and the tracks, and press E at each. Three things.']),
     box('c2.hint.cross.1', ['myko', "They've torches and they point them where they're looking. Don't be there. Be behind turf.", 'by phone']),
-    box('c2.hint.cross.2', ['myko', 'Hold Shift. Go stack to stack. Right click throws a bottle the far side, and they’ll all wander over to it.', 'by phone']),
+    box('c2.hint.cross.2', ['myko', 'Hold Shift. Go stack to stack. Hold right click and put a bottle the far side, and they’ll all wander over to it.', 'by phone']),
     box('c2.hint.sheep.1', ['myko', "Each gate opens one pen and shuts another. The sheep go wherever isn't you."]),
     box('c2.hint.sheep.2', ['myko', 'Open the far pen first. Then the middle gate. Then walk at them from the shed side. Shut it after them.']),
     box('c2.hint.shed.1', ['myko', "It's a shed. Things are in it. Look behind what's in front."]),

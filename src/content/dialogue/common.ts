@@ -207,7 +207,7 @@ export const COMMON: DialogueFile = {
     'ui.prompt.drink': 'Q to drink',
     'ui.prompt.punch': 'Left click to punch. Three in a row.',
     'ui.prompt.push': 'Walk into it to push',
-    'ui.prompt.throw': 'Right click to throw a bottle',
+    'ui.prompt.throw': 'Hold right click to aim a bottle. Let go to throw.',
     'ui.prompt.sneak': 'Hold Shift to sneak',
     'ui.prompt.slot': '{key} to use it',
     'ui.prompt.weapon': 'R to change weapon',
@@ -286,7 +286,7 @@ export const COMMON: DialogueFile = {
     'drink.tea.name': 'Tea',
     'drink.tea.pickup': 'Tea. Back to the bottom of Grand, slowly, and it holds there a while. Andrew feels better and resents it.',
     'drink.bottle.name': 'Bottle',
-    'drink.bottle.desc': 'Empty. Right click to throw. Every beer leaves one behind.',
+    'drink.bottle.desc': 'Empty. Hold right click to aim, let go to throw. Every beer leaves one behind.',
 
     // Pickups
     'pickup.refused.kitFull': 'Six is what the anorak holds. He has counted the pockets.',

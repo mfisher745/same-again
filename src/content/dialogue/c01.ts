@@ -138,7 +138,7 @@ export const C01: DialogueFile = {
     scene(
       'c1.throw.lesson',
       ['andrew', "There's a bottle behind those bins. A full one."],
-      ['myko', "And the bins are in your way. You've empties in your pocket from inside. Right click."],
+      ['myko', "And the bins are in your way. You've empties in your pocket from inside. Hold right click, line it up, let go."],
       ['andrew', 'At the bins?'],
       ['myko', "At the bins. They've had worse. Most things out here will break if you ask them properly."],
     ),
@@ -281,7 +281,7 @@ export const C01: DialogueFile = {
     box('c1.hint.gate.1', ['myko', "It's stuck, not locked. There's a difference, and the difference is your shoulder."]),
     box('c1.hint.gate.2', ['myko', 'Face the gate and press 1.']),
     box('c1.hint.bins.1', ['myko', "You can't reach it. You can reach it with something you can throw."]),
-    box('c1.hint.bins.2', ['myko', 'Right click at the bins. Then pick up what was behind them.']),
+    box('c1.hint.bins.2', ['myko', 'Hold right click, aim at the bins, let go. Then pick up what was behind them.']),
     box('c1.hint.hurley.1', ['myko', "He's left you something against the tractor. He asked nicely."]),
     box('c1.hint.hurley.2', ['myko', 'E at the hurley. R swaps between it and your fists.']),
     box('c1.hint.road.1', ['myko', "You were the one who wanted to look at the sky. It's out the road. Away from the chips."]),
