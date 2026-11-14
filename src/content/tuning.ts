@@ -76,6 +76,8 @@ const attack = (
 ): AttackDef => ({ id, shape, damage, knockback, telegraphMs, cooldownMs, recoveryMs, weight: weightOf(id), ...extra });
 
 const wave = (...enemies: WaveDef['enemies'][number][]): WaveDef => ({ enemies });
+/** A wave that drops one given drink for certain (from the last to fall) instead of rolling for each enemy. */
+const waveDropping = (guaranteedDrop: NonNullable<WaveDef['guaranteedDrop']>, ...enemies: WaveDef['enemies'][number][]): WaveDef => ({ enemies, guaranteedDrop });
 
 // ---------------------------------------------------------------------------
 // Buzz
@@ -675,9 +677,11 @@ const fight = (id: FightDef['id'], ...waves: WaveDef[]): [FightDef['id'], FightD
 const n = (enemyId: EnemyDef['id'], count: number) => ({ enemyId, count });
 
 const fights: Tuning['fights'] = Object.fromEntries([
-  fight('c1.fight.chipper', wave(n('lad', 1)), wave(n('lad', 2))),
+  // The pair of lads drop exactly one stout between them (owner ruling).
+  fight('c1.fight.chipper', wave(n('lad', 1)), waveDropping('stout', n('lad', 2))),
   fight('c2.fight.yard', wave(n('cousin', 2), n('lad', 1))),
-  fight('c2.stealth.bog.alarm', wave(n('suit', 3))),
+  // Caught in the bog: the three patrolling suits plus one reinforcement (owner ruling).
+  fight('c2.stealth.bog.alarm', wave(n('suit', 1))),
   fight('c3.fight.bay', wave(n('worker', 4), n('lad', 2))),
   fight('c3.stealth.yard.alarm', wave(n('suit', 3))),
   fight('c4.fight.brawl', wave(n('brawler', 2)), wave(n('brawler', 2)), wave(n('brawler', 2))),

@@ -92,6 +92,7 @@ import type {
   Facing,
   FightSectionId,
   GameEventBus,
+  Kit,
   ObjectiveId,
   PickupDef,
   PickupItem,
@@ -453,6 +454,23 @@ export interface ChapterContext {
   unlockAbility(id: AbilityId): void;
   give(item: PickupItem): void;
   addEvidence(id: EvidenceId): void;
+  /** What Andrew carries right now: weapon, moves, bottles, drinks, slots. Read it at chapter start; `kit:changed` announces changes. */
+  kit(): Kit;
+  /**
+   * Hide or show the drink meter. While hidden the HUD does not draw it (`MeterSnapshot.hidden`; `meter:hiddenChanged`
+   * fires on a change). Saved, and kept across a return to the bar until the script shows it again.
+   */
+  setMeterHidden(hidden: boolean): void;
+  /**
+   * Hold or release the plain drain. While held the value does not fall and no sober return comes from drain.
+   * Drinks, hits, sun and tea/spirit timers still apply. Saved, and kept across a return to the bar.
+   */
+  holdDrain(held: boolean): void;
+  /**
+   * Called at the end of a return to the bar, after `onBarReturn` has run, so the world is final. Returns an
+   * unsubscribe function.
+   */
+  onBarReturnSettled(fn: () => void): () => void;
   /** Take the bar's free hot drink into the kit. False if one is already carried or it was taken. */
   takeHotDrink(id: HotDrinkId): boolean;
   /** The bar is offering a free hot drink and Andrew carries none. */

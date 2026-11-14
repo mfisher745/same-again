@@ -337,7 +337,7 @@ export class WorldView {
     const here = r.screenId;
     const area = (a: { x: number; y: number; width: number; height: number }, colour: number): void => void g.lineStyle(1, colour, 0.6).strokeRect(a.x, a.y, a.width, a.height);
     const dot = (p: Vec2, colour: number): void => void g.fillStyle(colour, 0.8).fillCircle(p.x, p.y, 2);
-    for (const cp of r.module.def.checkpoints) if (cp.screenId === here) g.lineStyle(1, PALETTE.white, 0.5).strokeCircle(cp.position.x, cp.position.y, 6);
+    for (const cp of r.module.def.checkpoints ?? []) if (cp.screenId === here) g.lineStyle(1, PALETTE.white, 0.5).strokeCircle(cp.position.x, cp.position.y, 6);
     for (const e of r.examinablesHere()) {
       g.fillStyle(PALETTE.amberLight, 0.9).fillTriangle(e.position.x - 4, e.position.y - 10, e.position.x + 4, e.position.y - 10, e.position.x, e.position.y - 4);
       g.lineStyle(1, PALETTE.amberLight, 0.8).strokeRect(e.position.x - 5, e.position.y - 5, 10, 10);

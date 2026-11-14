@@ -692,6 +692,11 @@ export interface BossDef {
 /** One wave of a fight. docs/chapters, "Beats". */
 export interface WaveDef {
   readonly enemies: readonly { readonly enemyId: EnemyId; readonly count: number }[];
+  /**
+   * One drink this wave drops for certain, from the last of its enemies to fall. The wave's members then roll no
+   * random drop, so the wave drops exactly this and nothing else. Absent: each enemy rolls the usual chance.
+   */
+  readonly guaranteedDrop?: CarriedDrinkId;
 }
 
 /** A fight's waves. Defined in `src/content/tuning.ts` under its section ID. docs/chapters/README.md. */
@@ -1173,7 +1178,7 @@ export interface ChapterDef {
   readonly screens: readonly ScreenDef[];
   readonly startScreenId: ScreenId;
   /** @deprecated overhaul phase 2/5 removes this. */
-  readonly checkpoints: readonly CheckpointDef[];
+  readonly checkpoints?: readonly CheckpointDef[];
   /** Every section in beat order. */
   readonly sections: readonly SectionDef[];
   readonly stealthSections: readonly StealthSectionDef[];
@@ -1599,6 +1604,8 @@ export interface GameEventPayloads {
   'move:learned': { readonly moveId: MoveId };
   'weapon:gained': { readonly weaponId: WeaponId };
   'kit:changed': { readonly kit: Kit };
+  /** The chapter script hid or showed the meter (`ChapterContext.setMeterHidden`). Also in `MeterSnapshot.hidden`. */
+  'meter:hiddenChanged': { readonly hidden: boolean };
   'spirit:started': { readonly drinkId: SpiritId; readonly durationMs: number };
   'spirit:ended': { readonly drinkId: SpiritId };
 }
@@ -1674,6 +1681,7 @@ export const GameEvents = {
   MoveLearned: 'move:learned',
   WeaponGained: 'weapon:gained',
   KitChanged: 'kit:changed',
+  MeterHiddenChanged: 'meter:hiddenChanged',
   SpiritStarted: 'spirit:started',
   SpiritEnded: 'spirit:ended',
 } as const satisfies Readonly<Record<string, keyof GameEventPayloads>>;
@@ -1765,6 +1773,10 @@ export interface MeterSnapshot {
   readonly teaHoldActive: boolean;
   /** Andrew is out in the sun (drain doubles, beer goes further). */
   readonly inSun: boolean;
+  /** The chapter script has hidden the meter (chapter 1 until the first pint): the HUD must not draw it. `ChapterContext.setMeterHidden`. */
+  readonly hidden?: boolean;
+  /** The chapter script is holding the drain: the value does not fall. `ChapterContext.holdDrain`. */
+  readonly drainHeld?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -2211,4 +2223,8 @@ export interface OverhaulSaveState {
   readonly playedDialogue: readonly DialogueId[];
   readonly brokenProps: readonly string[];
   readonly lootSeed: number;
+  /** The meter is hidden by the chapter script (absent = shown). */
+  readonly meterHidden?: boolean;
+  /** The drain is held by the chapter script (absent = draining). */
+  readonly drainHeld?: boolean;
 }

@@ -36,6 +36,7 @@ import type {
   AlarmFightId,
   AttackShape,
   BossId,
+  CarriedDrinkId,
   DrunkState,
   ChapterFlagValue,
   ChapterNumber,
@@ -94,8 +95,8 @@ import type { DialogueLookup } from './dialogue';
 import { EnemyActor, statsFromDef } from './enemies';
 import type { ActorStats, CombatWorld } from './enemies';
 import { FightRunner } from './fight';
-import { add, distance, normalize, rectContains, scale } from './geometry';
-import { TILE, isShade, tileOf } from './grid';
+import { add, distance, fromAngle, normalize, rectContains, scale } from './geometry';
+import { TILE, isShade, moveBox, tileOf } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
 import { assignDrink, assignMove, assignWeapon, cycleDrink, drinkFromInventory, drinkSelected, gainWeapon, learnMove, topUpBottles } from './kit';
 import { takeItem } from './pickups';
@@ -258,6 +259,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
     // Loading a save puts Andrew in the bar exactly as a return does, bottles topped up (DESIGN.md 7.6). Chapter 1 keeps its own start.
     this.player = new Player(this.bus, opts.resumed && this.chapter >= 2 ? topUpBottles(save.kit).kit : save.kit, this.chapter);
+    if (save.meterHidden) this.player.setMeterHidden(true);
+    if (save.drainHeld) this.player.holdDrain(true);
     this.combat = new PlayerCombat(this.combatHost());
     this.mykoVoice = new MykoMeterVoice({ rng: this.rng, pool: (id) => this.opts.pool(id), say: (id) => void this.say(id, { repeat: true }) });
     this.dialogue = new DialogueRunner(this.bus, opts.dialogue, {
@@ -430,6 +433,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       playedDialogue: this.dialogue.playedIds(),
       brokenProps: this.dressing.brokenKeys(),
       lootSeed: this.lootSeed,
+      ...(this.player.meterHidden ? { meterHidden: true } : {}),
+      ...(this.player.drainHeld ? { drainHeld: true } : {}),
     };
   }
 
@@ -650,13 +655,24 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.fights.get(id as FightSectionId)?.reset();
     this.bosses.get(id as BossId)?.reset();
     this.stealthRunners.get(id as StealthSectionId)?.runner.reset();
-    const c = this.sections.get(id as CompletableSectionId)?.completable;
-    if (c instanceof PushPuzzle) c.reset();
+    // An unsolved push or sheep puzzle keeps the state Andrew left it in (docs/chapters/README.md).
   }
 
   /** A way back that Andrew opened from the far side (a clean-run reward). */
   shortcutOpened(id: string): boolean {
     return this.openedShortcuts.includes(id);
+  }
+
+  kit(): Kit {
+    return this.player.kit;
+  }
+
+  setMeterHidden(hidden: boolean): void {
+    this.player.setMeterHidden(hidden);
+  }
+
+  holdDrain(held: boolean): void {
+    this.player.holdDrain(held);
   }
 
   /** Take the free hot drink on offer in the bar. DESIGN.md 7.1 "The hot drink". */
@@ -1465,10 +1481,27 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   /** A defeated enemy leaves a drink or nothing: its region's beer, rarely a whiskey, from chapter 7 a tequila. */
   private dropEnemyLoot(actor: EnemyActor): void {
+    // A wave with a guaranteed drop rolls nothing at random: the last of it to fall drops the declared drink.
+    const guaranteed = this.guaranteedDropFor(actor);
+    if (guaranteed) {
+      if (guaranteed.drink) {
+        this.spawnPickup({ id: `drop.${actor.instanceId}`, item: { kind: 'drink', drinkId: guaranteed.drink, count: 1 }, screenId: this.screen.id, position: actor.pos });
+      }
+      return;
+    }
     const region = this.module.def.screens.find((s) => s.id === this.screen.id)?.region ?? 'kilnamoe';
     const drop = rollEnemyDrop(dropRngFor(this.lootSeed, actor.instanceId), regionBeer(region), this.chapter);
     if (drop === null) return;
     this.spawnPickup({ id: `drop.${actor.instanceId}`, item: { kind: 'drink', drinkId: drop, count: 1 }, screenId: this.screen.id, position: actor.pos });
+  }
+
+  /** The fight whose wave spawned this enemy and declares a guaranteed drop, if any (`WaveDef.guaranteedDrop`). */
+  private guaranteedDropFor(actor: EnemyActor): { readonly drink: CarriedDrinkId | null } | null {
+    for (const f of this.fights.values()) {
+      const g = f.guaranteedDropFor(actor);
+      if (g) return g;
+    }
+    return null;
   }
 
   private dropLoot(prop: LiveProp, at: Vec2): void {
@@ -1556,14 +1589,25 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       if (h.screenId === this.screen.id && shapeHitsRect(lane, p.pos, p.aimDeg, h.area)) h.callback({ moveId });
     }
     if (breakAll) {
+      // Only what he actually passes through: the lane stops where a wall (not a breakable) stops the lurch.
+      const reach = this.reachableLane(lane);
       for (const prop of this.dressing.breakablesOn(this.screen.id)) {
-        if (!shapeHitsRect(lane, p.pos, p.aimDeg, propHitRect(prop))) continue;
+        if (!shapeHitsRect(reach, p.pos, p.aimDeg, propHitRect(prop))) continue;
         thud = true;
         // Through it, whatever it takes: every hit it has left.
         for (let i = 0; i < 16 && this.hitBreakable(prop) === 'hit'; i++);
       }
     }
     if (thud) this.opts.playEffect?.('thud');
+  }
+
+  /** The lane cut short where a solid that is not a breakable would stop Andrew. */
+  private reachableLane(lane: AttackShape): AttackShape {
+    if (lane.kind !== 'charge') return lane;
+    const p = this.player;
+    const grid = this.dressing.gridWithoutBreakables(this.screen);
+    const end = moveBox(grid, p.pos, TUNING.player.bodyWidth, TUNING.player.bodyHeight, fromAngle(p.aimDeg, lane.distance)).position;
+    return { ...lane, distance: Math.min(lane.distance, distance(p.pos, end)) };
   }
 
   /** What `PlayerCombat` needs from this chapter. */
