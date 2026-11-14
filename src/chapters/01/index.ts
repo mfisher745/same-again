@@ -5,7 +5,7 @@
 import type { ChapterModule } from '../../core/chapter';
 import type { ChapterDef, ObjectiveDef } from '../../core/types';
 import { createChapterScript } from './script';
-import { KEG_AREA, PUB_START, T, kegTile, pubScreen, roadScreen, streetScreen, tilesArea, yardScreen } from './maps';
+import { HURLEY_TILE, KEG_AREA, PUB_ARRIVAL, T, URN_SPOT, kegTile, pubScreen, roadScreen, streetScreen, tilesArea, yardScreen } from './maps';
 
 const objective = (key: string, id: string): ObjectiveDef => ({
   id,
@@ -23,19 +23,24 @@ const def: ChapterDef = {
     { id: 'c1.road', region: 'kilnamoe', widthTiles: 30, heightTiles: 17 },
   ],
   startScreenId: 'c1.pub',
-  checkpoints: [
-    // Shares the object with the pub's player start so Myko starts at his table.
-    { id: 'c1.cp.start', kind: 'chapterStart', screenId: 'c1.pub', position: PUB_START },
-    // Where Andrew comes back to if he falls at the chipper.
-    { id: 'c1.cp.street', kind: 'other', screenId: 'c1.street', position: T(3, 8) },
-    { id: 'c1.cp.boss', kind: 'boss', screenId: 'c1.street', position: T(44, 9) },
-  ],
+  // The field is still on the contract until systems-dev removes it (types.ts, "@deprecated"). Chapter 1 has none.
+  checkpoints: [],
+  bar: {
+    screenId: 'c1.pub',
+    arrival: PUB_ARRIVAL,
+    hotDrinkProp: URN_SPOT,
+    openDialogueId: 'c1.pub.open',
+    hotDrinkDialogueId: 'c1.bar.hotDrink',
+    returnDialogueId: 'c1.bar.return',
+  },
   sections: [
     { id: 'c1.explore.pub', kind: 'explore', mykoCallable: false },
     { id: 'c1.puzzle.kegs', kind: 'puzzle', mykoCallable: true },
+    // The stuck gate: done when The Shoulder shifts it. Finishing it is what keeps the gate open after a return to the bar.
+    { id: 'c1.explore.yard', kind: 'explore', mykoCallable: false },
     { id: 'c1.explore.street', kind: 'explore', mykoCallable: false },
-    { id: 'c1.fight.chipper', kind: 'fight', mykoCallable: true, reward: { pickups: [{ kind: 'food', foodId: 'spiceBag' }] } },
-    { id: 'c1.boss.bigtom', kind: 'boss', mykoCallable: true, checkpointId: 'c1.cp.boss' },
+    { id: 'c1.fight.chipper', kind: 'fight', mykoCallable: true },
+    { id: 'c1.boss.bigtom', kind: 'boss', mykoCallable: true },
     { id: 'c1.explore.road', kind: 'explore', mykoCallable: false },
   ],
   stealthSections: [],
@@ -52,6 +57,11 @@ const def: ChapterDef = {
     objective('row', 'c1.row'),
     objective('bigTom', 'c1.bigTom'),
     objective('road', 'c1.road'),
+    objective('hotDrink', 'c1.hotDrink'),
+    objective('kit', 'c1.kit'),
+    objective('gate', 'c1.gate'),
+    objective('bins', 'c1.bins'),
+    objective('hurley', 'c1.hurley'),
   ],
   newAbilities: ['punchCombo'],
   mykoCallLines: {
@@ -69,12 +79,13 @@ export const chapter1: ChapterModule = {
   pickups: [
     { id: 'c1.pickup.naggin', item: { kind: 'drink', drinkId: 'whiskey', count: 1 }, screenId: 'c1.street', position: T(26, 2), commentDialogueId: 'c1.street.whiskey' },
     { id: 'c1.pickup.empty', item: { kind: 'empties', count: 1 }, screenId: 'c1.street', position: T(12, 6), commentDialogueId: 'c1.street.empties' },
-    { id: 'c1.pickup.crisps', item: { kind: 'food', foodId: 'crisps' }, screenId: 'c1.street', position: T(36, 5) },
     { id: 'c1.pickup.stout1', item: { kind: 'drink', drinkId: 'stout', count: 1 }, screenId: 'c1.street', position: T(46, 5) },
     { id: 'c1.pickup.stout2', item: { kind: 'drink', drinkId: 'stout', count: 1 }, screenId: 'c1.street', position: T(53, 5) },
   ],
   examinables: [
     { id: 'c1.dympna', screenId: 'c1.pub', position: T(21, 3) },
+    { id: 'c1.urn', screenId: 'c1.pub', position: URN_SPOT },
+    { id: 'c1.hurley', screenId: 'c1.street', position: T(HURLEY_TILE.col, HURLEY_TILE.row) },
     { id: 'c1.trophies', screenId: 'c1.pub', position: { x: 25 * 16, y: 24 }, dialogueId: 'c1.pub.trophies' },
     { id: 'c1.telly', screenId: 'c1.pub', position: T(27, 1), dialogueId: 'c1.pub.telly' },
     { id: 'c1.photo', screenId: 'c1.pub', position: T(1, 4), dialogueId: 'c1.pub.photo' },
@@ -125,7 +136,8 @@ export const chapter1: ChapterModule = {
     { id: 'c1.trig.bar', screenId: 'c1.pub', area: tilesArea(19, 4, 4, 2), once: false },
     { id: 'c1.trig.machine', screenId: 'c1.pub', area: tilesArea(2, 6, 2, 3), once: false },
     { id: 'c1.trig.chipper', screenId: 'c1.street', area: tilesArea(29, 5, 8, 4), once: false },
-    { id: 'c1.trig.checkpoint', screenId: 'c1.street', area: tilesArea(43, 5, 2, 9), once: false },
+    { id: 'c1.trig.call', screenId: 'c1.street', area: tilesArea(43, 5, 2, 9), once: false },
+    { id: 'c1.trig.bins', screenId: 'c1.street', area: tilesArea(22, 5, 7, 3), once: false },
     { id: 'c1.trig.boss', screenId: 'c1.street', area: tilesArea(47, 5, 2, 9), once: false },
     { id: 'c1.trig.lights', screenId: 'c1.road', area: tilesArea(22, 7, 2, 3), once: false },
   ],
