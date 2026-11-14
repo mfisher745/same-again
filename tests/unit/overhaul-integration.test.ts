@@ -8,6 +8,8 @@
 import { describe, expect, it } from 'vitest';
 import { TUNING } from '../../src/content/tuning';
 import type { HitInfo, Kit, OverhaulSaveState } from '../../src/core/types';
+import type { ChapterModule } from '../../src/core/chapter';
+import { createSandboxModule } from '../../src/core/sandbox';
 import { createKit } from '../../src/systems/kit';
 import { createMeter, drink, restValue } from '../../src/systems/meter';
 import { advance, frame, makeRun, record, teleport } from './helpers';
@@ -498,5 +500,40 @@ describe('Myko and the meter', () => {
     const lines = shown.map((x) => x.sequenceId).filter((id) => id.startsWith('myko.'));
     expect(lines.length).toBeGreaterThan(0);
     expect(lines.every((id) => id.startsWith('myko.bar.sober'))).toBe(true);
+  });
+});
+
+describe('thermal masts through the run (level 3 or 4 and in the sun)', () => {
+  const mastModule = (sun: boolean): ChapterModule => {
+    const base = createSandboxModule(1);
+    const stealthSections = base.def.stealthSections.map((s) => ({
+      ...s,
+      guards: [],
+      hazards: [{ kind: 'thermalMast' as const, id: 'mast', position: { x: 15 * 16 + 8, y: 3 * 16 + 8 }, range: 200 }],
+    }));
+    return { ...base, def: { ...base.def, stealthSections, screens: base.def.screens.map((sc) => ({ ...sc, sun })) } };
+  };
+  const detection = (sun: boolean, meter: number): number => {
+    const { run } = makeRun({ module: mastModule(sun) });
+    run.setPlayerPosition({ x: 15 * 16 + 8, y: 6 * 16 + 8 });
+    for (let i = 0; i < 20; i++) {
+      run.player.meter = createMeter(1, meter);
+      run.tick(16, frame());
+    }
+    return run.stealthHere()[0]?.runner.hazards[0]?.detection ?? -1;
+  };
+
+  it('sees him at Bit much in the sun', () => {
+    expect(detection(true, AT.bitMuch)).toBeGreaterThan(0);
+  });
+
+  it('sees him at Fecked in the sun', () => {
+    expect(detection(true, AT.fecked)).toBeGreaterThan(0);
+  });
+
+  it('does not see him in the shade, or below Bit much', () => {
+    expect(detection(false, AT.bitMuch)).toBe(0);
+    expect(detection(true, AT.grand)).toBe(0);
+    expect(detection(true, AT.buzzed)).toBe(0);
   });
 });
