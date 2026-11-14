@@ -198,9 +198,6 @@ export class PlayerCombat {
     p.faceAim();
     const t = this.tuning.throw;
     if (!t) return;
-    // The flight speed is the old bottle's until the throw has its own number (missing from `ThrowTuning`).
-    const flight = TUNING.abilities.bottleThrow.shape;
-    const flightSpeed = flight.kind === 'projectile' ? flight.speed : t.range;
     h.spawnProjectile({
       owner: 'player',
       source: { kind: 'player', abilityId: 'bottleThrow' },
@@ -208,7 +205,7 @@ export class PlayerCombat {
       from: req.origin,
       angleDeg: angleTo(req.origin, req.landing),
       aimPoint: req.landing,
-      shape: { kind: 'projectile', speed: flightSpeed, range: t.range, pierce: 0, lobbed: true, deflectable: false, impactNoiseRadius: req.noiseRadius },
+      shape: { kind: 'projectile', speed: t.speed, range: t.range, pierce: 0, lobbed: true, deflectable: false, impactNoiseRadius: req.noiseRadius },
       damage: req.damage,
       knockback: req.knockback,
       frame: 'bottle',
@@ -227,7 +224,7 @@ export class PlayerCombat {
     this.weapon = state;
     this.swingLeftMs = result.swingMs;
     p.faceAim();
-    const arcDeg = result.sweepArcDeg > 0 ? result.sweepArcDeg : TUNING.abilities.punchCombo.shape.kind === 'arc' ? TUNING.abilities.punchCombo.shape.arcDeg : 100;
+    const arcDeg = result.sweepArcDeg > 0 ? result.sweepArcDeg : this.tuning.meleeArcDeg;
     const r = TUNING.combat.characterHitRadius;
     // A poke is a lane, not a fan.
     const shape: AttackShape = result.pierceCount > 1 ? { kind: 'charge', distance: result.reach, width: r * 2 } : { kind: 'arc', range: result.reach, arcDeg };
@@ -289,9 +286,9 @@ export class PlayerCombat {
     this.lastRefusal = { textId, seq: this.seq };
   }
 
-  /** The reach for "who is near enough" on single-target moves (first guess: a thrown bottle's range). */
+  /** The reach for "who is near enough" on single-target moves. */
   private targetRange(): number {
-    return this.tuning.throw?.range ?? 0;
+    return this.tuning.moveRange;
   }
 
   private nearestTarget(): EnemyActor | null {
@@ -359,8 +356,7 @@ export class PlayerCombat {
         break;
       case 'knockdownAround': {
         h.addFx('slam', p.pos, p.aimDeg, effect.radius, 360, 250);
-        // Knocked flat: shoved clear (the old Stout Slam's shove; first guess until the knockdown has its own number).
-        for (const a of byId(selectTargets(effect, p.pos, p.aimDeg, candidates))) hit(a, 0, TUNING.abilities.stoutSlam.knockback);
+        for (const a of byId(selectTargets(effect, p.pos, p.aimDeg, candidates))) hit(a, 0, effect.knockback);
         h.emitNoise({ kind: 'combat', position: p.pos, radius: effect.radius });
         break;
       }
@@ -423,12 +419,12 @@ export class PlayerCombat {
     else if (out.stunMs > 0) a.stun(out.stunMs);
     if (out.removed && !a.down) h.defeat(a, 'player');
     if (out.landingDamage > 0) {
-      // Thrown out, he lands on whoever is nearest him.
-      const other = h
-        .actors()
-        .filter((x) => !x.down && x !== a)
-        .sort((x, y) => distance(a.pos, x.pos) - distance(a.pos, y.pos))[0];
-      if (other) h.damageActor(other, out.landingDamage, { x: 0, y: 0 }, 0, source, a.pos, true);
+      // Thrown out, he lands on everyone near where he comes down.
+      const radius = effect.kind === 'throwOut' ? effect.landingRadius : 0;
+      for (const other of h.actors()) {
+        if (other.down || other === a || distance(a.pos, other.pos) > radius) continue;
+        h.damageActor(other, out.landingDamage, { x: 0, y: 0 }, 0, source, a.pos, true);
+      }
     }
   }
 }

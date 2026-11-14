@@ -1832,7 +1832,7 @@ export type MoveEffect =
   /** Act Natural: unseen beside a prop until moving; useless once seen. */
   | { readonly kind: 'hideBesideProp'; readonly propRadius: number }
   /** Stout Slam: everyone within `radius` is knocked down. */
-  | { readonly kind: 'knockdownAround'; readonly radius: number }
+  | { readonly kind: 'knockdownAround'; readonly radius: number; /** Shove that knocks them down (160). First guess. */ readonly knockback: number }
   /** Same Again: the next `hits` melee hits each land `times` times. */
   | { readonly kind: 'repeatHits'; readonly hits: number; readonly times: number }
   /** Bedside Manner: everyone within `radius` stops to listen. */
@@ -1855,7 +1855,13 @@ export type MoveEffect =
       readonly bossFraction: number;
     }
   /** Barred: lift one enemy and throw him out; a boss cannot be lifted and takes damage. */
-  | { readonly kind: 'throwOut'; readonly landingDamage: number; readonly bossDamage: number };
+  | {
+      readonly kind: 'throwOut';
+      readonly landingDamage: number;
+      /** Every enemy within this of the landing point takes `landingDamage` (40). First guess. */
+      readonly landingRadius: number;
+      readonly bossDamage: number;
+    };
 
 /** A special move. Defined in `src/content/tuning.ts`. DESIGN.md 7.2. */
 export interface MoveDef {
@@ -2052,6 +2058,8 @@ export interface DropTuning {
 export interface ThrowTuning {
   /** Longest throw, world pixels. */
   readonly range: number;
+  /** Flight speed, pixels per second (150). First guess. */
+  readonly speed: number;
   /** Fixed damage; the drunk level does not change it. */
   readonly damage: number;
   readonly knockback: number;
@@ -2070,6 +2078,12 @@ export interface OverhaulTuning {
   readonly sun: SunTuning;
   /** The level Andrew starts and restarts at; hot drinks aim at its bottom (2, Grand). */
   readonly restLevel: SpecialLevel;
+  /** Points above the bottom of the rest level that Andrew starts and restarts at, so a reset gives about 9 s of Grand (3). First guess. */
+  readonly restMargin: number;
+  /** Range of single-target moves, world pixels (220). First guess. */
+  readonly moveRange: number;
+  /** Width of a melee swing's arc, degrees (100). First guess. */
+  readonly meleeArcDeg: number;
   /** Points a hit moves the meter, by weight (5, 10, 15). */
   readonly hitWeights: Readonly<Record<HitWeight, number>>;
   /** Melee damage multiplier by level (1, 1.5, 2, 3). */
