@@ -252,7 +252,7 @@ export const C08: DialogueFile = {
       ['pruitt', '... Is that the time?'],
       ['andrew', "It's near enough."],
       ['pruitt', "It is. It's near enough. Thirty-four years. Go on through."],
-      ['andrew', 'What did you say to him?'],
+      ['andrew', 'What happened there?'],
       ['myko', "I told him about the ice machine at the Starlite. He's thinking of going by."],
     ),
   ],

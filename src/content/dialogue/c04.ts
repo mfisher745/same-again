@@ -256,7 +256,7 @@ export const C04: DialogueFile = {
     scene(
       'c4.call.fight',
       ['myko', "Excuse me. Sorry. Excuse me. Sorry now."],
-      ['colleenAnn', 'Oh my GOD.'],
+      ['colleenAnn', 'Oh my GOD. Did you do all that?'],
       ['andrew', "You didn't spill it."],
       ['myko', "It's bad stout but it's still stout. You'd them nearly beat. A few more hours and they'd have tired themselves out on you."],
       ['myko', "You said no to that man twice, though. I was proud of that part."],
