@@ -189,7 +189,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private readonly finished: readonly ChapterNumber[];
   /** The script flags as the last save held them; a return to the bar puts them back. */
   private savedFlags: Record<string, ChapterFlagValue>;
-  private readonly settings: GameSettings;
+  private settings: GameSettings;
   private openedShortcuts: readonly string[];
 
   // Sections
@@ -845,6 +845,15 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       default:
         break;
     }
+  }
+
+  tabMode(): GameSettings['tabMode'] {
+    return this.settings.tabMode;
+  }
+
+  /** Tab as toggle or hold (Settings); written with the next save. */
+  setTabMode(mode: GameSettings['tabMode']): void {
+    this.settings = { ...this.settings, tabMode: mode };
   }
 
   /** Put a learned move in its slot (the Tab screen). */

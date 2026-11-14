@@ -3,26 +3,22 @@
  * hangover overlay. docs/style-guide.md sections 4 and 5. Systems start this
  * scene when a chapter begins and stop it on quit to title.
  *
- * Keys handled here: Esc (pause), Tab (casebook), E and left click (advance
+ * Keys handled here: Esc (pause), Tab (the casebook and kit screen), E and left click (advance
  * scene dialogue). The deduction board opens by itself when
  * `source.activeDeduction()` becomes non-null.
  */
 
 import Phaser from 'phaser';
-import { PALETTE } from '../../art/palette';
 import type { ColourName } from '../../art/palette';
-import { TUNING } from '../../content/tuning';
 import { format, sequence, text } from '../../content/dialogue';
 import { isAlienLine } from '../../content/dialogue/speakers';
 import { GameEvents } from '../../core/types';
-import type { DialogueId, DialogueLine, SpeakerId, TextId } from '../../core/types';
+import type { BarReturnReason, DialogueId, DialogueLine, SpeakerId, TextId } from '../../core/types';
 import type { EffectId } from '../../audio';
 import { bindFullscreenHotkey } from '../fullscreen';
 import type { Label, Pic } from '../gfx';
 import {
   PORTRAIT_FALLBACK,
-  iconFrames,
-  makeIcon,
   makeLabel,
   makePortrait,
   portraitFrame,
@@ -31,41 +27,25 @@ import {
   setLabelText,
   speakerColour,
 } from '../gfx';
-import {
-  BUZZ_METER,
-  CELL,
-  DIALOGUE_BOX,
-  DIALOGUE_TEXT,
-  HEALTH_BACKING,
-  HEALTH_PIPS,
-  HEAT_METER,
-  HUD_STRIP,
-  NOTICE_MS,
-  PORTRAIT,
-  SCREEN,
-  SLOT_FLASH_MS,
-  STRIP,
-} from '../layout';
-import { KEY_IDS, keyText } from '../keycaps';
+import { BOSS_BAR, DIALOGUE_BOX, DIALOGUE_TEXT, NOTICE_MS, PORTRAIT, SCREEN } from '../layout';
+import { HudStrip } from '../hud/strip';
+import { PromptStack } from '../hud/prompts';
+import { ReturnDirector } from '../returns/director';
+import { ThrowPreview } from '../returns/throwPreview';
+import { FlatColour } from '../returns/flat';
+import { uiTuning } from '../uiTuning';
 import { DialogueQueue } from '../model/dialogue';
 import type { DialogueView } from '../model/dialogue';
-import { buildHudModel, perimeterSegments } from '../model/hud';
+import type { PromptValues } from '../model/promptText';
+import { buildHudModel } from '../model/hud';
 import type { HudModel } from '../model/hud';
 import { wrapText } from '../model/wrap';
 import { bindPromptHost } from '../prompts';
 import { PROMPT_EVENTS, UiSceneKeys } from '../shared';
 import type { UiShared } from '../shared';
 
-const D = { overlay: 0, hud: 10, notice: 20, box: 30, caption: 40 } as const;
+const D = { overlay: 0, hud: 10, notice: 20, box: 30, caption: 40, ret: 60 } as const;
 const NOTICE_WIDTH_CHARS = 70;
-
-const BUZZ_COLOUR: Record<HudModel['buzz']['state'], ColourName> = {
-  sober: 'fog',
-  buzzed: 'sand',
-  grand: 'grass',
-  bitMuch: 'amber',
-  fecked: 'alarm',
-};
 
 interface Notice {
   readonly bg: Phaser.GameObjects.Rectangle;
@@ -73,73 +53,22 @@ interface Notice {
   hideAt: number;
 }
 
-type CellId = 'drink0' | 'drink1' | 'drink2' | 'empties' | 'melee' | 'dodge' | 'special';
-type Cell = Phaser.GameObjects.Rectangle;
-
-/** A small key cap: the key's letters in a lit box. */
-class Cap {
-  private readonly bg: Phaser.GameObjects.Rectangle;
-  private readonly label: Label;
-  constructor(scene: Phaser.Scene, depth: number) {
-    this.bg = rect(scene, 0, 0, 8, CELL.height, 'steel', depth).setVisible(false);
-    this.label = makeLabel(scene, 0, 0, '', 'ink', { depth: depth + 1 }).setVisible(false);
-  }
-  /** Shows `str` with its top-left at (x, y). Returns the width used. */
-  show(str: string, x: number, y: number, bg: ColourName = 'steel', fg: ColourName = 'ink'): number {
-    const w = str.length * CELL.width + 2;
-    this.bg.setPosition(x, y).setSize(w, CELL.height).setFillStyle(PALETTE[bg]).setVisible(true);
-    setLabelText(this.label, str);
-    setLabelColour(this.label, fg);
-    this.label.setPosition(x + 1, y).setVisible(true);
-    return w;
-  }
-  hide(): void {
-    this.bg.setVisible(false);
-    this.label.setVisible(false);
-  }
-}
-
 export interface PromptRequest {
   readonly textId: TextId;
+  /** Fills `{key}` and the like in the prompt text. */
+  readonly values?: PromptValues;
 }
 
 export class HudScene extends Phaser.Scene {
   private queue!: DialogueQueue;
   private unsubs: Array<() => void> = [];
 
-  // Static layers
-  private overlay!: Phaser.GameObjects.Rectangle;
-  private pips: Pic[] = [];
-  private heatBack: Phaser.GameObjects.Rectangle[] = [];
-  private heatFill!: Phaser.GameObjects.Rectangle;
-  private heatLabel!: Label;
-
-  // Bottom strip. Cells are highlighted briefly when what they hold changes.
-  private cells = new Map<CellId, Cell>();
-  private cellSig = new Map<CellId, string>();
-  private flashUntil = new Map<CellId, number>();
-  private drinkIcons: Pic[] = [];
-  private drinkCount: Label[] = [];
-  private drinkNumCaps: Cap[] = [];
-  private drinkSelCaps: Cap[] = [];
-  private emptiesIcon!: Pic;
-  private emptiesCount!: Label;
-  private emptiesMouse!: Pic;
-  private meleeIcon!: Pic;
-  private meleeMouse!: Pic;
-  private dodgeIcon!: Pic;
-  private dodgeCap!: Cap;
-  private specialIcon!: Pic;
-  private specialName!: Label;
-  private specialReason!: Label;
-  private specialCapF!: Cap;
-  private specialCapR!: Cap;
-  private buzzState!: Label;
-  private buzzFill!: Phaser.GameObjects.Rectangle;
-  private buzzNotches: Phaser.GameObjects.Rectangle[] = [];
-  private rollies: Pic[] = [];
-  private callCap!: Cap;
-  private ring!: Phaser.GameObjects.Graphics;
+  private strip!: HudStrip;
+  private flat!: FlatColour;
+  private throwPreview!: ThrowPreview;
+  private returns!: ReturnDirector;
+  private lastRefusalSeq = -1;
+  private refusalNotice!: Notice;
   private bossBacking!: Phaser.GameObjects.Rectangle;
   private bossName!: Label;
   private bossBack!: Phaser.GameObjects.Rectangle;
@@ -162,7 +91,7 @@ export class HudScene extends Phaser.Scene {
   private saved!: Notice;
   private ability!: Notice;
   private pickup!: Notice;
-  private prompts: Array<{ readonly textId: TextId; readonly notice: Notice }> = [];
+  private prompts!: PromptStack;
 
   constructor(private readonly shared: UiShared) {
     super(UiSceneKeys.Hud);
@@ -170,21 +99,9 @@ export class HudScene extends Phaser.Scene {
 
   create(): void {
     // The scene object is reused when a chapter restarts (after a death); drop the previous run's objects.
-    this.pips = [];
-    this.heatBack = [];
-    this.cells = new Map();
-    this.cellSig = new Map();
-    this.flashUntil = new Map();
-    this.drinkIcons = [];
-    this.drinkCount = [];
-    this.drinkNumCaps = [];
-    this.drinkSelCaps = [];
-    this.buzzNotches = [];
-    this.rollies = [];
     this.boxBg = [];
     this.lineLabels = [];
     this.captionLabels = [];
-    this.prompts = [];
     const { source } = this.shared;
     bindFullscreenHotkey(this.game);
     bindPromptHost(this.game);
@@ -202,9 +119,11 @@ export class HudScene extends Phaser.Scene {
       onError: (id, error) => console.error(`Dialogue ${id} failed`, error),
     });
 
-    this.overlay = rect(this, 0, 0, SCREEN.width, SCREEN.height, 'fluoro', D.overlay).setAlpha(TUNING.hangover.brightness).setVisible(false);
-    this.buildTopLeft();
-    this.buildStrip();
+    this.prompts = new PromptStack(this, D.notice);
+    this.strip = new HudStrip(this, D.hud, (e) => this.shared.hooks.play?.(e));
+    this.flat = new FlatColour(this.game);
+    this.throwPreview = new ThrowPreview(this, D.hud - 2);
+    this.returns = new ReturnDirector(this, this.flat, D.ret, () => this.shared.overlays.hide('return'));
     this.buildBoss();
     this.buildDialogueBox();
     this.buildNotices();
@@ -215,77 +134,8 @@ export class HudScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- building
 
-  private buildTopLeft(): void {
-    // Health only, on a backing so it reads over the world.
-    const hb = HEALTH_BACKING;
-    rect(this, hb.x, hb.y, hb.width, hb.height, 'ink', D.hud - 1);
-    rect(this, hb.x, hb.y + hb.height, hb.width, 1, 'slate', D.hud - 1);
-    for (let i = 0; i < HEALTH_PIPS; i++) this.pips.push(makeIcon(this, 4 + i * 13, 3, D.hud));
-    this.heatBack = [
-      rect(this, HEAT_METER.x - 3, HEAT_METER.y - 3, HEAT_METER.width + 6 + 36, HEAT_METER.height + 6, 'ink', D.hud - 1),
-      rect(this, HEAT_METER.x, HEAT_METER.y, HEAT_METER.width, HEAT_METER.height, 'coal', D.hud),
-    ];
-    this.heatFill = rect(this, HEAT_METER.x, HEAT_METER.y, 0, HEAT_METER.height, 'rust', D.hud + 1);
-    this.heatLabel = makeLabel(this, HEAT_METER.x + HEAT_METER.width + 4, HEAT_METER.y - 2, text('ui.hud.heat'), 'sand', { depth: D.hud });
-  }
-
-  private cell(id: CellId, x: number, width: number): Cell {
-    const c = rect(this, x, STRIP.cellY, width, STRIP.cellHeight, 'coal', D.hud).setVisible(true);
-    this.cells.set(id, c);
-    return c;
-  }
-
-  private buildStrip(): void {
-    const y = STRIP.cellY;
-    rect(this, 0, HUD_STRIP.y, SCREEN.width, HUD_STRIP.height, 'ink', D.hud - 1);
-    rect(this, 0, HUD_STRIP.y, SCREEN.width, 1, 'slate', D.hud);
-    const L = D.hud + 1;
-    // Three drink slots: icon, count, its number key, and Q on the one that is selected.
-    for (let i = 0; i < 3; i++) {
-      const x0 = STRIP.drink.x + i * (STRIP.drink.width + STRIP.drink.gap);
-      this.cell(`drink${i}` as CellId, x0, STRIP.drink.width);
-      this.drinkIcons.push(makeIcon(this, x0 + 2, y + 5, L));
-      this.drinkCount.push(makeLabel(this, x0 + 16, y + 2, '', 'white', { depth: L }));
-      this.drinkNumCaps.push(new Cap(this, L));
-      this.drinkSelCaps.push(new Cap(this, L));
-    }
-    // Empties: the bottle, a count and the right mouse button.
-    this.cell('empties', STRIP.empties.x, STRIP.empties.width);
-    this.emptiesIcon = makeIcon(this, STRIP.empties.x + 2, y + 5, L).set(iconFrames.empty, 'fog');
-    this.emptiesCount = makeLabel(this, STRIP.empties.x + 16, y + 1, '', 'white', { depth: L });
-    this.emptiesMouse = makeIcon(this, STRIP.empties.x + 16, y + 10, L).set(iconFrames.mouseRight, 'fog');
-    // Melee: its icon and the left mouse button.
-    this.cell('melee', STRIP.melee.x, STRIP.melee.width);
-    this.meleeIcon = makeIcon(this, STRIP.melee.x + 2, y + 5, L);
-    this.meleeMouse = makeIcon(this, STRIP.melee.x + 16, y + 5, L).set(iconFrames.mouseLeft, 'fog');
-    // Dodge (The Stumble): icon over the Space key.
-    this.cell('dodge', STRIP.dodge.x, STRIP.dodge.width);
-    this.dodgeIcon = makeIcon(this, STRIP.dodge.x + (STRIP.dodge.width - 12) / 2, y + 1, L);
-    this.dodgeCap = new Cap(this, L);
-    // Buzz: the state word at double size over the meter.
-    this.buzzState = makeLabel(this, STRIP.buzz.x + STRIP.buzz.width / 2, y - 1, '', 'white', { anchor: 'centre', depth: L });
-    this.buzzState.setScale(2);
-    const mx = STRIP.buzz.x + (STRIP.buzz.width - BUZZ_METER.width) / 2;
-    const my = HUD_STRIP.y + HUD_STRIP.height - BUZZ_METER.height - 2;
-    rect(this, mx - 1, my - 1, BUZZ_METER.width + 2, BUZZ_METER.height + 2, 'slate', D.hud);
-    rect(this, mx, my, BUZZ_METER.width, BUZZ_METER.height, 'coal', D.hud + 1);
-    this.buzzFill = rect(this, mx, my, 0, BUZZ_METER.height, 'fog', D.hud + 2);
-    for (let i = 0; i < 3; i++) this.buzzNotches.push(rect(this, 0, my, 1, BUZZ_METER.height, 'white', D.hud + 3));
-    // Special: icon over F (and R when there is a choice), its name and why it is off.
-    this.cell('special', STRIP.special.x, STRIP.special.width);
-    this.specialIcon = makeIcon(this, STRIP.special.x + 2, y + 1, L);
-    this.specialCapF = new Cap(this, L);
-    this.specialCapR = new Cap(this, L);
-    this.specialName = makeLabel(this, STRIP.special.x + 18, y + 3, '', 'white', { depth: L });
-    this.specialReason = makeLabel(this, STRIP.special.x + 18, y + 12, '', 'amber', { depth: L });
-    // Myko's calls, unchanged in look, with the M key.
-    for (let i = 0; i < TUNING.myko.callsPerGame; i++) this.rollies.push(makeIcon(this, STRIP.calls.x + i * STRIP.calls.rollieGap, y + 5, L));
-    this.callCap = new Cap(this, L);
-    this.ring = this.add.graphics().setDepth(D.hud + 4);
-  }
-
   private buildBoss(): void {
-    this.bossBacking = rect(this, 120, 0, 240, 24, 'ink', D.hud - 1);
+    this.bossBacking = rect(this, BOSS_BAR.x, BOSS_BAR.y, BOSS_BAR.width, BOSS_BAR.height, 'ink', D.hud - 1);
     this.bossName = makeLabel(this, SCREEN.width / 2, 3, '', 'white', { anchor: 'centre', depth: D.hud });
     this.bossBack = rect(this, 139, 13, 202, 8, 'ink', D.hud);
     this.bossFill = rect(this, 140, 14, 0, 6, 'alarm', D.hud + 1);
@@ -324,6 +174,7 @@ export class HudScene extends Phaser.Scene {
     };
     this.ability = this.makeNotice(30, 'amberLight');
     this.pickup = this.makeNotice(DIALOGUE_BOX.y - 13, 'white');
+    this.refusalNotice = this.makeNotice(DIALOGUE_BOX.y - 25, 'amberLight');
   }
 
   // ------------------------------------------------------------------ events
@@ -354,45 +205,57 @@ export class HudScene extends Phaser.Scene {
         this.setNotice(this.pickup, msg, NOTICE_MS.pickup);
       }),
       bus.on(GameEvents.PickupRefused, ({ reason, max }) => this.setNotice(this.pickup, format(`pickup.refused.${reason}`, { max: String(max) }), NOTICE_MS.pickup)),
-      bus.on(GameEvents.BarReturned, () => this.clearDialogueOnReset()),
+      bus.on(GameEvents.BarReturned, ({ reason }) => this.startReturn(reason)),
     );
-    const onShow = (req: PromptRequest): void => this.showPrompt(req.textId);
-    const onHide = (textId?: TextId): void => this.hidePrompt(textId);
+    const onShow = (req: PromptRequest): void => this.prompts.show(req.textId, req.values);
+    const onHide = (textId?: TextId): void => this.prompts.hide(textId);
     this.game.events.on(PROMPT_EVENTS.show, onShow);
     this.game.events.on(PROMPT_EVENTS.hide, onHide);
+    const onHotDrink = (): void => this.openHotDrink();
+    this.game.events.on(PROMPT_EVENTS.hotDrink, onHotDrink);
     this.unsubs.push(
+      () => this.game.events.off(PROMPT_EVENTS.hotDrink, onHotDrink),
       () => this.game.events.off(PROMPT_EVENTS.show, onShow),
       () => this.game.events.off(PROMPT_EVENTS.hide, onHide),
     );
   }
 
-  private clearDialogueOnReset(): void {
-    // Commentary is not cleared on death: Myko's death line arrives right after.
+  /** The fade (sober) or the fall (floor), with the game paused and the dialogue waiting until it is over. */
+  private startReturn(reason: BarReturnReason): void {
+    this.shared.overlays.show('return');
+    this.returns.start(reason);
   }
 
   private bindInput(): void {
     const kb = this.input.keyboard;
     if (kb !== null) {
       const onEsc = (e: KeyboardEvent): void => {
-        if (e.repeat || this.scene.isActive(UiSceneKeys.Settings) || this.scene.isActive(UiSceneKeys.Deduction)) return;
-        if (this.shared.overlays.isOpen('casebook')) this.closeCasebook();
+        if (e.repeat || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Settings) || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.HotDrink)) return;
+        if (this.shared.overlays.isOpen('tab')) this.closeTab();
         else if (this.shared.overlays.isOpen('pause')) this.closePause();
         else this.openPause();
       };
       const onTab = (e: KeyboardEvent): void => {
         e.preventDefault();
-        if (e.repeat || this.shared.overlays.isOpen('pause') || this.scene.isActive(UiSceneKeys.Deduction)) return;
-        if (this.shared.overlays.isOpen('casebook')) this.closeCasebook();
-        else if (!this.queue.blocking) this.openCasebook();
+        if (e.repeat || this.shared.overlays.isOpen('pause') || this.shared.overlays.isOpen('hotdrink') || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Deduction)) return;
+        if (this.shared.overlays.isOpen('tab')) {
+          if (this.shared.source.tabMode() === 'toggle') this.closeTab();
+        } else if (!this.queue.blocking) this.openTab();
+      };
+      // Held mode: the screen is open only while Tab is down.
+      const onTabUp = (): void => {
+        if (this.shared.source.tabMode() === 'hold' && this.shared.overlays.isOpen('tab')) this.closeTab();
       };
       const onE = (): void => this.queue.advance();
       kb.on('keydown-ESC', onEsc);
       kb.on('keydown-TAB', onTab);
+      kb.on('keyup-TAB', onTabUp);
       kb.on('keydown-E', onE);
       kb.addCapture('TAB');
       this.unsubs.push(
         () => kb.off('keydown-ESC', onEsc),
         () => kb.off('keydown-TAB', onTab),
+        () => kb.off('keyup-TAB', onTabUp),
         () => kb.off('keydown-E', onE),
         () => kb.removeCapture('TAB'),
       );
@@ -417,25 +280,39 @@ export class HudScene extends Phaser.Scene {
     this.scene.stop(UiSceneKeys.Pause);
   }
 
-  openCasebook(): void {
-    this.shared.overlays.show('casebook');
-    this.scene.launch(UiSceneKeys.Casebook);
-    this.scene.bringToTop(UiSceneKeys.Casebook);
+  /** The coffee-or-tea choice, once per visit to the bar. */
+  openHotDrink(): void {
+    if (this.queue.blocking || this.scene.isActive(UiSceneKeys.HotDrink) || this.shared.overlays.any || !this.shared.source.hotDrinkOffered()) return;
+    this.shared.overlays.show('hotdrink');
+    this.scene.launch(UiSceneKeys.HotDrink);
+    this.scene.bringToTop(UiSceneKeys.HotDrink);
+  }
+
+  openTab(): void {
+    this.shared.overlays.show('tab');
+    this.scene.launch(UiSceneKeys.Tab);
+    this.scene.bringToTop(UiSceneKeys.Tab);
     this.shared.hooks.play?.('uiSelect');
   }
 
-  closeCasebook(): void {
-    this.shared.overlays.hide('casebook');
-    this.scene.stop(UiSceneKeys.Casebook);
+  closeTab(): void {
+    this.shared.overlays.hide('tab');
+    this.scene.stop(UiSceneKeys.Tab);
     this.shared.hooks.play?.('uiMove');
   }
 
   private teardown(): void {
     for (const u of this.unsubs) u();
     this.unsubs = [];
-    for (const key of [UiSceneKeys.Pause, UiSceneKeys.Settings, UiSceneKeys.Casebook, UiSceneKeys.Deduction]) this.scene.stop(key);
+    for (const key of [UiSceneKeys.Pause, UiSceneKeys.Settings, UiSceneKeys.Tab, UiSceneKeys.Deduction, UiSceneKeys.HotDrink]) this.scene.stop(key);
     this.shared.overlays.hide('pause');
-    this.shared.overlays.hide('casebook');
+    this.shared.overlays.hide('tab');
+    this.shared.overlays.hide('hotdrink');
+    this.shared.overlays.hide('return');
+    this.returns.cancel();
+    this.flat.clear();
+    this.throwPreview.destroy();
+    this.prompts.destroy();
   }
 
   // ----------------------------------------------------------------- notices
@@ -450,43 +327,11 @@ export class HudScene extends Phaser.Scene {
     const lines = wrapText(message, NOTICE_WIDTH_CHARS);
     setLabelText(n.label, lines.join('\n'));
     const h = lines.length * DIALOGUE_TEXT.rowHeight + 2;
-    const bottom = n === this.pickup ? DIALOGUE_BOX.y - 2 : n.bg.y + 11;
-    const top = n === this.pickup ? bottom - h : n.bg.y;
+    const fromBottom = n === this.pickup ? DIALOGUE_BOX.y - 2 : n === this.refusalNotice ? DIALOGUE_BOX.y - 14 : null;
+    const top = fromBottom === null ? n.bg.y : fromBottom - h;
     n.bg.setPosition(0, top).setSize(SCREEN.width, h).setVisible(true);
     n.label.setPosition(SCREEN.width / 2, top + 1).setVisible(true);
     n.hideAt = this.time.now + ms;
-  }
-
-  private showPrompt(textId: TextId): void {
-    if (this.prompts.some((p) => p.textId === textId)) return;
-    const notice = this.makeNotice(0, 'amberLight');
-    this.prompts.push({ textId, notice });
-    setLabelText(notice.label, text(textId));
-    notice.bg.setVisible(true);
-    notice.label.setVisible(true);
-    this.layoutPrompts();
-  }
-
-  private hidePrompt(textId?: TextId): void {
-    const keep: typeof this.prompts = [];
-    for (const p of this.prompts) {
-      if (textId === undefined || p.textId === textId) {
-        p.notice.bg.destroy();
-        p.notice.label.destroy();
-      } else keep.push(p);
-    }
-    this.prompts = keep;
-    this.layoutPrompts();
-  }
-
-  private layoutPrompts(): void {
-    // Above the pickup line, stacked upwards.
-    let y = DIALOGUE_BOX.y - 28;
-    for (const p of this.prompts) {
-      p.notice.bg.setPosition(0, y);
-      p.notice.label.setPosition(SCREEN.width / 2, y + 1);
-      y -= 12;
-    }
   }
 
   // ------------------------------------------------------------------- frame
@@ -494,16 +339,18 @@ export class HudScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     const { source } = this.shared;
     const m = buildHudModel(source);
-    this.drawTopLeft(m);
-    this.drawStrip(m);
+    this.strip.update(m, this.time.now);
+    this.returns.update(delta);
+    this.throwPreview.update(source.throwPreview());
+    if (!this.returns.active) this.flat.set(m.buzz.flatness);
     this.drawBoss(m);
-    this.overlay.setVisible(m.hangover);
+    this.showRefusal(m);
 
-    if (!this.shared.overlays.isOpen('pause') && !this.shared.overlays.isOpen('casebook')) this.queue.update(delta);
+    if (!this.shared.overlays.isOpen('pause') && !this.shared.overlays.isOpen('tab') && !this.shared.overlays.isOpen('return')) this.queue.update(delta);
     this.drawDialogue(this.queue.view());
 
     const now = this.time.now;
-    for (const n of [this.saved, this.ability, this.pickup]) {
+    for (const n of [this.saved, this.ability, this.pickup, this.refusalNotice]) {
       if (n.hideAt !== 0 && now >= n.hideAt) {
         n.hideAt = 0;
         n.bg.setVisible(false);
@@ -517,137 +364,12 @@ export class HudScene extends Phaser.Scene {
     }
   }
 
-  private drawTopLeft(m: HudModel): void {
-    this.pips.forEach((pic, i) => {
-      const fill = m.pips[i];
-      if (fill === undefined) {
-        pic.setVisible(false);
-        return;
-      }
-      const frame = fill === 'full' ? iconFrames.pintFull : fill === 'half' ? iconFrames.pintHalf : iconFrames.pintEmpty;
-      pic.set(frame, fill === 'full' ? 'amber' : fill === 'half' ? 'peat' : 'coal');
-    });
-    const heat = m.heat;
-    for (const r of this.heatBack) r.setVisible(heat !== null);
-    this.heatFill.setVisible(heat !== null);
-    this.heatLabel.setVisible(heat !== null);
-    if (heat !== null) this.heatFill.setSize(Math.round(HEAT_METER.width * heat.fraction), HEAT_METER.height);
-  }
-
-  /** Highlights a cell for a moment whenever what it shows changes (not on the first frame). */
-  private watch(id: CellId, signature: string): void {
-    const before = this.cellSig.get(id);
-    this.cellSig.set(id, signature);
-    if (before !== undefined && before !== signature) this.flashUntil.set(id, this.time.now + SLOT_FLASH_MS);
-  }
-
-  private paintCell(id: CellId, visible: boolean, selected = false): void {
-    const c = this.cells.get(id);
-    if (c === undefined) return;
-    c.setVisible(visible);
-    if (!visible) return;
-    const flashing = this.time.now < (this.flashUntil.get(id) ?? 0);
-    const on = flashing && Math.floor(this.time.now / 130) % 2 === 0;
-    c.setFillStyle(PALETTE[on ? 'steel' : selected ? 'slate' : 'coal']);
-    if (on) c.setStrokeStyle(1, PALETTE.white);
-    else if (selected) c.setStrokeStyle(1, PALETTE.amberLight);
-    else c.setStrokeStyle();
-  }
-
-  private drawStrip(m: HudModel): void {
-    const y = STRIP.cellY;
-    // Drinks.
-    m.slots.forEach((slot, i) => {
-      const x0 = STRIP.drink.x + i * (STRIP.drink.width + STRIP.drink.gap);
-      const icon = this.drinkIcons[i];
-      const count = this.drinkCount[i];
-      const num = this.drinkNumCaps[i];
-      const sel = this.drinkSelCaps[i];
-      if (icon === undefined || count === undefined || num === undefined || sel === undefined) return;
-      this.watch(`drink${i}` as CellId, `${slot.drinkId ?? '-'}:${slot.count}:${slot.selected}`);
-      this.paintCell(`drink${i}` as CellId, true, slot.selected);
-      if (slot.drinkId === null) {
-        icon.setVisible(false);
-        setLabelText(count, '');
-      } else {
-        icon.set(iconFrames.drink(slot.drinkId), 'amber').setDim(!slot.selected);
-        setLabelText(count, `×${slot.count}`);
-        setLabelColour(count, slot.selected ? 'white' : 'fog');
-      }
-      const w = num.show(keyText(KEY_IDS.drink[i] ?? KEY_IDS.drink[0]), x0 + 16, y + 12, slot.selected ? 'bone' : 'steel');
-      if (slot.selected) sel.show(keyText(KEY_IDS.drinkSelected), x0 + 16 + w + 1, y + 12, 'amberLight');
-      else sel.hide();
-    });
-    // Empties, dimmed until Bottle Throw is unlocked.
-    this.watch('empties', `${m.empties}:${m.throwUnlocked}`);
-    this.paintCell('empties', true);
-    this.emptiesIcon.setDim(!m.throwUnlocked);
-    this.emptiesMouse.setDim(!m.throwUnlocked);
-    setLabelText(this.emptiesCount, `×${m.empties}`);
-    setLabelColour(this.emptiesCount, m.throwUnlocked ? 'white' : 'steel');
-    // Melee.
-    this.watch('melee', m.melee ?? '-');
-    this.paintCell('melee', true);
-    this.meleeIcon.set(iconFrames.ability(m.melee ?? 'punchCombo'), 'amberLight').setDim(m.melee === null);
-    this.meleeMouse.setDim(m.melee === null);
-    // Dodge, once learned.
-    this.watch('dodge', String(m.dodgeUnlocked));
-    this.paintCell('dodge', m.dodgeUnlocked);
-    if (m.dodgeUnlocked) {
-      this.dodgeIcon.set(iconFrames.ability('stumble'), 'amberLight');
-      const label = keyText(KEY_IDS.dodge);
-      this.dodgeCap.show(label, STRIP.dodge.x + Math.floor((STRIP.dodge.width - (label.length * CELL.width + 2)) / 2), y + 13);
-    } else {
-      this.dodgeIcon.setVisible(false);
-      this.dodgeCap.hide();
-    }
-    // Special, with the reason when it is off.
-    const sp = m.special;
-    this.watch('special', `${sp.iconAbility ?? '-'}:${sp.shown}`);
-    this.paintCell('special', sp.shown);
-    if (sp.shown) {
-      if (sp.iconAbility === null) this.specialIcon.setVisible(false);
-      else this.specialIcon.set(iconFrames.ability(sp.iconAbility), 'amberLight').setDim(sp.locked);
-      const fw = this.specialCapF.show(keyText(KEY_IDS.special), STRIP.special.x + 2, y + 13, sp.locked ? 'slate' : 'steel', sp.locked ? 'fog' : 'ink');
-      if (sp.cyclable) this.specialCapR.show(keyText(KEY_IDS.cycleSpecial), STRIP.special.x + 2 + fw + 1, y + 13, 'slate', 'fog');
-      else this.specialCapR.hide();
-      const textX = STRIP.special.x + 2 + fw + (sp.cyclable ? 1 + (keyText(KEY_IDS.cycleSpecial).length * CELL.width + 2) : 0) + 3;
-      this.specialName.setX(textX);
-      this.specialReason.setX(textX);
-      // "The Borrowed Glove" is too long for the cell: the leading article goes.
-      const name = sp.abilityId === null ? '' : text(sp.labelTextId).replace(/^The /, '');
-      setLabelText(this.specialName, name);
-      setLabelColour(this.specialName, sp.locked ? 'steel' : 'white');
-      const reason = sp.reason === 'sober' ? text('ui.buzz.sober') : sp.reason === 'buzz' ? keyText(KEY_IDS.needBuzz) : sp.reason === 'recharge' ? keyText(KEY_IDS.recharging) : '';
-      setLabelText(this.specialReason, reason);
-    } else {
-      this.specialIcon.setVisible(false);
-      this.specialCapF.hide();
-      this.specialCapR.hide();
-      setLabelText(this.specialName, '');
-      setLabelText(this.specialReason, '');
-    }
-    // Buzz: the state word, large, over the meter.
-    const flash = m.buzz.flashing && Math.floor(this.time.now / 160) % 2 === 0;
-    const mx = STRIP.buzz.x + (STRIP.buzz.width - BUZZ_METER.width) / 2;
-    this.buzzFill.setSize(Math.round(BUZZ_METER.width * m.buzz.fraction), BUZZ_METER.height);
-    this.buzzFill.setFillStyle(PALETTE[flash ? 'white' : BUZZ_COLOUR[m.buzz.state]]);
-    m.buzz.notches.forEach((f, i) => this.buzzNotches[i]?.setX(mx + Math.round(BUZZ_METER.width * f)));
-    setLabelText(this.buzzState, text(m.buzz.stateTextId));
-    setLabelColour(this.buzzState, flash ? 'white' : BUZZ_COLOUR[m.buzz.state]);
-    // Myko's calls and the M key.
-    this.rollies.forEach((pic, i) => {
-      const available = m.calls[i] === true;
-      pic.set(available ? iconFrames.leaf : iconFrames.leafSpent, available ? 'bone' : 'coal');
-    });
-    this.callCap.show(keyText(KEY_IDS.call), STRIP.calls.capX, y + 7, 'slate', 'fog');
-    this.ring.clear();
-    if (m.callHold > 0) {
-      this.ring.lineStyle(2, PALETTE.amberLight, 1);
-      for (const [x1, y1, x2, y2] of perimeterSegments(m.callHold, 58, 20)) {
-        this.ring.lineBetween(STRIP.calls.x - 3 + x1, y + 1 + y1, STRIP.calls.x - 3 + x2, y + 1 + y2);
-      }
-    }
+  /** A refused move shows its line briefly; each refusal has a new `seq`. */
+  private showRefusal(m: HudModel): void {
+    const r = m.refusal;
+    if (r === null || r.seq === this.lastRefusalSeq) return;
+    this.lastRefusalSeq = r.seq;
+    this.setNotice(this.refusalNotice, text(r.textId), uiTuning().refusalMs);
   }
 
   private drawBoss(m: HudModel): void {

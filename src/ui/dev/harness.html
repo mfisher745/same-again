@@ -1,0 +1,18 @@
+<!doctype html>
+<!-- Dev harness page: `pnpm dev`, then open /src/ui/dev/harness.html. Not part of the game build. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>UI harness</title>
+    <style>
+      body { margin: 0; background: #14121a; color: #ddd; }
+      #game { display: inline-block; vertical-align: top; }
+      #panel { display: inline-block; vertical-align: top; max-width: 560px; padding: 4px; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="panel"></div>
+    <script type="module" src="./harness.ts"></script>
+  </body>
+</html>

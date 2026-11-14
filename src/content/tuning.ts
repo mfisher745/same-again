@@ -999,4 +999,13 @@ export const TUNING: Tuning = {
   bosses,
   fights,
   overhaul,
+  ui: {
+    soberReturn: { flattenMs: 900, fadeMs: 1100, blackMs: 500 },
+    floorReturn: { fallMs: 900, hurryMs: 1100, smokeMs: 1800, blackMs: 500, mykoStartOffset: 24 },
+    revealMs: 700,
+    refusalMs: 1600,
+    flatAtZero: 0.9,
+    throwDotEndAlpha: 0.25,
+    throwDotScale: 2,
+  },
 };

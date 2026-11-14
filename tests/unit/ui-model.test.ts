@@ -8,8 +8,12 @@ import { CASEBOOK_TABS, groupCasebook, tabTextId, toItem } from '../../src/ui/mo
 import { LINKS_REQUIRED, LinkSelection } from '../../src/ui/model/deduction';
 import { DialogueQueue } from '../../src/ui/model/dialogue';
 import { FakeSource } from '../../src/ui/dev/fakeSource';
-import { buildHudModel, hudDrinkCells, perimeterSegments } from '../../src/ui/model/hud';
+import { buildHudModel, flatness, meterWidth, perimeterSegments } from '../../src/ui/model/hud';
 import { levelTable } from '../../src/systems/meter';
+import { KIT_SLOTS, assignItem, buildKitView, clearSlot, itemKey, slotContent, slotFor } from '../../src/ui/model/kit';
+import { returnDuration, returnFrame } from '../../src/ui/model/returns';
+import { TUNING } from '../../src/content/tuning';
+import { promptKey, promptParts } from '../../src/ui/model/promptText';
 import { OverlayTracker } from '../../src/ui/model/overlay';
 import { paginate, wrapText } from '../../src/ui/model/wrap';
 
@@ -335,21 +339,22 @@ const slotView = (slot: 1 | 2 | 3 | 4, moveId: MoveSlotView['moveId'], lit: bool
 const kitWith = (over: Partial<Kit>): Kit => ({ ...new FakeSource().kitState, ...over });
 
 describe('HUD model', () => {
-  it('there is no health: no pips, no hangover, no heat', () => {
-    const m = buildHudModel(source());
-    expect(m.pips).toEqual([]);
-    expect(m.hangover).toBe(false);
-    expect(m.heat).toBeNull();
-  });
-
-  it('the meter fraction and notches come from the chapter table, not constants', () => {
+  it('the meter fraction and marks come from the chapter table, not constants', () => {
     const t = levelTable(1);
     const m = buildHudModel(source({ buzzValue: 45 }));
-    expect(m.buzz.notches).toEqual([t.grand.min / t.floor, t.bitMuch.min / t.floor, t.fecked.min / t.floor]);
+    expect(m.buzz.marks).toEqual([t.grand.min / t.floor, t.bitMuch.min / t.floor, t.fecked.min / t.floor]);
     expect(m.buzz.fraction).toBeCloseTo(45 / t.floor, 5);
     expect(m.buzz.state).toBe('grand');
     expect(hasText(m.buzz.stateTextId)).toBe(true);
     expect(m.buzz.flashing).toBe(false);
+  });
+
+  it('the meter is longer in a chapter with a higher floor, within limits', () => {
+    expect(meterWidth(200)).toBeGreaterThan(meterWidth(100));
+    expect(meterWidth(1)).toBe(80);
+    expect(meterWidth(10_000)).toBe(190);
+    expect(meterWidth(Number.NaN)).toBe(80);
+    expect(buildHudModel(source()).buzz.widthPx).toBe(meterWidth(levelTable(1).floor));
   });
 
   it('every level has HUD text and the meter flashes only during a spirit window', () => {
@@ -361,6 +366,23 @@ describe('HUD model', () => {
       expect(m.buzz.flashing).toBe(false);
       expect(buildHudModel(source({ buzzValue: value, spiritActive: true })).buzz.flashing).toBe(true);
     }
+  });
+
+  it('the sun mark follows the meter', () => {
+    expect(buildHudModel(source()).buzz.inSun).toBe(false);
+    expect(buildHudModel(source({ inSun: true })).buzz.inSun).toBe(true);
+  });
+
+  it('colours go flat under the low warning, deepening towards 0, and not before', () => {
+    expect(buildHudModel(source({ buzzValue: 10 })).buzz.flatness).toBe(0);
+    const at5 = buildHudModel(source({ buzzValue: 5 })).buzz.flatness;
+    const at1 = buildHudModel(source({ buzzValue: 1 })).buzz.flatness;
+    const at0 = buildHudModel(source({ buzzValue: 0 })).buzz.flatness;
+    expect(at5).toBeGreaterThan(0);
+    expect(at1).toBeGreaterThan(at5);
+    expect(at0).toBeGreaterThan(at1);
+    expect(at0).toBeLessThanOrEqual(1);
+    expect(flatness({ ...new FakeSource().meter(), value: Number.NaN })).toBeGreaterThanOrEqual(0);
   });
 
   it('clamps a nonsense meter value', () => {
@@ -375,42 +397,37 @@ describe('HUD model', () => {
     expect(buildHudModel(source({ callsLeft: 0 })).calls).toEqual([false, false, false]);
   });
 
-  it('the special cell is dark when the slot is dark, recharging when lit with a cooldown, ready otherwise', () => {
+  it('four special slots: empty, dark, recharging with a fraction, ready', () => {
     const none = buildHudModel(source({ slots: [slotView(1, null, true), slotView(2, null, false), slotView(3, null, false), slotView(4, null, false)] }));
-    expect(none.special.shown).toBe(false);
-    expect(none.special.locked).toBe(true);
-    expect(none.special.labelTextId).toBe('ui.hud.noSpecial');
+    expect(none.specials.map((s) => s.ready)).toEqual([false, false, false, false]);
+    expect(none.specials[1]?.moveId).toBeNull();
     const dark = buildHudModel(source({ slots: [slotView(1, null, true), slotView(2, 'stoutSlam', false), slotView(3, null, false), slotView(4, null, false)] }));
-    expect(dark.special.locked).toBe(true);
-    expect(dark.special.reason).toBe('sober');
+    expect(dark.specials[1]).toMatchObject({ moveId: 'stoutSlam', lit: false, ready: false });
     const recharging = buildHudModel(source({ slots: [slotView(1, null, true), slotView(2, 'stoutSlam', true, 3000), slotView(3, null, false), slotView(4, null, false)] }));
-    expect(recharging.special.reason).toBe('recharge');
-    expect(recharging.special.locked).toBe(true);
+    expect(recharging.specials[1]).toMatchObject({ lit: true, ready: false });
+    expect(recharging.specials[1]?.cooldownFraction).toBeCloseTo(0.25, 5);
     const ready = buildHudModel(source({ slots: [slotView(1, null, true), slotView(2, 'stoutSlam', true, 0), slotView(3, null, false), slotView(4, null, false)] }));
-    expect(ready.special.reason).toBeNull();
-    expect(ready.special.locked).toBe(false);
-    expect(hasText(ready.special.labelTextId)).toBe(true);
+    expect(ready.specials[1]).toMatchObject({ ready: true, cooldownFraction: 0 });
   });
 
-  it('drink cells show the selected drink first, then the others, with counts; bottles are the throw count', () => {
+  it('the drink slot shows the selected drink and its count; bottles are the throw count', () => {
     const kit = kitWith({ drinks: { stout: 2, whiskey: 1, lager: 3 }, bottles: 4, slots: { drink: 'whiskey', specials: [null, null, null, null], melee: 'fists' } });
     const m = buildHudModel(source({ kitState: kit }));
-    expect(m.slots[0]).toMatchObject({ selected: true, count: 1 });
-    expect(m.slots[1]?.selected).toBe(false);
-    expect(m.slots.filter((c) => c.drinkId !== null).length).toBe(3);
-    expect(m.empties).toBe(4);
-    expect(hudDrinkCells(kitWith({ drinks: {}, slots: { drink: null, specials: [null, null, null, null], melee: 'fists' } })).every((c) => c.drinkId === null)).toBe(true);
+    expect(m.drink).toEqual({ drinkId: 'whiskey', count: 1 });
+    expect(m.bottles).toBe(4);
+    const none = buildHudModel(source({ kitState: kitWith({ drinks: {}, slots: { drink: null, specials: [null, null, null, null], melee: 'fists' } }) }));
+    expect(none.drink).toEqual({ drinkId: null, count: 0 });
   });
 
-  it('a held hot drink is a cell of its own', () => {
-    const cells = hudDrinkCells(kitWith({ drinks: { stout: 1 }, hotDrink: 'tea', slots: { drink: 'stout', specials: [null, null, null, null], melee: 'fists' } }));
-    expect(cells[0]?.drinkId).toBe('stout');
-    expect(cells[1]?.count).toBe(1);
+  it('a hot drink in the slot counts one', () => {
+    const m = buildHudModel(source({ kitState: kitWith({ drinks: { stout: 1 }, hotDrink: 'tea', slots: { drink: 'tea', specials: [null, null, null, null], melee: 'fists' } }) }));
+    expect(m.drink).toEqual({ drinkId: 'tea', count: 1 });
   });
 
-  it('the melee icon follows the weapon', () => {
-    expect(buildHudModel(source({ weaponId: 'hurley' })).melee).toBe('hurley');
-    expect(buildHudModel(source({ weaponId: 'fists' })).melee).toBe('punchCombo');
+  it('the weapon follows the kit, and a refusal comes through with its seq', () => {
+    expect(buildHudModel(source({ weaponId: 'hurley' })).weapon).toBe('hurley');
+    expect(buildHudModel(source()).refusal).toBeNull();
+    expect(buildHudModel(source({ lastRefusal: { textId: 'ui.move.dark', seq: 2 } })).refusal).toEqual({ textId: 'ui.move.dark', seq: 2 });
   });
 
   it('boss bar fraction and name', () => {
@@ -464,5 +481,165 @@ describe('OverlayTracker', () => {
 describe('real content in the UI model', () => {
   it('speaker display names exist for all named characters', () => {
     for (const id of ['name.dympna', 'name.bigTom']) expect(text(id).length).toBeGreaterThan(0);
+  });
+});
+
+describe('Kit tab model', () => {
+  const richKit = (): FakeSource => {
+    const s = new FakeSource();
+    s.kitState = kitWith({ drinks: { stout: 2, whiskey: 1 }, hotDrink: 'tea', bottles: 3, weapons: ['fists', 'hurley'], moves: ['stoutSlam', 'shoulder'] });
+    return s;
+  };
+
+  it('lists drinks against the carry limit, the hot drink, weapons in order and moves by level', () => {
+    const v = buildKitView(richKit().kit());
+    expect(v.drinks.map((d) => [d.id, d.count])).toEqual([['stout', 2], ['whiskey', 1]]);
+    expect(v.places).toEqual({ n: 3, max: 6 });
+    expect(v.hot).toBe('tea');
+    expect(v.bottles).toBe(3);
+    expect(v.weapons.map((w) => w.id)).toEqual(['fists', 'hurley']);
+    expect(v.moves.map((m) => m.id)).toEqual(['shoulder', 'stoutSlam']);
+    expect(v.items.map(itemKey)).toEqual(['drink:stout', 'drink:whiskey', 'hot:tea', 'weapon:fists', 'weapon:hurley', 'move:shoulder', 'move:stoutSlam']);
+    expect(hasText('ui.kit.places')).toBe(true);
+  });
+
+  it('every kit tab text ID exists', () => {
+    for (const id of ['ui.tab.casebook', 'ui.tab.kit', 'ui.kit.drinks', 'ui.kit.hotDrink', 'ui.kit.bottles', 'ui.kit.weapons', 'ui.kit.moves', 'ui.kit.slots', 'ui.kit.slot.drink', 'ui.kit.slot.melee', 'ui.kit.slot.special', 'ui.kit.slot.level', 'ui.kit.slot.empty', 'ui.kit.assign', 'ui.kit.drinkNow', 'ui.kit.none', 'ui.kit.hotDrink.none', 'ui.kit.wrongLevel', 'ui.settings.tab', 'ui.settings.tab.toggle', 'ui.settings.tab.hold']) {
+      expect(hasText(id), id).toBe(true);
+    }
+  });
+
+  it('six slots: drink, melee, then specials 1 to 4', () => {
+    expect(KIT_SLOTS).toHaveLength(6);
+    expect(KIT_SLOTS.map((s) => (s.kind === 'special' ? s.slot : s.kind))).toEqual(['drink', 'melee', 1, 2, 3, 4]);
+  });
+
+  it('an item goes in the slot of its kind; a move in its level', () => {
+    const v = buildKitView(richKit().kit());
+    expect(slotFor(v.items[0]!)).toEqual({ kind: 'drink' });
+    expect(slotFor(v.items[4]!)).toEqual({ kind: 'melee' });
+    expect(slotFor(v.items[6]!)).toEqual({ kind: 'special', slot: 2 });
+  });
+
+  it('a special slot only takes a move of its own level, with the wrong-level line', () => {
+    const s = richKit();
+    const slam = buildKitView(s.kit()).moves.find((m) => m.id === 'stoutSlam')!;
+    const bad = assignItem(s, slam, { kind: 'special', slot: 1 });
+    expect(bad.ok).toBe(false);
+    expect(bad.refusal).toEqual({ textId: 'ui.kit.wrongLevel', n: 2 });
+    expect(s.kit().slots.specials[0]).toBeNull();
+    expect(assignItem(s, slam, { kind: 'special', slot: 2 }).ok).toBe(true);
+    expect(s.kit().slots.specials[1]).toBe('stoutSlam');
+    expect(slotContent(s.kit(), { kind: 'special', slot: 2 })).toEqual({ kind: 'move', id: 'stoutSlam' });
+    expect(clearSlot(s, { kind: 'special', slot: 2 })).toBe(true);
+    expect(s.kit().slots.specials[1]).toBeNull();
+  });
+
+  it('assigning a weapon and a drink changes the melee and drink slots', () => {
+    const s = richKit();
+    const v = buildKitView(s.kit());
+    expect(assignItem(s, v.weapons[1]!, { kind: 'melee' }).ok).toBe(true);
+    expect(s.weapon()).toBe('fists'); // the fake keeps its own weapon id; the kit is what the Tab screen changes
+    expect(s.kit().slots.melee).toBe('hurley');
+    expect(assignItem(s, v.drinks[1]!, { kind: 'drink' }).ok).toBe(true);
+    expect(s.kit().slots.drink).toBe('whiskey');
+    expect(assignItem(s, v.drinks[0]!, { kind: 'melee' }).ok).toBe(false);
+  });
+
+  it('drink straight from the inventory, and the hot drink is taken once per visit', () => {
+    const s = richKit();
+    expect(s.drinkFromInventory('stout')).toBe(true);
+    expect(s.kit().drinks.stout).toBe(1);
+    expect(s.drinkFromInventory('tequila')).toBe(false);
+    const t = new FakeSource();
+    expect(t.hotDrinkOffered()).toBe(true);
+    expect(t.takeHotDrink('coffee')).toBe(true);
+    expect(t.hotDrinkOffered()).toBe(false);
+    expect(t.takeHotDrink('tea')).toBe(false);
+  });
+
+  it('Tab mode toggles and is remembered by the source', () => {
+    const s = new FakeSource();
+    expect(s.tabMode()).toBe('toggle');
+    s.setTabMode('hold');
+    expect(s.tabMode()).toBe('hold');
+  });
+});
+
+describe('Return timelines', () => {
+  const ui = TUNING.ui!;
+  const total = (r: 'sober' | 'floor'): number => returnDuration(r, ui);
+
+  it('the sober return flattens, fades to black, holds, then fades up on the bar', () => {
+    const s = ui.soberReturn;
+    expect(returnFrame('sober', 0, ui)).toMatchObject({ stage: 'flatten', flat: 0, cover: 0, silent: true, done: false });
+    const mid = returnFrame('sober', s.flattenMs / 2, ui);
+    expect(mid.flat).toBeCloseTo(0.5, 5);
+    expect(mid.cover).toBe(0);
+    expect(returnFrame('sober', s.flattenMs + s.fadeMs / 2, ui)).toMatchObject({ stage: 'fade', flat: 1 });
+    expect(returnFrame('sober', s.flattenMs + s.fadeMs + 1, ui)).toMatchObject({ stage: 'black', cover: 1 });
+    const reveal = returnFrame('sober', total('sober') - ui.revealMs / 2, ui);
+    expect(reveal.stage).toBe('reveal');
+    expect(reveal.cover).toBeCloseTo(0.5, 5);
+    expect(reveal.flat).toBe(0);
+    expect(returnFrame('sober', total('sober'), ui)).toMatchObject({ done: true, cover: 0, silent: false });
+  });
+
+  it('the floor return: fall, Myko hurries, smoke grows to fill the screen, black, reveal', () => {
+    const f = ui.floorReturn;
+    expect(returnFrame('floor', 10, ui).stage).toBe('fall');
+    expect(returnFrame('floor', f.fallMs + 1, ui).stage).toBe('hurry');
+    expect(returnFrame('floor', f.fallMs + f.hurryMs / 2, ui).hurry).toBeCloseTo(0.5, 5);
+    const smokeAt = f.fallMs + f.hurryMs;
+    expect(returnFrame('floor', smokeAt, ui).smoke).toBe(0);
+    expect(returnFrame('floor', smokeAt + f.smokeMs / 2, ui).smoke).toBeCloseTo(0.5, 5);
+    expect(returnFrame('floor', smokeAt + f.smokeMs - 1, ui).smoke).toBeGreaterThan(0.99);
+    expect(returnFrame('floor', smokeAt + f.smokeMs + 1, ui)).toMatchObject({ stage: 'black', cover: 1 });
+    expect(returnFrame('floor', total('floor'), ui).done).toBe(true);
+    // The smoke never shrinks.
+    let last = 0;
+    for (let t = 0; t <= total('floor'); t += 50) {
+      const fr = returnFrame('floor', t, ui);
+      if (fr.stage === 'smoke') {
+        expect(fr.smoke).toBeGreaterThanOrEqual(last);
+        last = fr.smoke;
+      }
+    }
+  });
+
+  it('every stage has a frame for any time, and a nonsense time does not break it', () => {
+    for (const r of ['sober', 'floor'] as const) {
+      for (const t of [-5, 0, 1, total(r) / 2, total(r) - 1, total(r) + 1000]) {
+        const fr = returnFrame(r, t, ui);
+        expect(fr.cover).toBeGreaterThanOrEqual(0);
+        expect(fr.cover).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+});
+
+describe('Prompt text', () => {
+  it('a prompt that starts with a key gives the key and the rest', () => {
+    expect(promptParts('ui.prompt.weapon')).toEqual({ key: 'R', rest: 'to change weapon' });
+    expect(promptParts('ui.prompt.kit')).toEqual({ key: 'Tab', rest: 'for the kit' });
+    expect(promptParts('ui.prompt.hotDrink')).toEqual({ key: 'E', rest: 'for a hot drink' });
+    expect(promptParts('ui.prompt.slot', { key: '2' })).toEqual({ key: '2', rest: 'to use it' });
+  });
+
+  it('a prompt that does not start with a key is shown whole', () => {
+    const t = promptParts('ui.prompt.throw');
+    expect(t.key).toBeNull();
+    expect(t.rest).toBe(text('ui.prompt.throw'));
+    expect(promptParts('ui.prompt.selectDrink').key).toBeNull();
+  });
+
+  it('the same text with the same values is the same prompt', () => {
+    expect(promptKey('ui.prompt.slot', { key: '1' })).toBe(promptKey('ui.prompt.slot', { key: '1' }));
+    expect(promptKey('ui.prompt.slot', { key: '1' })).not.toBe(promptKey('ui.prompt.slot', { key: '2' }));
+    expect(promptKey('ui.prompt.kit')).toBe('ui.prompt.kit');
+  });
+
+  it('every new prompt text exists', () => {
+    for (const id of ['ui.prompt.slot', 'ui.prompt.weapon', 'ui.prompt.throw', 'ui.prompt.kit', 'ui.prompt.selectDrink', 'ui.prompt.hotDrink', 'ui.bar.choose', 'ui.bar.coffee', 'ui.bar.tea']) expect(hasText(id), id).toBe(true);
   });
 });

@@ -36,13 +36,20 @@ export type EffectId =
   | 'swing'
   | 'smallCrash'
   | 'breakWood'
-  | 'breakGlass';
+  | 'breakGlass'
+  | 'moveUsed'
+  | 'slotReady'
+  | 'weaponSwap'
+  | 'hotDrink'
+  | 'spiritStart'
+  | 'spiritEnd';
 
 export const EFFECT_IDS: readonly EffectId[] = [
   'hit', 'haymaker', 'hurley', 'bottleThrow', 'bottleSmash', 'drink', 'footstep', 'hurt', 'fallOver', 'pickup',
   'refuse', 'alarm', 'detectionTick', 'door', 'push', 'uiMove', 'uiSelect', 'save', 'blipAndrew', 'blipMyko',
   'blipOther', 'blipAlien', 'mykoCallIn', 'bossPhase', 'stun', 'fire', 'sliotar', 'deflect', 'heatWarning',
   'enemyDown', 'abilityUnlocked', 'thud', 'swing', 'smallCrash', 'breakWood', 'breakGlass',
+  'moveUsed', 'slotReady', 'weaponSwap', 'hotDrink', 'spiritStart', 'spiritEnd',
 ];
 
 export interface Synth {
@@ -283,6 +290,38 @@ export function renderEffect(id: EffectId, s: Synth, t: number): void {
       tone(s, { type: 'triangle', f0: 240, f1: 110, t, dur: 0.1, gain: 0.45 });
       noiseBurst(s, { t: t + 0.07, dur: 0.05, gain: 0.35, filter: 'bandpass', f0: 800, f1: 400, q: 1.6 });
       noiseBurst(s, { t: t + 0.13, dur: 0.07, gain: 0.25, filter: 'bandpass', f0: 650, f1: 300, q: 1.2 });
+      break;
+    // Overhaul: a move going off, a slot coming back, a weapon swap, a hot drink, a spirit starting and wearing off.
+    case 'moveUsed':
+      noiseBurst(s, { t, dur: 0.14, gain: 0.3, filter: 'bandpass', f0: 300, f1: 2200, q: 1.1 });
+      tone(s, { type: 'square', f0: 220, f1: 440, t, dur: 0.12, gain: 0.2 });
+      tone(s, { type: 'triangle', f0: 660, t: t + 0.1, dur: 0.1, gain: 0.18 });
+      break;
+    case 'slotReady':
+      tone(s, { type: 'sine', f0: 880, t, dur: 0.09, gain: 0.18 });
+      tone(s, { type: 'sine', f0: 1175, t: t + 0.07, dur: 0.14, gain: 0.16 });
+      break;
+    case 'weaponSwap':
+      noiseBurst(s, { t, dur: 0.035, gain: 0.3, filter: 'highpass', f0: 2500, f1: 4000 });
+      tone(s, { type: 'triangle', f0: 320, f1: 200, t: t + 0.03, dur: 0.07, gain: 0.3 });
+      noiseBurst(s, { t: t + 0.09, dur: 0.03, gain: 0.25, filter: 'highpass', f0: 3000 });
+      break;
+    case 'hotDrink':
+      // A pour, then a sip: a soft low rush and two warm notes.
+      noiseBurst(s, { t, dur: 0.28, gain: 0.2, filter: 'lowpass', f0: 900, f1: 500, q: 0.6 });
+      tone(s, { type: 'triangle', f0: 392, t: t + 0.22, dur: 0.14, gain: 0.2 });
+      tone(s, { type: 'triangle', f0: 523, t: t + 0.32, dur: 0.2, gain: 0.2 });
+      break;
+    case 'spiritStart':
+      // A glug, then a burn climbing.
+      tone(s, { type: 'sine', f0: 140, f1: 90, t, dur: 0.12, gain: 0.35 });
+      tone(s, { type: 'sine', f0: 150, f1: 95, t: t + 0.13, dur: 0.12, gain: 0.3 });
+      tone(s, { type: 'sawtooth', f0: 120, f1: 520, t: t + 0.25, dur: 0.4, gain: 0.16 });
+      noiseBurst(s, { t: t + 0.25, dur: 0.35, gain: 0.1, filter: 'bandpass', f0: 800, f1: 2400, q: 0.8 });
+      break;
+    case 'spiritEnd':
+      tone(s, { type: 'triangle', f0: 520, f1: 110, t, dur: 0.5, gain: 0.22 });
+      noiseBurst(s, { t: t + 0.3, dur: 0.2, gain: 0.08, filter: 'lowpass', f0: 600, f1: 200 });
       break;
     case 'breakGlass':
       noiseBurst(s, { t, dur: 0.09, gain: 0.4, filter: 'highpass', f0: 3500, f1: 7000 });

@@ -28,7 +28,7 @@ export class SettingsScene extends Phaser.Scene {
   create(): void {
     const { source, hooks } = this.shared;
     bindFullscreenHotkey(this.game);
-    const w = 220;
+    const w = 320;
     const x = (SCREEN.width - w) / 2;
     rect(this, 0, 0, SCREEN.width, SCREEN.height, 'ink');
     makeLabel(this, SCREEN.width / 2, 60, text('ui.menu.settings'), 'bone', { anchor: 'centre' });
@@ -40,11 +40,16 @@ export class SettingsScene extends Phaser.Scene {
         { kind: 'slider', label: () => text('ui.settings.music'), get: () => source.audioSettings().musicVolume, set: (v) => set({ musicVolume: v }) },
         { kind: 'slider', label: () => text('ui.settings.effects'), get: () => source.audioSettings().effectsVolume, set: (v) => set({ effectsVolume: v }) },
         { kind: 'toggle', label: () => text('ui.settings.fullscreen'), get: () => this.scale.isFullscreen, set: () => toggleFullscreen(this.game) },
+        {
+          kind: 'button',
+          label: () => `${text('ui.settings.tab')}: ${text(source.tabMode() === 'toggle' ? 'ui.settings.tab.toggle' : 'ui.settings.tab.hold')}`,
+          onSelect: () => source.setTabMode(source.tabMode() === 'toggle' ? 'hold' : 'toggle'),
+        },
         { kind: 'button', label: () => text('ui.menu.back'), onSelect: () => this.back() },
       ],
       { x, y: 80, width: w, hooks },
     );
-    makeLabel(this, SCREEN.width / 2, 150, text('ui.settings.fullscreenHint'), 'steel', { anchor: 'centre' });
+    makeLabel(this, SCREEN.width / 2, 165, text('ui.settings.fullscreenHint'), 'steel', { anchor: 'centre' });
     this.scale.on(Phaser.Scale.Events.ENTER_FULLSCREEN, () => this.menu?.refresh());
     this.scale.on(Phaser.Scale.Events.LEAVE_FULLSCREEN, () => this.menu?.refresh());
     // Keyup so the HUD's keydown handler for Esc never sees the same press.
