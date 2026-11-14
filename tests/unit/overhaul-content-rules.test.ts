@@ -54,17 +54,25 @@ describe('the Myko rule', () => {
     expect(found, JSON.stringify(found, null, 1)).toEqual([]);
   });
 
-  // CANDIDATES for the creative director (heuristic, adjacency only): 9 lines by another character directly after a Myko line.
-  // c1.pub.open.04 dympna, c1.chipper.intro.06 npc, c1.bigTom.end.07 npc, c4.bar.open.03 colleenAnn, c4.bar.colleenHelp.04 colleenAnn,
-  // c4.call.fight.02 colleenAnn, c5.bar.open.03 npc, c8.call.pruitt.02 pruitt, c10.open.04 npc. Some may be fine (a reply to Andrew's action);
-  // fix or confirm each, then delete `.fails`.
-  it.fails('no one but Andrew answers a Myko line: in a sequence, the line after Myko is Myko, Andrew or the narrator', () => {
+  // The creative director reviewed these nine lines: each is spoken to Andrew, not to Myko. Any hit not listed fails.
+  const REVIEWED = new Set([
+    'c1.pub.open.04',
+    'c1.chipper.intro.06',
+    'c1.bigTom.end.07',
+    'c4.bar.open.03',
+    'c4.bar.colleenHelp.04',
+    'c4.call.fight.02',
+    'c5.bar.open.03',
+    'c8.call.pruitt.02',
+    'c10.open.04',
+  ]);
+  it('no one but Andrew answers a Myko line: in a sequence, the line after Myko is Myko, Andrew or the narrator', () => {
     const found: Found[] = [];
     for (const id of allSequenceIds()) {
       const ls = sequence(id).lines;
       ls.forEach((l, i) => {
         const prev = ls[i - 1];
-        if (prev?.speaker === 'myko' && !['andrew', 'myko', 'narrator'].includes(l.speaker)) found.push({ where: `${id}:${l.id}:${l.speaker}`, text: l.text });
+        if (prev?.speaker === 'myko' && !['andrew', 'myko', 'narrator'].includes(l.speaker) && !REVIEWED.has(l.id)) found.push({ where: `${id}:${l.id}:${l.speaker}`, text: l.text });
       });
     }
     expect(found, JSON.stringify(found, null, 1)).toEqual([]);
