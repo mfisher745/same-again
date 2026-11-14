@@ -7,6 +7,8 @@
  * Chapter-specific props are added here as each chapter is built.
  */
 
+import type { WeaponId } from '../core/types';
+import { K, WEAPONS } from './icons';
 import { PROPS_KEY } from './keys';
 import { AtlasBuilder, PixelBuffer } from './pixels';
 import type { Sheet } from './pixels';
@@ -39,6 +41,21 @@ export const PROP = {
   pubSign: 'pubSign',
   foldedJacket: 'foldedJacket',
   bogLights: ['bogLights.0', 'bogLights.1', 'bogLights.2'],
+  // Overhaul: the bar's hot drinks (DESIGN.md 7.1).
+  hotDrinkUrn: 'hotDrinkUrn',
+  flask: 'flask',
+  kettle: 'kettle',
+  coffeePot: 'coffeePot',
+  teaTrolley: 'teaTrolley',
+  // Overhaul: weapons as world objects, for a boss to drop or hand over (DESIGN.md 7.2). 16 x 16 each.
+  weapon: {
+    hurley: 'weapon.hurley',
+    clipboard: 'weapon.clipboard',
+    shillelagh: 'weapon.shillelagh',
+    umbrella: 'weapon.umbrella',
+    inflatableAlien: 'weapon.inflatableAlien',
+    securityWand: 'weapon.securityWand',
+  } satisfies Readonly<Record<Exclude<WeaponId, 'fists'>, string>>,
 } as const;
 
 type Draw = (b: PixelBuffer) => void;
@@ -51,6 +68,202 @@ const outlined =
     layer.outline('ink');
     b.blit(layer, 0, 0);
   };
+
+/** A picture from rows of letters (the icon letters, `K` in icons.ts), ink-outlined. */
+const pic = (rows: readonly string[]): Draw => outlined((b) => void b.stamp(0, 0, rows, K));
+
+/** A 12 x 12 icon drawing centred in a 16 x 16 cell. */
+const fromIcon =
+  (draw: Draw): Draw =>
+  (b) => {
+    const icon = new PixelBuffer(12, 12);
+    draw(icon);
+    b.blit(icon, 2, 2);
+  };
+
+const HOT_DRINKS: readonly [string, number, number, readonly string[]][] = [
+  // The urn on the bar: steel, a white highlight, the amber light that says it is on, a black tap.
+  [
+    PROP.hotDrinkUrn,
+    16,
+    24,
+    [
+      '................',
+      '.......ss.......',
+      '.....SSSSSS.....',
+      '...ffffffffff...',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...fwfffAffffS..',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...SSSSSSSSSSS..',
+      '......ccc.......',
+      '.......c........',
+      '...SSSSSSSSSSS..',
+      '....s.......s...',
+      '....s.......s...',
+      '...cccccccccc...',
+      '................',
+      '................',
+      '................',
+    ],
+  ],
+  // A tartan flask with the cup on top.
+  [
+    PROP.flask,
+    16,
+    16,
+    [
+      '................',
+      '......SSSS......',
+      '......SfSS......',
+      '.....SSSSSS.....',
+      '.....BRBBRB.....',
+      '.....BRBBRB.....',
+      '.....AAAAAA.....',
+      '.....BRBBRB.....',
+      '.....BRBBRB.....',
+      '.....AAAAAA.....',
+      '.....BRBBRB.....',
+      '.....BRBBRB.....',
+      '.....SSSSSS.....',
+      '................',
+      '................',
+      '................',
+    ],
+  ],
+  // The staff kettle: white plastic, a blue window, scaled to the line.
+  [
+    PROP.kettle,
+    16,
+    16,
+    [
+      '................',
+      '................',
+      '.......sss......',
+      '.....wwwwwww....',
+      '..ww.wwwwwwwbbb.',
+      '...wwwwwwwwwb.b.',
+      '....wwwwwwufb.b.',
+      '....wwwwwwufb.b.',
+      '....wwwwwwufbbb.',
+      '....wwwwwwuf....',
+      '....wwwwwwwf....',
+      '....fffffffff...',
+      '...sssssssssss..',
+      '................',
+      '................',
+      '................',
+    ],
+  ],
+  // A filter-coffee pot on its hotplate, a third full, as it always is.
+  [
+    PROP.coffeePot,
+    16,
+    16,
+    [
+      '................',
+      '......cccc......',
+      '.....cccccc.....',
+      '......UUUU......',
+      '......U..U.ccc..',
+      '.....U....Uc.c..',
+      '....U......Uc.c.',
+      '....U......Ucc..',
+      '....TTTTTTTTc...',
+      '....TTTTTTTT....',
+      '.....TTTTTT.....',
+      '...ssssssssss...',
+      '...ssssssrsss...',
+      '................',
+      '................',
+      '................',
+    ],
+  ],
+  // The tea trolley: a brown teapot and cups on top, saucers and the biscuits below.
+  [
+    PROP.teaTrolley,
+    32,
+    24,
+    [
+      '................................',
+      '.........tt.....................',
+      '........pppp....................',
+      '......pppppppp..................',
+      '..p..pxpppppppp.ppp.ww..ww..ww..',
+      '...p.pxpppppppp.p.pwwww.www.www.',
+      '....ppppppppppppp.p.ww..ww..ww..',
+      '......pppppppppp.p..............',
+      '.ffffffffffffffffffffffffffffff.',
+      '.SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS.',
+      '.S............................S.',
+      '.S............................S.',
+      '.S...bbbb..bbbb....xxXxxXxxX..S.',
+      '.S...wwww..wwww....xxXxxXxxX..S.',
+      '.S............................S.',
+      '.ffffffffffffffffffffffffffffff.',
+      '.SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS.',
+      '.S............................S.',
+      '.S............................S.',
+      '.S............................S.',
+      'ccc..........................ccc',
+      '.c............................c.',
+      '................................',
+      '................................',
+    ],
+  ],
+];
+
+/** Weapons lying about. Long ones are redrawn to use the bigger cell; the rest are their icons. */
+const WEAPON_PROPS: Readonly<Record<Exclude<WeaponId, 'fists'>, Draw>> = {
+  hurley: pic([
+    '................',
+    '................',
+    '.cc.............',
+    '.ccc............',
+    '..ccx...........',
+    '...xxx..........',
+    '....xxX.........',
+    '.....xxX........',
+    '......xxX.......',
+    '.......xxX......',
+    '........xxxX....',
+    '.......xxxxxX...',
+    '.......xxxxSX...',
+    '........xxxX....',
+    '................',
+    '................',
+  ]),
+  clipboard: fromIcon(WEAPONS.clipboard),
+  shillelagh: fromIcon(WEAPONS.shillelagh),
+  // Furled, lying on the floor, the handle hooked.
+  umbrella: pic([
+    '................',
+    '................',
+    '................',
+    '..pp............',
+    '.p..p...........',
+    '.p...v..........',
+    '......vv........',
+    '......vvv.......',
+    '.......vuvv.....',
+    '........vuvv....',
+    '.........vvvv...',
+    '...........vvv..',
+    '............vS..',
+    '.............S..',
+    '................',
+    '................',
+  ]),
+  inflatableAlien: fromIcon(WEAPONS.inflatableAlien),
+  securityWand: fromIcon(WEAPONS.securityWand),
+};
 
 export function propsSheet(): Sheet {
   const atlas = new AtlasBuilder(PROPS_KEY, 256);
@@ -172,6 +385,9 @@ export function propsSheet(): Sheet {
       });
     });
   });
+
+  for (const [name, w, h, rows] of HOT_DRINKS) atlas.add(name, w, h, pic(rows));
+  for (const [id, draw] of Object.entries(WEAPON_PROPS)) atlas.add(PROP.weapon[id as Exclude<WeaponId, 'fists'>], 16, 16, draw);
 
   return atlas.build();
 }

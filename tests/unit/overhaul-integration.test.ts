@@ -218,7 +218,7 @@ describe('the kit through the run', () => {
   });
 
   it('a pickup that half fits takes what fits and leaves the rest', () => {
-    const { run } = makeRun({ save: withKit({ drinks: { lager: 5 } }) });
+    const { run } = makeRun({ save: withKit({ drinks: { lager: 3 } }) });
     teleport(run, 3, 2);
     expect(run.player.kit.drinks.stout).toBe(1);
     expect(run.pickups().find((p) => p.def.id === 'sandbox.stout')?.item).toEqual({ kind: 'drink', drinkId: 'stout', count: 1 });

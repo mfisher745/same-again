@@ -13,7 +13,7 @@
 
 import Phaser from 'phaser';
 import { animKey, frameName, PALETTE, TEX, tilesetKey } from '../../art';
-import type { Facing, RegionId, Vec2 } from '../../core/types';
+import type { Facing, RegionId, Vec2, WeaponId } from '../../core/types';
 import type { EnemyActor } from '../enemies';
 import { facingFromAngle, fromAngle, toRad } from '../geometry';
 import { TILE } from '../grid';
@@ -40,6 +40,17 @@ interface KeyedBody {
 
 const CONE_ALPHA = 0.4;
 
+/** The `swing.<name>` animation for each melee weapon (fists use `punch1-3`). */
+const SWING_ANIM: Record<WeaponId, string> = {
+  fists: 'punch',
+  hurley: 'hurley',
+  clipboard: 'clipboard',
+  shillelagh: 'shillelagh',
+  umbrella: 'umbrella',
+  inflatableAlien: 'inflatable',
+  securityWand: 'wand',
+};
+
 export class WorldView {
   private staticLayer: Phaser.GameObjects.Graphics | null = null;
   private tileImages: Phaser.GameObjects.Image[] = [];
@@ -52,6 +63,10 @@ export class WorldView {
   readonly playerBody: Body;
   private readonly mykoBody: Body;
   private mykoWasSmoking = false;
+  private seenSwing = 0;
+  private seenThrow = 0;
+  /** The swing or throw animation key being held over walk and idle, or null. */
+  private actionKey: string | null = null;
   private lastSync = -1;
 
   constructor(
@@ -73,7 +88,7 @@ export class WorldView {
     if (this.run.screenId !== this.screenId) this.buildScreen();
     const r = this.run;
     const p = r.player;
-    this.place(this.playerBody, p.pos, TEX.andrew, p.moving ? 'walk' : 'idle', p.facing);
+    this.syncPlayer();
     if (this.playerBody instanceof Phaser.GameObjects.Rectangle) {
       this.playerBody.setAlpha(p.invulnerable && !p.protected_ ? 0.5 : 1);
       this.playerBody.setFillStyle(p.incapacitated ? PALETTE.fog : PALETTE.anorak);
@@ -110,6 +125,43 @@ export class WorldView {
     this.drawDynamic();
   }
 
+  /**
+   * Andrew: `punch1-3` (fists, by combo place) or `swing.<weapon>` stretched to the weapon's swing time
+   * on a swing; `aim` while the throw is aimed; `throw` on release; else walk or idle.
+   */
+  private syncPlayer(): void {
+    const p = this.run.player;
+    const body = this.playerBody;
+    const c = this.run.combat;
+    if (body instanceof Phaser.GameObjects.Sprite) {
+      const sw = c.lastSwing;
+      if (sw && sw.seq !== this.seenSwing) {
+        this.seenSwing = sw.seq;
+        const anim = sw.weaponId === 'fists' ? `punch${Math.min(3, Math.max(1, sw.comboIndex))}` : `swing.${SWING_ANIM[sw.weaponId]}`;
+        this.playAction(body, animKey(TEX.andrew, anim, p.facing), sw.swingMs);
+      }
+      if (c.throwSeq !== this.seenThrow) {
+        this.seenThrow = c.throwSeq;
+        this.playAction(body, animKey(TEX.andrew, 'throw', p.facing));
+      }
+      const held = this.actionKey !== null && body.anims.isPlaying && body.anims.currentAnim?.key === this.actionKey;
+      if (held) {
+        body.setPosition(Math.round(p.pos.x), Math.round(p.pos.y + FEET_OFFSET)).setDepth(p.pos.y);
+        return;
+      }
+      this.actionKey = null;
+    }
+    this.place(body, p.pos, TEX.andrew, c.aiming ? 'aim' : p.moving ? 'walk' : 'idle', p.facing);
+  }
+
+  /** Plays `key` once; with `durationMs` the whole animation takes exactly that long. */
+  private playAction(body: Phaser.GameObjects.Sprite, key: string, durationMs?: number): void {
+    if (!this.scene.anims.exists(key)) return;
+    this.actionKey = key;
+    if (durationMs === undefined) body.play({ key });
+    else body.play({ key, duration: durationMs });
+  }
+
   /** Walks when moving; the `smoke` animation once when a smoke starts, then idle. */
   private syncMyko(): void {
     const m = this.run.myko;
@@ -127,7 +179,7 @@ export class WorldView {
         return;
       }
     }
-    this.place(body, m.pos, TEX.myko, m.moving ? 'walk' : 'idle', m.facing);
+    this.place(body, m.pos, TEX.myko, m.moving ? (m.hurrying ? 'hurry' : 'walk') : 'idle', m.facing);
   }
 
   destroy(): void {

@@ -6,7 +6,7 @@
  * and is not an item any more). Plain TypeScript.
  */
 
-import type { CarriedDrinkId, DrinkId, Kit, OverhaulDrinkId, PickupItem, PickupRefusal } from '../core/types';
+import type { CarriedDrinkId, DrinkId, Kit, PickupItem, PickupRefusal } from '../core/types';
 import { pickUpDrink } from './kit';
 
 /**
@@ -75,18 +75,5 @@ export function takeItem(kit: Kit, item: PickupItem): PickupTake {
         inert: false,
       };
     }
-  }
-}
-
-/** The drink icon that stands in for a kit drink until phase 3 draws the new ones (lager, coffee, tea). */
-export function iconDrink(id: DrinkId | OverhaulDrinkId): DrinkId {
-  switch (id) {
-    case 'lager':
-      return 'lightBeer';
-    case 'coffee':
-    case 'tea':
-      return 'water';
-    default:
-      return id;
   }
 }

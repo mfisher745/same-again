@@ -908,11 +908,17 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** The heat meter is gone (DESIGN.md 7.1: the sun doubles the drain instead). Kept so scripts compile. */
   setHeatActive(): void {}
 
-  setMykoScripted(pos: Vec2 | null): void {
+  /** Send Myko to `pos` (or release him with null). `hurry` makes the walk the `hurry` animation. */
+  setMykoScripted(pos: Vec2 | null, hurry = false): void {
     if (pos) {
-      this.myko.mode = 'scripted';
-      this.myko.standPoint = pos;
+      if (hurry) this.myko.hurryTo(pos);
+      else {
+        this.myko.mode = 'scripted';
+        this.myko.standPoint = pos;
+        this.myko.hurrying = false;
+      }
     } else {
+      this.myko.hurrying = false;
       this.myko.mode = 'following';
       this.myko.standPoint = null;
     }

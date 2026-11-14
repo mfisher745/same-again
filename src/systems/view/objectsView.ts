@@ -11,7 +11,6 @@ import Phaser from 'phaser';
 import { fx, icon, PALETTE, PROPS_KEY, PROP, TEX } from '../../art';
 import type { PickupItem, Vec2 } from '../../core/types';
 import { TILE } from '../grid';
-import { iconDrink } from '../pickups';
 import type { ChapterRun } from '../run';
 
 /** Presentation timings (not balance). */
@@ -33,7 +32,7 @@ interface PickupSprites {
 export function pickupIconFrame(item: PickupItem): string {
   switch (item.kind) {
     case 'drink':
-      return icon.drink(iconDrink(item.drinkId));
+      return icon.drink(item.drinkId);
     case 'food':
       return icon.food(item.foodId);
     case 'empties':

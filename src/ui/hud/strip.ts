@@ -200,7 +200,7 @@ export class HudStrip {
     // Myko's calls.
     this.leaves.forEach((pic, i) => {
       const available = m.calls[i] === true;
-      pic.set(available ? iconFrames.rollie : iconFrames.rollieSpent, available ? 'bone' : 'coal');
+      pic.set(available ? iconFrames.leaf : iconFrames.leafSpent, available ? 'bone' : 'coal');
     });
     this.callCap.show(keyText(KEY_IDS.call), STRIP.calls.x, y + 13, 'slate', 'fog');
     this.ring.clear();

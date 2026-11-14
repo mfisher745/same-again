@@ -128,6 +128,8 @@ export class Myko {
   moving = false;
   /** Having a smoke: from `smokeIntervalMs` of standing still until he next moves. */
   smoking = false;
+  /** Walking to a scripted point in a hurry: the view plays `hurry` instead of `walk`. */
+  hurrying = false;
   private stillMs = 0;
   private nextSmokeMs: number;
   /** Own seeded stream, so the smoke jitter does not shift the shared RNG (combat, pools). */
@@ -145,6 +147,13 @@ export class Myko {
   /** 0..1 progress of the M hold; 0 when not held or on the Administrator. */
   callHoldProgress(): number {
     return this.holdProgress;
+  }
+
+  /** Scripted: walk to `p` hurrying (the floor return, DESIGN.md 7.1). Hurrying ends when he stands there. */
+  hurryTo(p: Vec2): void {
+    this.mode = 'scripted';
+    this.standPoint = p;
+    this.hurrying = true;
   }
 
   placeNear(p: Vec2): void {
@@ -327,7 +336,10 @@ export class Myko {
     const d = distance(this.pos, goal);
     const slack = this.mode === 'following' ? TUNING.myko.followDistance / 2 : 1;
     this.moving = false;
-    if (d <= slack) return;
+    if (d <= slack) {
+      if (this.mode === 'scripted') this.hurrying = false;
+      return;
+    }
     const step = Math.min(d - slack, (TUNING.myko.walkSpeed * dtMs) / 1000);
     const dir = normalize(sub(goal, this.pos));
     this.pos = add(this.pos, scale(dir, step));
