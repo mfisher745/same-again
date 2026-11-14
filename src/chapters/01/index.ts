@@ -23,8 +23,6 @@ const def: ChapterDef = {
     { id: 'c1.road', region: 'kilnamoe', widthTiles: 30, heightTiles: 17 },
   ],
   startScreenId: 'c1.pub',
-  // The field is still on the contract until systems-dev removes it (types.ts, "@deprecated"). Chapter 1 has none.
-  checkpoints: [],
   bar: {
     screenId: 'c1.pub',
     arrival: PUB_ARRIVAL,

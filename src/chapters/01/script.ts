@@ -81,7 +81,9 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   const setStep = (n: number): void => ctx.setFlag('pub.step', n);
   const after = (ms: number, run: () => void): void => void timers.push({ at: clock + ms, run });
   const gateOpen = (): boolean => ctx.isComplete('c1.explore.yard');
-  const hasHurley = (): boolean => kit?.weapons.includes('hurley') === true;
+  const hasHurley = (): boolean => ctx.kit().weapons.includes('hurley');
+  /** The east road opens for Big Tom beaten and the hurley in hand; the exit's own boss lock is replaced by this. */
+  const syncEastExit = (): void => ctx.setExitLocked('c1.street.east', !(ctx.isComplete('c1.boss.bigtom') && hasHurley()));
 
   // --- Tutorial prompts: one at a time, never over a scene, gone when the player has done the thing ---
 
@@ -136,6 +138,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.setExitLocked('c1.pub.backdoor', step() < STEP.leave);
     ctx.setPropVisible('yardGate', !gateOpen());
     ctx.setPropVisible('jacket', false);
+    syncEastExit();
     ctx.setPropVisible('hurley', ctx.isComplete('c1.boss.bigtom') && !hasHurley());
     // The lad who took the last spice bag stays in the queue until the row starts.
     ctx.setNpcVisible('queue3', !flag('chipper.started'));
@@ -237,6 +240,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     clearPrompt();
     ctx.setMykoScripted(null);
     topUpBottles();
+    // The first time he leaves the pub the drain is released, and it is never held again.
+    ctx.holdDrain(false);
     ctx.setPropVisible('yardGate', !gateOpen());
     ctx.completeSection('c1.explore.pub');
     if (ctx.isComplete('c1.puzzle.kegs')) {
@@ -346,6 +351,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   const takeHurley = async (): Promise<void> => {
     ctx.setPropVisible('hurley', false);
     ctx.gainWeapon('hurley');
+    syncEastExit();
     ctx.setObjective(OBJ.road);
     setPrompt('ui.prompt.weapon', PROMPT_LINGER_MS);
     await ctx.say('c1.weapon.hurley');
@@ -433,6 +439,11 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
 
   return {
     onStart: () => {
+      // A fresh game only: both flags are saved, so a load or a return to the bar leaves them as they were.
+      if (step() === 0 && !flag('intro.done')) {
+        ctx.setMeterHidden(true);
+        ctx.holdDrain(true);
+      }
       restoreWorld();
       // Run-time dressing state is not saved; put it back from flags.
       if (flag('jacket.on')) ctx.setPropVisible('jacket', true);
@@ -453,12 +464,14 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           kit = next;
           if (step() === STEP.hotDrink && hadHot === null && next.hotDrink !== null) void tookTheHotDrink();
         }),
+        ctx.bus.on(GameEvents.WeaponGained, () => syncEastExit()),
         ctx.bus.on(GameEvents.BuzzLevelChanged, ({ to }) => {
           level = to;
         }),
         ctx.bus.on(GameEvents.DrinkConsumed, () => {
           clearPrompt('ui.prompt.drink');
           if (step() === STEP.talked) {
+            ctx.setMeterHidden(false);
             setStep(STEP.drank);
             after(900, () => void drankThePint());
           }
