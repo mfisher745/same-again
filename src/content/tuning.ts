@@ -828,6 +828,8 @@ const overhaul: OverhaulTuning = {
     breakable: { beer: 0.35, whiskey: 0.04 },
     enemy: { beer: 0.3, whiskey: 0.03, tequila: 0.01, tequilaFromChapter: 7 },
   },
+  // Same gap as the old `myko.commentCooldownMs`. For creative-director review.
+  mykoLineCooldownMs: 12000,
 };
 
 export const TUNING: Tuning = {

@@ -2157,6 +2157,11 @@ export interface OverhaulTuning {
   readonly weapons: Readonly<Record<WeaponId, WeaponDef>>;
   readonly swayByLevel: SwayByLevel;
   readonly drops: DropTuning;
+  /**
+   * Minimum gap between Myko's meter, drink and level remarks (`mykoLines.ts`).
+   * Bar-return lines ignore it. Absent = 12000. Added for review by the creative director.
+   */
+  readonly mykoLineCooldownMs?: number;
 }
 
 // ---------------------------------------------------------------------------
