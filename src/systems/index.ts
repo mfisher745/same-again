@@ -25,6 +25,7 @@ export type {
   NpcPlacement,
   PropPlacement,
   PushPuzzlePlacement,
+  SheepPuzzlePlacement,
   ScreenAmbient,
   ScreenDressing,
   ScreenLayout,
@@ -55,6 +56,8 @@ export { takeItem, carriedFromDrinkId } from './pickups';
 export { Myko, evaluateCall } from './myko';
 export { Player } from './player';
 export { PushPuzzle, cardinalOf } from './puzzles';
+export { SheepPuzzle } from './sheep';
+export type { SheepPuzzleLayout, SheepGateDef, LiveSheep, TileRect } from './sheep';
 export type { PushPuzzleLayout, PushPiece } from './puzzles';
 export { CompletableSection, ScriptedCompletable } from './sections';
 export type { SectionHost } from './sections';

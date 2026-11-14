@@ -21,6 +21,7 @@ import type {
   MeleeHitInfo,
   MoveHitInfo,
   PushPuzzlePlacement,
+  SheepPuzzlePlacement,
   ScreenAmbient,
   ScreenLayout,
   ScriptedCompletableHandle,
@@ -96,7 +97,7 @@ import { FightRunner } from './fight';
 import { add, distance, normalize, rectContains, scale } from './geometry';
 import { TILE, isShade, tileOf } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
-import { assignDrink, assignMove, assignWeapon, cycleDrink, drinkFromInventory, drinkSelected, gainWeapon, learnMove } from './kit';
+import { assignDrink, assignMove, assignWeapon, cycleDrink, drinkFromInventory, drinkSelected, gainWeapon, learnMove, topUpBottles } from './kit';
 import { takeItem } from './pickups';
 import { dropRngFor, regionBeer, rollBreakableDrop, rollEnemyDrop } from './drops';
 import { MykoMeterVoice } from './mykoMeter';
@@ -111,6 +112,7 @@ import type { SwingResult } from './weapons';
 import { projectileTouches, spawnProjectile, stepProjectile } from './projectiles';
 import type { Projectile, ProjectileSpawn } from './projectiles';
 import { PushPuzzle } from './puzzles';
+import { SheepPuzzle } from './sheep';
 import { CompletableSection, ScriptedCompletable } from './sections';
 import type { SectionHost } from './sections';
 import { StealthRunner, actingNatural } from './stealth';
@@ -223,6 +225,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   // State
   private objectiveId: ObjectiveId | null = null;
   private controlsLocked = false;
+  private leadDirection: Facing | null = null;
   private ended = false;
   private readonly script: ChapterScript;
   private readonly scope: BusScope;
@@ -253,7 +256,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.settings = save.settings;
     this.openedShortcuts = [...save.openedShortcuts];
 
-    this.player = new Player(this.bus, save.kit, this.chapter);
+    // Loading a save puts Andrew in the bar exactly as a return does, bottles topped up (DESIGN.md 7.6). Chapter 1 keeps its own start.
+    this.player = new Player(this.bus, opts.resumed && this.chapter >= 2 ? topUpBottles(save.kit).kit : save.kit, this.chapter);
     this.combat = new PlayerCombat(this.combatHost());
     this.mykoVoice = new MykoMeterVoice({ rng: this.rng, pool: (id) => this.opts.pool(id), say: (id) => void this.say(id, { repeat: true }) });
     this.dialogue = new DialogueRunner(this.bus, opts.dialogue, {
@@ -502,6 +506,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
     // Puzzles.
     for (const { puzzle } of this.pushPuzzlesHere()) puzzle.update(dtMs, p.pos, live.move);
+    for (const { puzzle } of this.sheepPuzzlesHere()) puzzle.update(dtMs, p.pos);
 
     // Actors, projectiles.
     for (const a of this.actorList) a.tick(dtMs, this);
@@ -686,7 +691,18 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   extraBlocked(col: number, row: number): boolean {
     for (const { puzzle } of this.pushPuzzlesHere()) if (puzzle.occupies(col, row)) return true;
+    for (const { puzzle } of this.sheepPuzzlesHere()) if (puzzle.blocks(col, row)) return true;
     return false;
+  }
+
+  sheepPuzzlesHere(): { puzzle: SheepPuzzle; placement: SheepPuzzlePlacement }[] {
+    const out: { puzzle: SheepPuzzle; placement: SheepPuzzlePlacement }[] = [];
+    for (const p of this.module.sheepPuzzles ?? []) {
+      if (p.screenId !== this.screen.id) continue;
+      const e = this.sections.get(p.sectionId);
+      if (e && e.completable instanceof SheepPuzzle) out.push({ puzzle: e.completable, placement: p });
+    }
+    return out;
   }
 
   /** Tiles only enemies cannot enter (`PropPlacement.blocksEnemies`). */
@@ -1004,6 +1020,18 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.player.pos = pos;
   }
 
+  /** Where the camera sits relative to Andrew, pixels: the lead set by `setCameraLead`, or (0, 0). The scene eases to it. */
+  cameraLead(): Vec2 {
+    const d = this.leadDirection;
+    const px = TUNING.overhaul?.cameraLeadPx ?? 0;
+    if (!d) return { x: 0, y: 0 };
+    return { x: d === 'right' ? px : d === 'left' ? -px : 0, y: d === 'down' ? px : d === 'up' ? -px : 0 };
+  }
+
+  setCameraLead(direction: Facing | null): void {
+    this.leadDirection = direction;
+  }
+
   setControlsLocked(locked: boolean): void {
     this.controlsLocked = locked;
   }
@@ -1167,6 +1195,23 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       const puzzle = new PushPuzzle(m.def.puzzle.id === p.sectionId ? m.def.puzzle : { id: p.sectionId, chapter: this.chapter, kind: 'push' }, p.layout, grid, this, this.bus, this.sectionReward(p.sectionId));
       if (this.completed.has(p.sectionId)) puzzle.restoreComplete();
       puzzle.onPush = () => this.opts.playEffect?.('push');
+      this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: p.screenId, entrance: null, start: () => puzzle.start() });
+    }
+    for (const p of m.sheepPuzzles ?? []) {
+      const layout = this.layout(p.screenId);
+      if (!layout) continue;
+      const grid = this.dressing.gridFor(layout);
+      const def = m.def.puzzle.id === p.sectionId ? m.def.puzzle : { id: p.sectionId, chapter: this.chapter, kind: 'sheepGates' as const };
+      const puzzle = new SheepPuzzle(def, p.layout, grid, this, this.bus, this.sectionReward(p.sectionId));
+      if (this.completed.has(p.sectionId)) puzzle.restoreComplete();
+      puzzle.onGate = () => this.opts.playEffect?.('door');
+      // Herding or swinging a gate makes it the current section (so the Myko call finds it, also after a return to the bar).
+      puzzle.onUse = () => {
+        if (this.currentSection === null && !puzzle.isComplete()) {
+          this.currentSection = p.sectionId;
+          this.script.onSectionStarted?.(p.sectionId);
+        }
+      };
       this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: p.screenId, entrance: null, start: () => puzzle.start() });
     }
     const board = m.def.deductionBoard;
@@ -1630,6 +1675,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (best.item) this.give(best.item);
     if (this.module.deduction?.examinableId === best.id) this.openDeduction();
     for (const pp of this.pushPuzzlesHere()) if (pp.placement.resetExaminableId === best.id) pp.puzzle.reset();
+    // E at a gate swings it (a sheep or Andrew in the way refuses).
+    for (const sp of this.sheepPuzzlesHere()) if (sp.puzzle.gateFor(best.id)) sp.puzzle.toggleGate(sp.puzzle.gateFor(best.id)?.id ?? '', this.player.pos);
   }
 
   private checkPickups(): void {

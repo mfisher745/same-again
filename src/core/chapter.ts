@@ -71,6 +71,7 @@ import type { BossBodyPlacement, BossHooks, BossRunner } from '../systems/boss';
 import type { FightHooks, FightRunner } from '../systems/fight';
 import type { PuzzleBase } from '../systems/investigation';
 import type { PushPuzzleLayout } from '../systems/puzzles';
+import type { SheepPuzzleLayout } from '../systems/sheep';
 import type { SectionHost } from '../systems/sections';
 import type {
   AbilityId,
@@ -314,6 +315,12 @@ export interface PushPuzzlePlacement {
   readonly pieceKind: string;
 }
 
+export interface SheepPuzzlePlacement {
+  readonly sectionId: PuzzleSectionId;
+  readonly screenId: ScreenId;
+  readonly layout: SheepPuzzleLayout;
+}
+
 export interface DeductionPlacement {
   /** Examining this opens the board (or the script calls `ctx.openDeduction()`). */
   readonly examinableId?: string;
@@ -336,6 +343,8 @@ export interface ChapterModule {
   readonly bosses: readonly BossPlacement[];
   readonly stealth: readonly StealthPlacement[];
   readonly pushPuzzles?: readonly PushPuzzlePlacement[];
+  /** The chapter 2 sheep puzzle: gates that swing, a flock that shies from Andrew. Built by the systems (`sheep.ts`). */
+  readonly sheepPuzzles?: readonly SheepPuzzlePlacement[];
   readonly deduction?: DeductionPlacement;
   readonly triggers: readonly TriggerDef[];
   /** Pools for Myko's tangents (DESIGN.md 7.5: Ohio from chapter 6). */
@@ -458,6 +467,11 @@ export interface ChapterContext {
   setMykoScripted(pos: Vec2 | null): void;
   playerPosition(): Vec2;
   setPlayerPosition(pos: Vec2): void;
+  /**
+   * The camera looks ahead of Andrew in `direction` (by `TUNING.overhaul.cameraLeadPx`), or follows him
+   * centred again with null. For the ram's lane, where he runs left to right and the camera leads. Run-time only.
+   */
+  setCameraLead(direction: Facing | null): void;
   /** Freeze Andrew's controls (cutscene walk-ins). */
   setControlsLocked(locked: boolean): void;
   spawnPickup(def: PickupDef): void;
