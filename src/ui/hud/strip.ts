@@ -187,6 +187,9 @@ export class HudStrip {
     const b = m.buzz;
     const cx = (STRIP.buzz.left + STRIP.buzz.right) / 2;
     const mx = Math.round(cx - b.widthPx / 2);
+    const parts = [this.frame, this.back, this.fill, this.state, ...this.marks];
+    for (const part of parts) part.setVisible(!b.hidden);
+    if (b.hidden) this.sun.setVisible(false);
     const flash = b.flashing && Math.floor(now / 160) % 2 === 0;
     this.frame.setPosition(mx - 1, this.frame.y).setSize(b.widthPx + 2, METER.height + 2);
     this.back.setPosition(mx, this.back.y).setSize(b.widthPx, METER.height);
@@ -195,7 +198,7 @@ export class HudStrip {
     b.marks.forEach((f, i) => this.marks[i]?.setX(mx + Math.round(b.widthPx * f)));
     setLabelText(this.state, text(b.stateTextId));
     setLabelColour(this.state, flash ? 'white' : BUZZ_COLOUR[b.state]);
-    if (b.inSun) this.sun.setPosition(mx - 14, this.meterY - 4).set(iconFrames.sun, 'amberLight');
+    if (b.inSun && !b.hidden) this.sun.setPosition(mx - 14, this.meterY - 4).set(iconFrames.sun, 'amberLight');
     else this.sun.setVisible(false);
     // Myko's calls.
     this.leaves.forEach((pic, i) => {
