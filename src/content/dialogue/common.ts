@@ -289,9 +289,18 @@ export const COMMON: DialogueFile = {
     'drink.bottle.desc': 'Empty. Hold right click to aim, let go to throw. Every beer leaves one behind.',
 
     // Pickups
-    'pickup.refused.kitFull': 'Six is what the anorak holds. He has counted the pockets.',
+    'pickup.refused.kitFull': 'The anorak holds {max}. He has counted the pockets.',
     'pickup.refused.hotDrinkHeld': 'He has one already. It is still warm.',
     'pickup.bottles': 'Bottles +{n}.',
+
+    // Refusals from the slots and the throw (systems return a reason code; the HUD shows these)
+    'ui.move.empty': 'Nothing in that slot. Tab for the kit.',
+    'ui.move.dark': 'He’d want a few more in him for that one.',
+    'ui.move.cooldown': 'Not yet.',
+    'ui.move.noTarget': 'Nobody near enough.',
+    'ui.move.noProp': 'Nothing to stand beside.',
+    'ui.move.seen': 'Too late for that. They’ve seen him.',
+    'ui.throw.noBottle': 'No bottles. He’d have to drink something first.',
 
     // Special moves, by level (DESIGN.md 7.2). Old ability IDs are kept where the move survives.
     'ability.punchCombo.name': 'Punch',

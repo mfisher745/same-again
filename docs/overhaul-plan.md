@@ -54,6 +54,22 @@ Owner: `creative-director`. How the code catches up with the overhauled DESIGN.m
 9. `myko.ts`: silent at 0; the hurried walk and smoke for the floor; pools `myko.bar.sober`, `myko.bar.floor`, `myko.low`, `myko.bitMuch`, `myko.fecked`, `myko.whiskey`, `myko.tequila`, `myko.hotDrink`, `myko.meterGrows`. Calls are unchanged.
 10. Breakables and enemy drops: drink or nothing.
 
+#### Phase 2a decisions (creative director)
+
+New modules sit beside the old ones: `meter`, `hits`, `barReturn`, `mykoLines`, `kit`, `moves`, `weapons`, `throwAim`, `drops`, `rewards`. Agent choices accepted, with these rulings:
+
+- A second spirit ends the first window first, so tequila's drop still lands. A hot drink ends a spirit window with no drop. A spirit ends tea.
+- Hits and beers still move the meter during tea.
+- Whiskey from Sober goes to the top of Buzzed. A jump never lowers the meter.
+- Free hot drink refused while one is carried; the offer stays.
+- A learned move goes into its slot if that slot is empty (`autoAssign: true` everywhere). The Tab screen changes it after.
+- Moves with no target, no prop or after being seen refuse and spend no cooldown. The HUD shows `ui.move.*`.
+- A drink reward with a full kit is left on the ground, still counted as granted.
+- Myko remarks share a 12 s gap, dropped not queued; level lines only on the way up.
+- New first-guess tuning (review after play): Myko gap 12 s, combo window 450 ms, throw range 220 / damage 10 / knockback 30 / noise 90, footsteps 56/98/112 by level, sneak 0 until Fecked then 28.
+
+Wiring pass (2b) must remove duplicates: `meleeMultiplier` is in both `hits.ts` and `weapons.ts`; `topUpBottles` in both `barReturn.ts` and `kit.ts`. Keep the `weapons.ts` and `kit.ts` versions.
+
 ### Phase 3: art, UI and audio
 
 **creative-director** (`src/art/`):
