@@ -2134,6 +2134,21 @@ export interface DropTuning {
   };
 }
 
+/** The thrown bottle. DESIGN.md 7.2 "Thrown bottles". First guesses. */
+export interface ThrowTuning {
+  /** Longest throw, world pixels. */
+  readonly range: number;
+  /** Fixed damage; the drunk level does not change it. */
+  readonly damage: number;
+  readonly knockback: number;
+  /** Radius of the noise where it lands; distracts guards. */
+  readonly noiseRadius: number;
+  /** Dots in the preview path, origin to landing inclusive. */
+  readonly previewPoints: number;
+  /** One full sway cycle, milliseconds. */
+  readonly swayPeriodMs: number;
+}
+
 /** Every number the overhaul systems need. DESIGN.md 7.1, 7.2; docs/overhaul-plan.md. */
 export interface OverhaulTuning {
   /** Meter points lost per second (1 per 3 s). */
@@ -2157,6 +2172,12 @@ export interface OverhaulTuning {
   readonly weapons: Readonly<Record<WeaponId, WeaponDef>>;
   readonly swayByLevel: SwayByLevel;
   readonly drops: DropTuning;
+  /** The thrown bottle. Optional until phase 2 switches the systems over. */
+  readonly throw?: ThrowTuning;
+  /** Footstep noise radius by level while walking. DESIGN.md 7.3: louder from Bit much. */
+  readonly footstepNoiseRadiusByLevel?: Readonly<Record<DrunkLevel, number>>;
+  /** Footstep noise radius while sneaking: silent until Fecked, then short range. */
+  readonly sneakNoiseRadiusByLevel?: Readonly<Record<DrunkLevel, number>>;
 }
 
 // ---------------------------------------------------------------------------

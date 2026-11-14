@@ -828,6 +828,11 @@ const overhaul: OverhaulTuning = {
     breakable: { beer: 0.35, whiskey: 0.04 },
     enemy: { beer: 0.3, whiskey: 0.03, tequila: 0.01, tequilaFromChapter: 7 },
   },
+  // Carried over from the old bottle throw (range 220, damage 10, noise 90). First guesses.
+  throw: { range: 220, damage: 10, knockback: 30, noiseRadius: 90, previewPoints: 12, swayPeriodMs: 1700 },
+  // Walking: the old 56, x1.75 at Bit much, x2 at Fecked. Sneaking is silent until Fecked.
+  footstepNoiseRadiusByLevel: { 0: 56, 1: 56, 2: 56, 3: 98, 4: 112 },
+  sneakNoiseRadiusByLevel: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 28 },
 };
 
 export const TUNING: Tuning = {
