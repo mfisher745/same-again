@@ -2,7 +2,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { FONT_CHARS, canDraw } from '../../src/art/font';
-import { FONT_CELL, TEX, animKey, frameName, fx, icon, portrait, tilesetKey } from '../../src/art/keys';
+import { FONT_CELL, PROPS_KEY, TEX, animKey, frameName, fx, icon, portrait, tilesetKey } from '../../src/art/keys';
+import { PROP } from '../../src/art/props';
 import { ANDREW, MYKO } from '../../src/art/characters';
 import { PALETTE, REGION_COLOURS, SHARED_COLOURS, css } from '../../src/art/palette';
 import type { ColourName } from '../../src/art/palette';
@@ -235,6 +236,14 @@ describe('keys.ts is fully drawn', () => {
     expect(new Set(moves).size).toBe(13);
     expect(weapons).toHaveLength(7);
     expect(new Set(weapons).size).toBe(7);
+  });
+
+  it('the hot-drink props and a world object for every non-fist weapon exist in the props atlas', () => {
+    const names = new Set(byKey(PROPS_KEY).frames.map((f) => f.name));
+    const wanted = [PROP.hotDrinkUrn, PROP.flask, PROP.kettle, PROP.coffeePot, PROP.teaTrolley, ...Object.values(PROP.weapon)];
+    expect(wanted.filter((n) => !names.has(n))).toEqual([]);
+    const weapons: Exclude<WeaponId, 'fists'>[] = ['hurley', 'clipboard', 'shillelagh', 'umbrella', 'inflatableAlien', 'securityWand'];
+    expect(Object.keys(PROP.weapon).sort()).toEqual([...weapons].sort());
   });
 
   it('every fx.* frame exists in the fx sheet', () => {

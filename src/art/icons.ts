@@ -64,7 +64,7 @@ const can = (body: ColourName, band: ColourName): Draw =>
   });
 
 /** One letter per palette colour, for `stamp`-drawn icons. '.' is transparent. */
-const K: Readonly<Record<string, ColourName>> = {
+export const K: Readonly<Record<string, ColourName>> = {
   k: 'ink', c: 'coal', s: 'slate', S: 'steel', f: 'fog', b: 'bone', w: 'white',
   n: 'skin', N: 'skinShade', a: 'anorak', m: 'moss', M: 'mossDark', g: 'grass',
   t: 'turf', T: 'turfDark', p: 'peat', A: 'amber', Y: 'amberLight', r: 'alarm',
@@ -324,7 +324,7 @@ const MOVES: Readonly<Record<MoveId, Draw>> = {
 };
 
 /** The seven melee weapons. DESIGN.md 7.2. */
-const WEAPONS: Readonly<Record<WeaponId, Draw>> = {
+export const WEAPONS: Readonly<Record<WeaponId, Draw>> = {
   fists: ABILITIES.punchCombo,
   // Big Tom's hurley: black grip tape, pale ash, a steel band on the bas.
   hurley: pic([
