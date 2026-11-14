@@ -29,11 +29,14 @@ import {
 } from '../gfx';
 import { BOSS_BAR, DIALOGUE_BOX, DIALOGUE_TEXT, NOTICE_MS, PORTRAIT, SCREEN } from '../layout';
 import { HudStrip } from '../hud/strip';
+import { PromptStack } from '../hud/prompts';
 import { ReturnDirector } from '../returns/director';
+import { ThrowPreview } from '../returns/throwPreview';
 import { FlatColour } from '../returns/flat';
 import { uiTuning } from '../uiTuning';
 import { DialogueQueue } from '../model/dialogue';
 import type { DialogueView } from '../model/dialogue';
+import type { PromptValues } from '../model/promptText';
 import { buildHudModel } from '../model/hud';
 import type { HudModel } from '../model/hud';
 import { wrapText } from '../model/wrap';
@@ -52,6 +55,8 @@ interface Notice {
 
 export interface PromptRequest {
   readonly textId: TextId;
+  /** Fills `{key}` and the like in the prompt text. */
+  readonly values?: PromptValues;
 }
 
 export class HudScene extends Phaser.Scene {
@@ -60,6 +65,7 @@ export class HudScene extends Phaser.Scene {
 
   private strip!: HudStrip;
   private flat!: FlatColour;
+  private throwPreview!: ThrowPreview;
   private returns!: ReturnDirector;
   private lastRefusalSeq = -1;
   private refusalNotice!: Notice;
@@ -85,7 +91,7 @@ export class HudScene extends Phaser.Scene {
   private saved!: Notice;
   private ability!: Notice;
   private pickup!: Notice;
-  private prompts: Array<{ readonly textId: TextId; readonly notice: Notice }> = [];
+  private prompts!: PromptStack;
 
   constructor(private readonly shared: UiShared) {
     super(UiSceneKeys.Hud);
@@ -96,7 +102,6 @@ export class HudScene extends Phaser.Scene {
     this.boxBg = [];
     this.lineLabels = [];
     this.captionLabels = [];
-    this.prompts = [];
     const { source } = this.shared;
     bindFullscreenHotkey(this.game);
     bindPromptHost(this.game);
@@ -114,8 +119,10 @@ export class HudScene extends Phaser.Scene {
       onError: (id, error) => console.error(`Dialogue ${id} failed`, error),
     });
 
+    this.prompts = new PromptStack(this, D.notice);
     this.strip = new HudStrip(this, D.hud, (e) => this.shared.hooks.play?.(e));
     this.flat = new FlatColour(this.game);
+    this.throwPreview = new ThrowPreview(this, D.hud - 2);
     this.returns = new ReturnDirector(this, this.flat, D.ret, () => this.shared.overlays.hide('return'));
     this.buildBoss();
     this.buildDialogueBox();
@@ -200,11 +207,14 @@ export class HudScene extends Phaser.Scene {
       bus.on(GameEvents.PickupRefused, ({ reason, max }) => this.setNotice(this.pickup, format(`pickup.refused.${reason}`, { max: String(max) }), NOTICE_MS.pickup)),
       bus.on(GameEvents.BarReturned, ({ reason }) => this.startReturn(reason)),
     );
-    const onShow = (req: PromptRequest): void => this.showPrompt(req.textId);
-    const onHide = (textId?: TextId): void => this.hidePrompt(textId);
+    const onShow = (req: PromptRequest): void => this.prompts.show(req.textId, req.values);
+    const onHide = (textId?: TextId): void => this.prompts.hide(textId);
     this.game.events.on(PROMPT_EVENTS.show, onShow);
     this.game.events.on(PROMPT_EVENTS.hide, onHide);
+    const onHotDrink = (): void => this.openHotDrink();
+    this.game.events.on(PROMPT_EVENTS.hotDrink, onHotDrink);
     this.unsubs.push(
+      () => this.game.events.off(PROMPT_EVENTS.hotDrink, onHotDrink),
       () => this.game.events.off(PROMPT_EVENTS.show, onShow),
       () => this.game.events.off(PROMPT_EVENTS.hide, onHide),
     );
@@ -220,14 +230,14 @@ export class HudScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     if (kb !== null) {
       const onEsc = (e: KeyboardEvent): void => {
-        if (e.repeat || this.scene.isActive(UiSceneKeys.Settings) || this.scene.isActive(UiSceneKeys.Deduction)) return;
+        if (e.repeat || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Settings) || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.HotDrink)) return;
         if (this.shared.overlays.isOpen('tab')) this.closeTab();
         else if (this.shared.overlays.isOpen('pause')) this.closePause();
         else this.openPause();
       };
       const onTab = (e: KeyboardEvent): void => {
         e.preventDefault();
-        if (e.repeat || this.shared.overlays.isOpen('pause') || this.scene.isActive(UiSceneKeys.Deduction)) return;
+        if (e.repeat || this.shared.overlays.isOpen('pause') || this.shared.overlays.isOpen('hotdrink') || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Deduction)) return;
         if (this.shared.overlays.isOpen('tab')) {
           if (this.shared.source.tabMode() === 'toggle') this.closeTab();
         } else if (!this.queue.blocking) this.openTab();
@@ -270,6 +280,14 @@ export class HudScene extends Phaser.Scene {
     this.scene.stop(UiSceneKeys.Pause);
   }
 
+  /** The coffee-or-tea choice, once per visit to the bar. */
+  openHotDrink(): void {
+    if (this.queue.blocking || this.scene.isActive(UiSceneKeys.HotDrink) || this.shared.overlays.any || !this.shared.source.hotDrinkOffered()) return;
+    this.shared.overlays.show('hotdrink');
+    this.scene.launch(UiSceneKeys.HotDrink);
+    this.scene.bringToTop(UiSceneKeys.HotDrink);
+  }
+
   openTab(): void {
     this.shared.overlays.show('tab');
     this.scene.launch(UiSceneKeys.Tab);
@@ -286,12 +304,15 @@ export class HudScene extends Phaser.Scene {
   private teardown(): void {
     for (const u of this.unsubs) u();
     this.unsubs = [];
-    for (const key of [UiSceneKeys.Pause, UiSceneKeys.Settings, UiSceneKeys.Tab, UiSceneKeys.Deduction]) this.scene.stop(key);
+    for (const key of [UiSceneKeys.Pause, UiSceneKeys.Settings, UiSceneKeys.Tab, UiSceneKeys.Deduction, UiSceneKeys.HotDrink]) this.scene.stop(key);
     this.shared.overlays.hide('pause');
     this.shared.overlays.hide('tab');
+    this.shared.overlays.hide('hotdrink');
     this.shared.overlays.hide('return');
     this.returns.cancel();
     this.flat.clear();
+    this.throwPreview.destroy();
+    this.prompts.destroy();
   }
 
   // ----------------------------------------------------------------- notices
@@ -313,38 +334,6 @@ export class HudScene extends Phaser.Scene {
     n.hideAt = this.time.now + ms;
   }
 
-  private showPrompt(textId: TextId): void {
-    if (this.prompts.some((p) => p.textId === textId)) return;
-    const notice = this.makeNotice(0, 'amberLight');
-    this.prompts.push({ textId, notice });
-    setLabelText(notice.label, text(textId));
-    notice.bg.setVisible(true);
-    notice.label.setVisible(true);
-    this.layoutPrompts();
-  }
-
-  private hidePrompt(textId?: TextId): void {
-    const keep: typeof this.prompts = [];
-    for (const p of this.prompts) {
-      if (textId === undefined || p.textId === textId) {
-        p.notice.bg.destroy();
-        p.notice.label.destroy();
-      } else keep.push(p);
-    }
-    this.prompts = keep;
-    this.layoutPrompts();
-  }
-
-  private layoutPrompts(): void {
-    // Above the pickup line, stacked upwards.
-    let y = DIALOGUE_BOX.y - 28;
-    for (const p of this.prompts) {
-      p.notice.bg.setPosition(0, y);
-      p.notice.label.setPosition(SCREEN.width / 2, y + 1);
-      y -= 12;
-    }
-  }
-
   // ------------------------------------------------------------------- frame
 
   update(_time: number, delta: number): void {
@@ -352,6 +341,7 @@ export class HudScene extends Phaser.Scene {
     const m = buildHudModel(source);
     this.strip.update(m, this.time.now);
     this.returns.update(delta);
+    this.throwPreview.update(source.throwPreview());
     if (!this.returns.active) this.flat.set(m.buzz.flatness);
     this.drawBoss(m);
     this.showRefusal(m);

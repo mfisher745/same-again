@@ -23,6 +23,7 @@ export const UiSceneKeys = {
   Tab: 'UiTab',
   Deduction: 'UiDeduction',
   Settings: 'UiSettings',
+  HotDrink: 'UiHotDrink',
 } as const;
 
 export type UiSceneKey = (typeof UiSceneKeys)[keyof typeof UiSceneKeys];
@@ -39,4 +40,4 @@ export function createShared(source: UiStateSource, hooks: UiHooks): UiShared {
 }
 
 /** Game-wide event names for the tutorial prompt helper (on `game.events`). */
-export const PROMPT_EVENTS = { show: 'ui:prompt:show', hide: 'ui:prompt:hide' } as const;
+export const PROMPT_EVENTS = { show: 'ui:prompt:show', hide: 'ui:prompt:hide', hotDrink: 'ui:hotDrink:open' } as const;

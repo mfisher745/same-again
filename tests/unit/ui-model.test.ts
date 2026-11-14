@@ -13,6 +13,7 @@ import { levelTable } from '../../src/systems/meter';
 import { KIT_SLOTS, assignItem, buildKitView, clearSlot, itemKey, slotContent, slotFor } from '../../src/ui/model/kit';
 import { returnDuration, returnFrame } from '../../src/ui/model/returns';
 import { TUNING } from '../../src/content/tuning';
+import { promptKey, promptParts } from '../../src/ui/model/promptText';
 import { OverlayTracker } from '../../src/ui/model/overlay';
 import { paginate, wrapText } from '../../src/ui/model/wrap';
 
@@ -614,5 +615,31 @@ describe('Return timelines', () => {
         expect(fr.cover).toBeLessThanOrEqual(1);
       }
     }
+  });
+});
+
+describe('Prompt text', () => {
+  it('a prompt that starts with a key gives the key and the rest', () => {
+    expect(promptParts('ui.prompt.weapon')).toEqual({ key: 'R', rest: 'to change weapon' });
+    expect(promptParts('ui.prompt.kit')).toEqual({ key: 'Tab', rest: 'for the kit' });
+    expect(promptParts('ui.prompt.hotDrink')).toEqual({ key: 'E', rest: 'for a hot drink' });
+    expect(promptParts('ui.prompt.slot', { key: '2' })).toEqual({ key: '2', rest: 'to use it' });
+  });
+
+  it('a prompt that does not start with a key is shown whole', () => {
+    const t = promptParts('ui.prompt.throw');
+    expect(t.key).toBeNull();
+    expect(t.rest).toBe(text('ui.prompt.throw'));
+    expect(promptParts('ui.prompt.selectDrink').key).toBeNull();
+  });
+
+  it('the same text with the same values is the same prompt', () => {
+    expect(promptKey('ui.prompt.slot', { key: '1' })).toBe(promptKey('ui.prompt.slot', { key: '1' }));
+    expect(promptKey('ui.prompt.slot', { key: '1' })).not.toBe(promptKey('ui.prompt.slot', { key: '2' }));
+    expect(promptKey('ui.prompt.kit')).toBe('ui.prompt.kit');
+  });
+
+  it('every new prompt text exists', () => {
+    for (const id of ['ui.prompt.slot', 'ui.prompt.weapon', 'ui.prompt.throw', 'ui.prompt.kit', 'ui.prompt.selectDrink', 'ui.prompt.hotDrink', 'ui.bar.choose', 'ui.bar.coffee', 'ui.bar.tea']) expect(hasText(id), id).toBe(true);
   });
 });

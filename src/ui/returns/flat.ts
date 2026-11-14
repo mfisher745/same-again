@@ -5,9 +5,7 @@
  */
 
 import Phaser from 'phaser';
-
-/** Scene keys that draw the world, tried in order. */
-const WORLD_SCENES = ['Game', 'DevWorld'] as const;
+import { worldCamera } from '../worldCamera';
 
 export class FlatColour {
   private camera: Phaser.Cameras.Scene2D.Camera | null = null;
@@ -15,16 +13,6 @@ export class FlatColour {
   private amount = 0;
 
   constructor(private readonly game: Phaser.Game) {}
-
-  private worldCamera(): Phaser.Cameras.Scene2D.Camera | null {
-    if (this.game.renderer.type !== Phaser.WEBGL) return null;
-    for (const key of WORLD_SCENES) {
-      // `getScene` answers null for a key that was never added, whatever its type says.
-      const scene = this.game.scene.getScene(key) as Phaser.Scene | null;
-      if (scene !== null && (this.game.scene.isActive(key) || this.game.scene.isPaused(key))) return scene.cameras.main;
-    }
-    return null;
-  }
 
   /** 0 normal, 1 grey. */
   set(amount: number): void {
@@ -35,7 +23,7 @@ export class FlatColour {
       this.clear();
       return;
     }
-    const cam = this.worldCamera();
+    const cam = worldCamera(this.game);
     if (cam === null || cam.postFX === undefined) return;
     if (this.camera !== cam || this.fx === null) {
       this.clear();
