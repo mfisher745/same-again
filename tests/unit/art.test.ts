@@ -147,6 +147,31 @@ describe('characters', () => {
     for (const dir of ['up', 'down', 'left', 'right'] as const) for (let i = 0; i < 4; i++) expect(names.has(frameName('walk', dir, i)), `walk.${dir}.${i}`).toBe(true);
   });
 
+  it('Andrew has a four-frame swing for each non-fist weapon and the aim pose, in all four directions, registered as animations', () => {
+    const s = byKey(TEX.andrew);
+    const names = new Set(s.frames.map((f) => f.name));
+    const anims = new Set(s.anims.map((a) => a.key));
+    for (const anim of ['swing.hurley', 'swing.clipboard', 'swing.shillelagh', 'swing.umbrella', 'swing.inflatable', 'swing.wand']) {
+      for (const dir of ['up', 'down', 'left', 'right'] as const) {
+        for (let i = 0; i < 4; i++) expect(names.has(frameName(anim, dir, i)), `${anim}.${dir}.${i}`).toBe(true);
+        expect(anims.has(animKey(TEX.andrew, anim, dir)), `${anim}.${dir}`).toBe(true);
+      }
+    }
+    for (const dir of ['up', 'down', 'left', 'right'] as const) {
+      expect(names.has(frameName('aim', dir, 0)), `aim.${dir}`).toBe(true);
+      expect(anims.has(animKey(TEX.andrew, 'aim', dir)), `aim.${dir}`).toBe(true);
+    }
+  });
+
+  it('Myko hurries in all four directions, registered as a looping animation', () => {
+    const s = byKey(TEX.myko);
+    const names = new Set(s.frames.map((f) => f.name));
+    for (const dir of ['up', 'down', 'left', 'right'] as const) {
+      for (let i = 0; i < 4; i++) expect(names.has(frameName('hurry', dir, i)), `hurry.${dir}.${i}`).toBe(true);
+      expect(s.anims.find((a) => a.key === animKey(TEX.myko, 'hurry', dir))?.repeat, `hurry.${dir}`).toBe(-1);
+    }
+  });
+
   it('Myko has idle, walk, blink, smoke and swat but no run cycle', () => {
     const names = new Set(byKey(TEX.myko).frames.map((f) => f.name));
     for (const anim of ['idle', 'walk', 'blink', 'smoke', 'swat']) expect(names.has(frameName(anim, 'down', 0)), anim).toBe(true);

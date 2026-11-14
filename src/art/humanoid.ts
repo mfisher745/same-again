@@ -13,7 +13,24 @@ import type { Sheet } from './pixels';
 
 export type Hat = 'none' | 'beanie' | 'cap' | 'hardhat';
 export type Eyes = 'dot' | 'tired' | 'alien' | 'shades';
-export type Item = 'none' | 'hurley' | 'bottle' | 'pint' | 'baton' | 'hook' | 'pistol' | 'box' | 'taser' | 'shield';
+export type Item =
+  | 'none'
+  | 'hurley'
+  | 'bottle'
+  | 'pint'
+  | 'baton'
+  | 'hook'
+  | 'pistol'
+  | 'box'
+  | 'taser'
+  | 'shield'
+  // Overhaul weapons in the hand (DESIGN.md 7.2) and Myko's rollie held up.
+  | 'clipboard'
+  | 'shillelagh'
+  | 'umbrella'
+  | 'inflatable'
+  | 'wand'
+  | 'rollie';
 export type Arm = 'down' | 'out' | 'up' | 'guard' | 'pocket';
 
 export interface Look {
@@ -77,6 +94,8 @@ export interface Pose {
   readonly lying?: boolean;
   /** Draw the whole figure in white (hurt flash, telegraph flash). */
   readonly flash?: boolean;
+  /** Leave the rollie off the mouth (it is in the hand). */
+  readonly noRollie?: boolean;
 }
 
 interface Geometry {
@@ -138,6 +157,57 @@ function drawItem(b: PixelBuffer, item: Item, hx: number, hy: number, dx: number
     case 'shield':
       if (dx !== 0) b.rect(hx + dx * 2, hy - 6, 1, 10, 'teal');
       else b.rect(hx - 6, hy + dy * 2, 10, 1, 'teal');
+      return;
+    case 'clipboard': {
+      // A board held flat out, a white form on it and the clip on top.
+      const cx = hx + dx * 2;
+      const cy = hy + dy * 2;
+      b.rect(cx - 1, cy - 2, 3, 4, 'peat');
+      b.vline(cx, cy - 1, 2, 'white');
+      b.set(cx, cy - 2, 'fog');
+      return;
+    }
+    case 'shillelagh': {
+      // Short, dark and knobbly, with the ribbon at the grip.
+      const ex = hx + dx * 5;
+      const ey = hy + dy * 5;
+      b.line(hx, hy, ex, ey, 'peat');
+      b.rect(ex - (dx < 0 ? 1 : 0) - (dy !== 0 ? 1 : 0), ey - (dy < 0 ? 1 : 0) - (dx !== 0 ? 1 : 0), 2, 2, 'turf');
+      b.set(hx + dx + (dy !== 0 ? 1 : 0), hy + dy + (dx !== 0 ? 1 : 0), 'grass');
+      return;
+    }
+    case 'umbrella': {
+      // Furled: long and navy, a steel tip and the hooked handle behind the hand.
+      const ex = hx + dx * 8;
+      const ey = hy + dy * 8;
+      b.line(hx, hy, ex, ey, 'navy');
+      b.line(hx + dx * 2 + (dy !== 0 ? 1 : 0), hy + dy * 2 + (dx !== 0 ? 1 : 0), hx + dx * 5 + (dy !== 0 ? 1 : 0), hy + dy * 5 + (dx !== 0 ? 1 : 0), 'navy');
+      b.set(ex + dx, ey + dy, 'steel');
+      b.set(hx - dx, hy - dy, 'peat').set(hx - dx + (dy !== 0 ? 1 : 0), hy - dy + (dx !== 0 ? 1 : 0), 'peat');
+      return;
+    }
+    case 'inflatable': {
+      // The inflatable alien held by the legs: a big lime head at the far end.
+      // The head is kept inside the cell: it is the whole point of the weapon.
+      const ex = Math.min(b.width - 3, Math.max(2, hx + dx * 6));
+      const ey = Math.min(b.height - 4, Math.max(3, hy + dy * 6));
+      b.line(hx, hy, ex, ey, 'limeShade');
+      b.ellipse(ex - 2, ey - 3, 5, 6, 'lime');
+      b.set(ex - 1, ey - 1, 'ink').set(ex + 1, ey - 1, 'ink').set(ex - 1, ey - 2, 'white');
+      return;
+    }
+    case 'wand': {
+      // A grey paddle on a short handle, its light lime.
+      const ex = hx + dx * 5;
+      const ey = hy + dy * 5;
+      b.line(hx, hy, ex, ey, 'slate');
+      b.rect(ex - 1, ey - 1, 3, 3, 'steel').set(ex, ey, 'slate');
+      b.set(hx + dx * 2, hy + dy * 2, 'lime');
+      return;
+    }
+    case 'rollie':
+      // Held up between two fingers, lit end up, a thread of smoke.
+      b.set(hx, hy - 1, 'white').set(hx, hy - 2, 'amber').set(hx + 1, hy - 4, 'fog');
       return;
   }
 }
@@ -338,7 +408,7 @@ function drawStanding(b: PixelBuffer, look: Look, facing: 'down' | 'up' | 'right
         b.set(g.cx + 1 + ox, my - 1, 'ink');
       }
     }
-    if (look.rollie === true) {
+    if (look.rollie === true && pose.noRollie !== true) {
       const my = hy + hh - 2;
       const rx = side ? hx + hw : g.cx + 2 + ox;
       b.set(rx, my, 'white').set(rx + 1, my, 'amber');
