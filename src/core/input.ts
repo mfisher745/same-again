@@ -30,6 +30,14 @@ const ACTIONS: readonly InputAction[] = [
   'callMyko',
   'casebook',
   'pause',
+  'special1',
+  'special2',
+  'special3',
+  'special4',
+  'cycleWeapon',
+  'cycleDrink',
+  'openTab',
+  'aimHold',
 ];
 
 const EMPTY_SET: ReadonlySet<InputAction> = new Set();
