@@ -62,6 +62,13 @@ export const createMykoLines = (): MykoLinesState => ({ cooldownMs: 0, lowArmed:
 export const stepMykoLines = (s: MykoLinesState, dtMs: number): MykoLinesState =>
   s.cooldownMs <= 0 ? s : { ...s, cooldownMs: Math.max(0, s.cooldownMs - Math.max(0, dtMs)) };
 
+/** Keep the low remark's arming in step with the meter without speaking (used while the meter is hidden). */
+export const syncMykoLow = (s: MykoLinesState, meterValue: number, t: OverhaulTuning = overhaulTuning()): MykoLinesState => {
+  if (meterValue <= 0) return s;
+  const armed = meterValue >= t.lowWarningBelow;
+  return s.lowArmed === armed ? s : { ...s, lowArmed: armed };
+};
+
 export const cooldownMs = (t: OverhaulTuning = overhaulTuning()): number => t.mykoLineCooldownMs ?? 12000;
 
 /**

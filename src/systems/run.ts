@@ -265,7 +265,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (save.meterHidden) this.player.setMeterHidden(true);
     if (save.drainHeld) this.player.holdDrain(true);
     this.combat = new PlayerCombat(this.combatHost());
-    this.mykoVoice = new MykoMeterVoice({ rng: this.rng, pool: (id) => this.opts.pool(id), say: (id) => void this.say(id, { repeat: true }) });
+    this.mykoVoice = new MykoMeterVoice({ rng: this.rng, pool: (id) => this.opts.pool(id), say: (id) => void this.say(id, { repeat: true }), meterHidden: () => this.player.meterHidden });
     this.dialogue = new DialogueRunner(this.bus, opts.dialogue, {
       played: save.playedDialogue,
       context: {
