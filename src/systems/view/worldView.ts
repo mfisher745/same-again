@@ -357,7 +357,7 @@ export class WorldView {
     }
     for (const s of r.module.stealth) {
       if (s.screenId !== here) continue;
-      area(s.startArea, PALETTE.amber);
+      if (s.startArea) area(s.startArea, PALETTE.amber);
       area(s.exitArea, PALETTE.lime);
       dot(s.entrance, PALETTE.lime);
     }

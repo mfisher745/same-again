@@ -682,6 +682,11 @@ export interface BossDef {
   readonly dazedMs?: number;
   /** Damage-taken multiplier while dazed. */
   readonly dazedDamageMultiplier?: number;
+  /**
+   * A thrown bottle that lands within its noise radius of a body makes the body stop and look at the landing
+   * for this long, attacking nothing (the ram, docs/chapters/02). Absent: bodies ignore noise.
+   */
+  readonly noiseStopMs?: number;
 }
 
 /** One wave of a fight. docs/chapters, "Beats". */
@@ -1490,7 +1495,7 @@ export interface UiTuning {
 // ---------------------------------------------------------------------------
 
 /** Why a save was written. DESIGN.md section 7.6. */
-export type SaveReason = 'sectionDone' | 'mykoCall' | 'chapterComplete';
+export type SaveReason = 'sectionDone' | 'mykoCall' | 'chapterComplete' | 'clue' | 'move' | 'weapon';
 
 /**
  * Payload for every game event, keyed by event name. Systems, UI, audio and
@@ -2145,6 +2150,24 @@ export interface OverhaulTuning {
   readonly footstepNoiseRadiusByLevel?: Readonly<Record<DrunkLevel, number>>;
   /** Footstep noise radius while sneaking: silent until Fecked, then short range. */
   readonly sneakNoiseRadiusByLevel?: Readonly<Record<DrunkLevel, number>>;
+  /** Andrew's speed on slow ground (puddles, `PropPlacement.slows`) as a fraction of his normal speed. Chapter 2. */
+  readonly slowGroundMultiplier?: number;
+  /** How far ahead of Andrew the camera looks while `ChapterContext.setCameraLead` is on, pixels. Chapter 2. */
+  readonly cameraLeadPx?: number;
+  /** The sheep puzzle's flock (`sheep.ts`). Chapter 2. */
+  readonly sheep?: SheepTuning;
+}
+
+/** How the flock in the chapter 2 yard behaves. All first guesses. */
+export interface SheepTuning {
+  /** Sheep walking pace, pixels per second (below Andrew's 100). */
+  readonly speed: number;
+  /** A sheep within this of Andrew moves away from him, pixels. */
+  readonly fleeRadius: number;
+  /** Sheep body size, pixels (square). */
+  readonly bodySize: number;
+  /** The flock must stay in the far pen this long to count as penned, ms. */
+  readonly settleMs: number;
 }
 
 // ---------------------------------------------------------------------------

@@ -237,6 +237,28 @@ export class Dressing {
     return grid;
   }
 
+  /** Whether a visible prop's `slows` footprint covers tile (`col`, `row`) of the screen. */
+  slowsAt(screenId: ScreenId, col: number, row: number): boolean {
+    return this.footprintAt(screenId, col, row, (p) => p.def.slows);
+  }
+
+  /** Whether a visible prop's `blocksEnemies` footprint covers tile (`col`, `row`) of the screen. */
+  blocksEnemiesAt(screenId: ScreenId, col: number, row: number): boolean {
+    return this.footprintAt(screenId, col, row, (p) => p.def.blocksEnemies);
+  }
+
+  private footprintAt(screenId: ScreenId, col: number, row: number, pick: (p: LiveProp) => TileFootprint | undefined): boolean {
+    for (const p of this.props.values()) {
+      if (p.screenId !== screenId || !p.visible || p.broken) continue;
+      const fp = pick(p);
+      if (!fp) continue;
+      const c0 = p.col + (fp.dx ?? 0);
+      const r0 = p.row + (fp.dy ?? 0);
+      if (col >= c0 && col < c0 + fp.width && row >= r0 && row < r0 + fp.height) return true;
+    }
+    return false;
+  }
+
   /** IDs of examinables that belong to an NPC (drawn as the NPC, not as a marker). */
   npcExaminableIds(): ReadonlySet<string> {
     const out = new Set<string>();

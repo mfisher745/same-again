@@ -19,6 +19,7 @@ import type {
   ChapterScript,
   FightPlacement,
   MeleeHitInfo,
+  MoveHitInfo,
   PushPuzzlePlacement,
   ScreenAmbient,
   ScreenLayout,
@@ -93,7 +94,7 @@ import { EnemyActor, statsFromDef } from './enemies';
 import type { ActorStats, CombatWorld } from './enemies';
 import { FightRunner } from './fight';
 import { add, distance, normalize, rectContains, scale } from './geometry';
-import { TILE, isShade } from './grid';
+import { TILE, isShade, tileOf } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
 import { assignDrink, assignMove, assignWeapon, cycleDrink, drinkFromInventory, drinkSelected, gainWeapon, learnMove } from './kit';
 import { takeItem } from './pickups';
@@ -215,6 +216,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private footstepMs = 0;
   private defeatedEmitted = new Set<string>();
   private meleeHooks: { readonly area: AreaRect; readonly screenId: ScreenId; readonly callback: (hit: MeleeHitInfo) => void }[] = [];
+  private moveHooks: { readonly area: AreaRect; readonly screenId: ScreenId; readonly callback: (hit: MoveHitInfo) => void }[] = [];
   private timers: { at: number; readonly everyMs: number | null; readonly fn: () => void }[] = [];
   private readonly lootSeed: number;
 
@@ -429,6 +431,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   dispose(): void {
     this.meleeHooks = [];
+    this.moveHooks = [];
     this.timers = [];
     this.script.dispose?.();
     this.scope.dispose();
@@ -477,7 +480,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     const p = this.player;
 
     // Player: move, then the meter (sun first, so this tick's drain is right).
-    p.move(dtMs, live, this.grid, (c, r) => this.extraBlocked(c, r));
+    p.move(dtMs, live, this.grid, (c, r) => this.extraBlocked(c, r), this.groundSpeed());
     p.setInSun(this.screenInSun && !isShade(this.grid, p.pos));
     p.tickMeter(dtMs);
     this.mykoVoice.step(dtMs);
@@ -511,7 +514,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     const hidden = this.combat.hidden || actingNatural(this.hidingPropsHere(), p.pos, p.stillMs, false);
     for (const { runner, placement } of this.stealthHere()) {
       if (!placement) continue;
-      if (!runner.isFinished && !runner.alarmRaised && rectContains(placement.startArea, p.pos)) this.startStealth(runner);
+      if (!runner.isFinished && !runner.alarmRaised && placement.startArea !== undefined && rectContains(placement.startArea, p.pos)) this.startStealth(runner);
       // Thermal masts (chapter 8) see him at Bit much or worse while he is out in the sun.
       runner.tick(dtMs, { pos: p.pos, hidden, running: p.moving && !p.sneaking, thermalVisible: p.level >= 3 && p.meter.inSun });
       if (runner.active && rectContains(placement.exitArea, p.pos)) runner.finish();
@@ -684,6 +687,17 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   extraBlocked(col: number, row: number): boolean {
     for (const { puzzle } of this.pushPuzzlesHere()) if (puzzle.occupies(col, row)) return true;
     return false;
+  }
+
+  /** Tiles only enemies cannot enter (`PropPlacement.blocksEnemies`). */
+  enemyBlocked(col: number, row: number): boolean {
+    return this.dressing.blocksEnemiesAt(this.screen.id, col, row);
+  }
+
+  /** Andrew's speed factor where he stands: slow ground (`PropPlacement.slows`) or normal. */
+  private groundSpeed(): number {
+    const t = tileOf(this.player.pos);
+    return this.dressing.slowsAt(this.screen.id, t.col, t.row) ? (TUNING.overhaul?.slowGroundMultiplier ?? 1) : 1;
   }
 
   actors(): readonly EnemyActor[] {
@@ -877,6 +891,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (!r.learned) return;
     this.player.setKit(r.kit);
     this.bus.emit(GameEvents.MoveLearned, { moveId: r.learned });
+    // DESIGN.md 7.6: a move gained saves.
+    this.save('move');
   }
 
   /** Gain a weapon. It is not equipped until Andrew picks it (R or the Tab screen). */
@@ -885,6 +901,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (!r.gained) return;
     this.player.setKit(r.kit);
     this.bus.emit(GameEvents.WeaponGained, { weaponId: r.gained });
+    // DESIGN.md 7.6: a weapon gained saves.
+    this.save('weapon');
   }
 
   /** Old chapter scripts name abilities; each is now a move, a weapon or nothing (the fists, the old throw and the old specials that were dropped). */
@@ -945,9 +963,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   }
 
   addEvidence(id: EvidenceId): void {
-    if (this.casebook.addEvidence(id, this.chapter) && this.module.clueCommentPool) {
-      this.myko.comment('clue', this.module.clueCommentPool);
-    }
+    if (!this.casebook.addEvidence(id, this.chapter)) return;
+    // DESIGN.md 7.6: a clue found saves, so a return to the bar (flags go back to the last save) and Continue keep it with the flags that went with it.
+    this.save('clue');
+    if (this.module.clueCommentPool) this.myko.comment('clue', this.module.clueCommentPool);
   }
 
   goToScreen(screenId: ScreenId, spawn: Vec2): void {
@@ -1055,6 +1074,14 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       else t.at += t.everyMs;
       t.fn();
     }
+  }
+
+  onMoveHit(area: AreaRect, callback: (hit: MoveHitInfo) => void, screenId: ScreenId = this.screen.id): () => void {
+    const hook = { area, screenId, callback };
+    this.moveHooks.push(hook);
+    return () => {
+      this.moveHooks = this.moveHooks.filter((h) => h !== hook);
+    };
   }
 
   onMeleeHit(area: AreaRect, callback: (hit: MeleeHitInfo) => void, screenId: ScreenId = this.screen.id): () => void {
@@ -1476,6 +1503,24 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (thud) this.opts.playEffect?.('thud');
   }
 
+  /** A charge or lurch's lane touches hooks and breakables (`PlayerCombatHost.moveWorldHits`). */
+  private moveWorldHits(moveId: MoveId, lane: AttackShape, breakAll: boolean): void {
+    const p = this.player;
+    let thud = false;
+    for (const h of [...this.moveHooks]) {
+      if (h.screenId === this.screen.id && shapeHitsRect(lane, p.pos, p.aimDeg, h.area)) h.callback({ moveId });
+    }
+    if (breakAll) {
+      for (const prop of this.dressing.breakablesOn(this.screen.id)) {
+        if (!shapeHitsRect(lane, p.pos, p.aimDeg, propHitRect(prop))) continue;
+        thud = true;
+        // Through it, whatever it takes: every hit it has left.
+        for (let i = 0; i < 16 && this.hitBreakable(prop) === 'hit'; i++);
+      }
+    }
+    if (thud) this.opts.playEffect?.('thud');
+  }
+
   /** What `PlayerCombat` needs from this chapter. */
   private combatHost(): PlayerCombatHost {
     return {
@@ -1489,6 +1534,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       damageActor: (a, amount, kb, stunMs, source, from, pierce) => this.damageActor(a, amount, kb, stunMs, source, from, pierce),
       defeat: (a, by) => this.defeat(a, by),
       meleeWorldHits: (shape, swing) => this.meleeWorldHits(shape, swing),
+      moveWorldHits: (moveId, lane, breakAll) => this.moveWorldHits(moveId, lane, breakAll),
       alarmGuardsHit: (shape, angle) => this.alarmGuardsHit(shape, angle),
       emitNoise: (n) => this.emitNoise(n),
       spawnProjectile: (s) => this.spawnProjectile(s),
@@ -1566,6 +1612,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   emitNoise(n: NoiseEvent): void {
     this.bus.emit(GameEvents.StealthNoise, n);
     for (const { runner } of this.stealthHere()) runner.noise(n);
+    // A bottle landing near a distractible body (the ram) stops it and makes it look.
+    if (n.kind === 'bottle') {
+      for (const a of this.actorList) if (!a.down && distance(a.pos, n.position) <= n.radius) a.distractBy(n.position);
+    }
   }
 
   private interact(): void {

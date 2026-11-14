@@ -153,6 +153,16 @@ export interface PropPlacement {
   readonly solid?: TileFootprint;
   /** Tiles that block vision cones and headlights while visible (default: none). `true` uses `solid`. */
   readonly blocksSight?: TileFootprint | true;
+  /**
+   * Slow ground while visible (puddles): Andrew walks at `TUNING.overhaul.slowGroundMultiplier` of his speed
+   * on these tiles. Enemies are not slowed.
+   */
+  readonly slows?: TileFootprint;
+  /**
+   * Tiles that enemies and bosses cannot enter while the prop is visible, though Andrew can (the cattle grid the
+   * ram will not cross). Guards on a patrol ignore it.
+   */
+  readonly blocksEnemies?: TileFootprint;
   /** Starts hidden (shown later with `ctx.setPropVisible`). */
   readonly hidden?: boolean;
   /** 'floor' draws under every character (rugs, puddles, markings); default 'sorted'. */
@@ -251,6 +261,12 @@ export interface MeleeHitInfo {
   readonly haymaker: boolean;
 }
 
+/** What a charge or lurch that touched an `onMoveHit` area was. */
+export interface MoveHitInfo {
+  /** `shoulder` (the charge) or `stumble` (the lurch). */
+  readonly moveId: MoveId;
+}
+
 /** What starts a section: Andrew walking into an area, or the script. */
 export type SectionTrigger = { readonly kind: 'area'; readonly area: AreaRect } | { readonly kind: 'script' };
 
@@ -276,8 +292,11 @@ export interface BossPlacement {
 export interface StealthPlacement {
   readonly sectionId: StealthSectionId;
   readonly screenId: ScreenId;
-  /** Walking in starts the section (and reaches its checkpoint). */
-  readonly startArea: AreaRect;
+  /**
+   * Walking in starts the section. Absent: only the script starts it (`ctx.startSection(id)`), for guards that
+   * arrive in a scene (the "Department" van in chapter 2). Until it starts the guards are not in the world.
+   */
+  readonly startArea?: AreaRect;
   /** Walking in without the alarm is a clean run. */
   readonly exitArea: AreaRect;
   readonly entrance: Vec2;
@@ -467,6 +486,13 @@ export interface ChapterContext {
    * Fires once per swing. Returns a function that removes the hook.
    */
   onMeleeHit(area: AreaRect, callback: (hit: MeleeHitInfo) => void, screenId?: ScreenId): () => void;
+  /**
+   * Calls `callback` when the lane of Andrew's Shoulder or Stumble touches `area` on `screenId` (default: the
+   * screen current when this is called), before he moves. Fires once per use. Returns a function that removes the
+   * hook. The Stumble also breaks every breakable prop in its lane, whatever hits it had left, so a stack of
+   * feed buckets placed as breakables is gone before he arrives.
+   */
+  onMoveHit(area: AreaRect, callback: (hit: MoveHitInfo) => void, screenId?: ScreenId): () => void;
 
   // Timers in game time. They keep running while a scene or the call-in
   // blackout is showing (not while the game is paused) and are cancelled when

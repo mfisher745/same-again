@@ -369,7 +369,7 @@ const enemies: Tuning['enemies'] = {
 // Bosses and set pieces (docs/chapters, "Boss" and "Set piece" sections)
 // ---------------------------------------------------------------------------
 
-type BossMotion = Pick<BossDef, 'moveSpeed' | 'dazedMs' | 'dazedDamageMultiplier'>;
+type BossMotion = Pick<BossDef, 'moveSpeed' | 'dazedMs' | 'dazedDamageMultiplier' | 'noiseStopMs'>;
 
 const boss = (
   id: BossDef['id'],
@@ -427,7 +427,7 @@ const bosses: Tuning['bosses'] = {
     220,
   ),
   // The ram must stay faster than Andrew's runSpeed (100).
-  'c2.setpiece.ram': boss('c2.setpiece.ram', 'setpiece', [90, 12], { moveSpeed: 115 }, { kind: 'reachExit' }, [
+  'c2.setpiece.ram': boss('c2.setpiece.ram', 'setpiece', [90, 12], { moveSpeed: 115, noiseStopMs: 1500 }, { kind: 'reachExit' }, [
     {
       id: 'chase',
       trigger: { kind: 'start' },
@@ -844,6 +844,12 @@ const overhaul: OverhaulTuning = {
   // Walking: the old 56, x1.75 at Bit much, x2 at Fecked. Sneaking is silent until Fecked.
   footstepNoiseRadiusByLevel: { 0: 56, 1: 56, 2: 56, 3: 98, 4: 112 },
   sneakNoiseRadiusByLevel: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 28 },
+  // stand-in: creative director to set. Puddles in the ram lane (chapter 2): Andrew at three quarters speed.
+  slowGroundMultiplier: 0.75,
+  // stand-in: creative director to set. The camera looks this far ahead of Andrew down the ram lane.
+  cameraLeadPx: 96,
+  // stand-in: creative director to set. The chapter 2 sheep: slower than Andrew, shy of him at about two tiles.
+  sheep: { speed: 60, fleeRadius: 40, bodySize: 10, settleMs: 600 },
 };
 
 export const TUNING: Tuning = {

@@ -146,7 +146,7 @@ export class Player {
   }
 
   /** Movement and aim for one tick. Returns the distance moved. */
-  move(dtMs: number, input: InputFrame, grid: TileGrid, extraBlocked?: (c: number, r: number) => boolean): number {
+  move(dtMs: number, input: InputFrame, grid: TileGrid, extraBlocked?: (c: number, r: number) => boolean, speedMultiplier = 1): number {
     this.invulnMs = Math.max(0, this.invulnMs - dtMs);
     this.heldMs = Math.max(0, this.heldMs - dtMs);
     this.stunMs = Math.max(0, this.stunMs - dtMs);
@@ -165,6 +165,7 @@ export class Player {
       if (dir.x !== 0 || dir.y !== 0) {
         let speed = TUNING.player.runSpeed;
         if (this.sneaking) speed *= TUNING.player.sneakSpeedMultiplier;
+        speed *= speedMultiplier;
         delta = scale(scale(dir, speed), dtMs / 1000);
         this.facing = facingFromAngle(angleOf(dir));
       }

@@ -21,6 +21,7 @@ export type {
   FightPlacement,
   LightSource,
   MeleeHitInfo,
+  MoveHitInfo,
   NpcPlacement,
   PropPlacement,
   PushPuzzlePlacement,
