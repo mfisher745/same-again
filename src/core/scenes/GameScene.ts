@@ -61,6 +61,18 @@ export class GameScene extends Phaser.Scene {
     run.tick(dt, frame);
     this.suppressPresses = run.sceneBlocking || run.activeDeduction() !== null;
     if (this.run === run && !run.isEnded) this.view?.sync();
+    this.easeCameraLead(dt);
+  }
+
+  /** The camera looks ahead of Andrew where the chapter asks (`ChapterContext.setCameraLead`), easing there. */
+  private easeCameraLead(dtMs: number): void {
+    const run = this.run;
+    if (!run) return;
+    const cam = this.cameras.main;
+    const want = run.cameraLead();
+    const k = Math.min(1, dtMs / 400);
+    // Phaser subtracts the follow offset, so looking ahead is a negative offset.
+    cam.setFollowOffset(cam.followOffset.x + (-want.x - cam.followOffset.x) * k, cam.followOffset.y + (-want.y - cam.followOffset.y) * k);
   }
 
   private cleanup(): void {

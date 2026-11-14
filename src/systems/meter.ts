@@ -131,6 +131,9 @@ export function snapshot(s: MeterState, t: OverhaulTuning = overhaulTuning()): M
     spiritActive: s.spirit !== null,
     teaHoldActive: s.tea?.phase === 'holding',
     inSun: s.inSun,
+    // The chapter script's flags live on the player, which fills these in (`Player.meterSnapshot`).
+    hidden: false,
+    drainHeld: false,
   };
 }
 
@@ -223,8 +226,8 @@ function endSpirit(s: MeterState, t: OverhaulTuning): MeterResult {
   return setValue({ ...s, spirit: null }, s.value - w.dropAfter, t, [ended]);
 }
 
-/** Advance `dtMs` of play: drain, spirit window, tea ease and hold. */
-export function stepMeter(s: MeterState, dtMs: number, t: OverhaulTuning = overhaulTuning()): MeterResult {
+/** Advance `dtMs` of play: drain, spirit window, tea ease and hold. `drainHeld` (a chapter script) stops the plain drain only. */
+export function stepMeter(s: MeterState, dtMs: number, t: OverhaulTuning = overhaulTuning(), drainHeld = false): MeterResult {
   let acc: MeterResult = { state: s, events: [] };
   let left = Math.max(0, dtMs);
   // Each pass consumes a whole segment up to the next timer edge; at most a handful of edges exist.
@@ -253,6 +256,8 @@ export function stepMeter(s: MeterState, dtMs: number, t: OverhaulTuning = overh
       } else {
         acc = { ...acc, state: { ...cur, tea: remaining > 0 ? { ...tea, msLeft: remaining } : null } };
       }
+    } else if (drainHeld) {
+      left = 0;
     } else {
       const rate = t.drainPerSecond * (cur.inSun ? t.sun.drainMultiplier : 1);
       acc = chain(acc, setValue(cur, cur.value - (rate * left) / 1000, t));

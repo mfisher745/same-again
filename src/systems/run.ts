@@ -19,7 +19,9 @@ import type {
   ChapterScript,
   FightPlacement,
   MeleeHitInfo,
+  MoveHitInfo,
   PushPuzzlePlacement,
+  SheepPuzzlePlacement,
   ScreenAmbient,
   ScreenLayout,
   ScriptedCompletableHandle,
@@ -34,6 +36,7 @@ import type {
   AlarmFightId,
   AttackShape,
   BossId,
+  CarriedDrinkId,
   DrunkState,
   ChapterFlagValue,
   ChapterNumber,
@@ -92,10 +95,10 @@ import type { DialogueLookup } from './dialogue';
 import { EnemyActor, statsFromDef } from './enemies';
 import type { ActorStats, CombatWorld } from './enemies';
 import { FightRunner } from './fight';
-import { add, distance, normalize, rectContains, scale } from './geometry';
-import { TILE, isShade } from './grid';
+import { add, distance, fromAngle, normalize, rectContains, scale } from './geometry';
+import { TILE, isShade, moveBox, tileOf } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
-import { assignDrink, assignMove, assignWeapon, cycleDrink, drinkFromInventory, drinkSelected, gainWeapon, learnMove } from './kit';
+import { assignDrink, assignMove, assignWeapon, cycleDrink, drinkFromInventory, drinkSelected, gainWeapon, learnMove, topUpBottles } from './kit';
 import { takeItem } from './pickups';
 import { dropRngFor, regionBeer, rollBreakableDrop, rollEnemyDrop } from './drops';
 import { MykoMeterVoice } from './mykoMeter';
@@ -110,6 +113,7 @@ import type { SwingResult } from './weapons';
 import { projectileTouches, spawnProjectile, stepProjectile } from './projectiles';
 import type { Projectile, ProjectileSpawn } from './projectiles';
 import { PushPuzzle } from './puzzles';
+import { SheepPuzzle } from './sheep';
 import { CompletableSection, ScriptedCompletable } from './sections';
 import type { SectionHost } from './sections';
 import { StealthRunner, actingNatural } from './stealth';
@@ -165,6 +169,9 @@ interface SectionEntry {
   setSuspended?(on: boolean): void;
 }
 
+/** How far past where a blocked lurch ends it still touches (px): the blocker itself, not what lies behind it. */
+const HOOK_TOUCH = 4;
+
 export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   readonly bus: GameEventBus;
   readonly rng: Random;
@@ -215,12 +222,14 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private footstepMs = 0;
   private defeatedEmitted = new Set<string>();
   private meleeHooks: { readonly area: AreaRect; readonly screenId: ScreenId; readonly callback: (hit: MeleeHitInfo) => void }[] = [];
+  private moveHooks: { readonly area: AreaRect; readonly screenId: ScreenId; readonly callback: (hit: MoveHitInfo) => void }[] = [];
   private timers: { at: number; readonly everyMs: number | null; readonly fn: () => void }[] = [];
   private readonly lootSeed: number;
 
   // State
   private objectiveId: ObjectiveId | null = null;
   private controlsLocked = false;
+  private leadDirection: Facing | null = null;
   private ended = false;
   private readonly script: ChapterScript;
   private readonly scope: BusScope;
@@ -251,9 +260,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.settings = save.settings;
     this.openedShortcuts = [...save.openedShortcuts];
 
-    this.player = new Player(this.bus, save.kit, this.chapter);
+    // Loading a save puts Andrew in the bar exactly as a return does, bottles topped up (DESIGN.md 7.6). Chapter 1 keeps its own start.
+    this.player = new Player(this.bus, opts.resumed && this.chapter >= 2 ? topUpBottles(save.kit).kit : save.kit, this.chapter);
+    if (save.meterHidden) this.player.setMeterHidden(true);
+    if (save.drainHeld) this.player.holdDrain(true);
     this.combat = new PlayerCombat(this.combatHost());
-    this.mykoVoice = new MykoMeterVoice({ rng: this.rng, pool: (id) => this.opts.pool(id), say: (id) => void this.say(id, { repeat: true }) });
+    this.mykoVoice = new MykoMeterVoice({ rng: this.rng, pool: (id) => this.opts.pool(id), say: (id) => void this.say(id, { repeat: true }), meterHidden: () => this.player.meterHidden });
     this.dialogue = new DialogueRunner(this.bus, opts.dialogue, {
       played: save.playedDialogue,
       context: {
@@ -424,11 +436,14 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       playedDialogue: this.dialogue.playedIds(),
       brokenProps: this.dressing.brokenKeys(),
       lootSeed: this.lootSeed,
+      ...(this.player.meterHidden ? { meterHidden: true } : {}),
+      ...(this.player.drainHeld ? { drainHeld: true } : {}),
     };
   }
 
   dispose(): void {
     this.meleeHooks = [];
+    this.moveHooks = [];
     this.timers = [];
     this.script.dispose?.();
     this.scope.dispose();
@@ -477,7 +492,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     const p = this.player;
 
     // Player: move, then the meter (sun first, so this tick's drain is right).
-    p.move(dtMs, live, this.grid, (c, r) => this.extraBlocked(c, r));
+    p.move(dtMs, live, this.grid, (c, r) => this.extraBlocked(c, r), this.groundSpeed());
     p.setInSun(this.screenInSun && !isShade(this.grid, p.pos));
     p.tickMeter(dtMs);
     this.mykoVoice.step(dtMs);
@@ -499,6 +514,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
     // Puzzles.
     for (const { puzzle } of this.pushPuzzlesHere()) puzzle.update(dtMs, p.pos, live.move);
+    for (const { puzzle } of this.sheepPuzzlesHere()) puzzle.update(dtMs, p.pos);
 
     // Actors, projectiles.
     for (const a of this.actorList) a.tick(dtMs, this);
@@ -511,7 +527,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     const hidden = this.combat.hidden || actingNatural(this.hidingPropsHere(), p.pos, p.stillMs, false);
     for (const { runner, placement } of this.stealthHere()) {
       if (!placement) continue;
-      if (!runner.isFinished && !runner.alarmRaised && rectContains(placement.startArea, p.pos)) this.startStealth(runner);
+      if (!runner.isFinished && !runner.alarmRaised && placement.startArea !== undefined && rectContains(placement.startArea, p.pos)) this.startStealth(runner);
       // Thermal masts (chapter 8) see him at Bit much or worse while he is out in the sun.
       runner.tick(dtMs, { pos: p.pos, hidden, running: p.moving && !p.sneaking, thermalVisible: p.level >= 3 && p.meter.inSun });
       if (runner.active && rectContains(placement.exitArea, p.pos)) runner.finish();
@@ -642,13 +658,24 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.fights.get(id as FightSectionId)?.reset();
     this.bosses.get(id as BossId)?.reset();
     this.stealthRunners.get(id as StealthSectionId)?.runner.reset();
-    const c = this.sections.get(id as CompletableSectionId)?.completable;
-    if (c instanceof PushPuzzle) c.reset();
+    // An unsolved push or sheep puzzle keeps the state Andrew left it in (docs/chapters/README.md).
   }
 
   /** A way back that Andrew opened from the far side (a clean-run reward). */
   shortcutOpened(id: string): boolean {
     return this.openedShortcuts.includes(id);
+  }
+
+  kit(): Kit {
+    return this.player.kit;
+  }
+
+  setMeterHidden(hidden: boolean): void {
+    this.player.setMeterHidden(hidden);
+  }
+
+  holdDrain(held: boolean): void {
+    this.player.holdDrain(held);
   }
 
   /** Take the free hot drink on offer in the bar. DESIGN.md 7.1 "The hot drink". */
@@ -683,7 +710,29 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   extraBlocked(col: number, row: number): boolean {
     for (const { puzzle } of this.pushPuzzlesHere()) if (puzzle.occupies(col, row)) return true;
+    for (const { puzzle } of this.sheepPuzzlesHere()) if (puzzle.blocks(col, row)) return true;
     return false;
+  }
+
+  sheepPuzzlesHere(): { puzzle: SheepPuzzle; placement: SheepPuzzlePlacement }[] {
+    const out: { puzzle: SheepPuzzle; placement: SheepPuzzlePlacement }[] = [];
+    for (const p of this.module.sheepPuzzles ?? []) {
+      if (p.screenId !== this.screen.id) continue;
+      const e = this.sections.get(p.sectionId);
+      if (e && e.completable instanceof SheepPuzzle) out.push({ puzzle: e.completable, placement: p });
+    }
+    return out;
+  }
+
+  /** Tiles only enemies cannot enter (`PropPlacement.blocksEnemies`). */
+  enemyBlocked(col: number, row: number): boolean {
+    return this.dressing.blocksEnemiesAt(this.screen.id, col, row);
+  }
+
+  /** Andrew's speed factor where he stands: slow ground (`PropPlacement.slows`) or normal. */
+  private groundSpeed(): number {
+    const t = tileOf(this.player.pos);
+    return this.dressing.slowsAt(this.screen.id, t.col, t.row) ? (TUNING.overhaul?.slowGroundMultiplier ?? 1) : 1;
   }
 
   actors(): readonly EnemyActor[] {
@@ -877,6 +926,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (!r.learned) return;
     this.player.setKit(r.kit);
     this.bus.emit(GameEvents.MoveLearned, { moveId: r.learned });
+    // DESIGN.md 7.6: a move gained saves.
+    this.save('move');
   }
 
   /** Gain a weapon. It is not equipped until Andrew picks it (R or the Tab screen). */
@@ -885,6 +936,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (!r.gained) return;
     this.player.setKit(r.kit);
     this.bus.emit(GameEvents.WeaponGained, { weaponId: r.gained });
+    // DESIGN.md 7.6: a weapon gained saves.
+    this.save('weapon');
   }
 
   /** Old chapter scripts name abilities; each is now a move, a weapon or nothing (the fists, the old throw and the old specials that were dropped). */
@@ -945,9 +998,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   }
 
   addEvidence(id: EvidenceId): void {
-    if (this.casebook.addEvidence(id, this.chapter) && this.module.clueCommentPool) {
-      this.myko.comment('clue', this.module.clueCommentPool);
-    }
+    if (!this.casebook.addEvidence(id, this.chapter)) return;
+    // DESIGN.md 7.6: a clue found saves, so a return to the bar (flags go back to the last save) and Continue keep it with the flags that went with it.
+    this.save('clue');
+    if (this.module.clueCommentPool) this.myko.comment('clue', this.module.clueCommentPool);
   }
 
   goToScreen(screenId: ScreenId, spawn: Vec2): void {
@@ -983,6 +1037,18 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   setPlayerPosition(pos: Vec2): void {
     this.player.pos = pos;
+  }
+
+  /** Where the camera sits relative to Andrew, pixels: the lead set by `setCameraLead`, or (0, 0). The scene eases to it. */
+  cameraLead(): Vec2 {
+    const d = this.leadDirection;
+    const px = TUNING.overhaul?.cameraLeadPx ?? 0;
+    if (!d) return { x: 0, y: 0 };
+    return { x: d === 'right' ? px : d === 'left' ? -px : 0, y: d === 'down' ? px : d === 'up' ? -px : 0 };
+  }
+
+  setCameraLead(direction: Facing | null): void {
+    this.leadDirection = direction;
   }
 
   setControlsLocked(locked: boolean): void {
@@ -1055,6 +1121,14 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       else t.at += t.everyMs;
       t.fn();
     }
+  }
+
+  onMoveHit(area: AreaRect, callback: (hit: MoveHitInfo) => void, screenId: ScreenId = this.screen.id): () => void {
+    const hook = { area, screenId, callback };
+    this.moveHooks.push(hook);
+    return () => {
+      this.moveHooks = this.moveHooks.filter((h) => h !== hook);
+    };
   }
 
   onMeleeHit(area: AreaRect, callback: (hit: MeleeHitInfo) => void, screenId: ScreenId = this.screen.id): () => void {
@@ -1140,6 +1214,23 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       const puzzle = new PushPuzzle(m.def.puzzle.id === p.sectionId ? m.def.puzzle : { id: p.sectionId, chapter: this.chapter, kind: 'push' }, p.layout, grid, this, this.bus, this.sectionReward(p.sectionId));
       if (this.completed.has(p.sectionId)) puzzle.restoreComplete();
       puzzle.onPush = () => this.opts.playEffect?.('push');
+      this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: p.screenId, entrance: null, start: () => puzzle.start() });
+    }
+    for (const p of m.sheepPuzzles ?? []) {
+      const layout = this.layout(p.screenId);
+      if (!layout) continue;
+      const grid = this.dressing.gridFor(layout);
+      const def = m.def.puzzle.id === p.sectionId ? m.def.puzzle : { id: p.sectionId, chapter: this.chapter, kind: 'sheepGates' as const };
+      const puzzle = new SheepPuzzle(def, p.layout, grid, this, this.bus, this.sectionReward(p.sectionId));
+      if (this.completed.has(p.sectionId)) puzzle.restoreComplete();
+      puzzle.onGate = () => this.opts.playEffect?.('door');
+      // Herding or swinging a gate makes it the current section (so the Myko call finds it, also after a return to the bar).
+      puzzle.onUse = () => {
+        if (this.currentSection === null && !puzzle.isComplete()) {
+          this.currentSection = p.sectionId;
+          this.script.onSectionStarted?.(p.sectionId);
+        }
+      };
       this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: p.screenId, entrance: null, start: () => puzzle.start() });
     }
     const board = m.def.deductionBoard;
@@ -1393,10 +1484,27 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   /** A defeated enemy leaves a drink or nothing: its region's beer, rarely a whiskey, from chapter 7 a tequila. */
   private dropEnemyLoot(actor: EnemyActor): void {
+    // A wave with a guaranteed drop rolls nothing at random: the last of it to fall drops the declared drink.
+    const guaranteed = this.guaranteedDropFor(actor);
+    if (guaranteed) {
+      if (guaranteed.drink) {
+        this.spawnPickup({ id: `drop.${actor.instanceId}`, item: { kind: 'drink', drinkId: guaranteed.drink, count: 1 }, screenId: this.screen.id, position: actor.pos });
+      }
+      return;
+    }
     const region = this.module.def.screens.find((s) => s.id === this.screen.id)?.region ?? 'kilnamoe';
     const drop = rollEnemyDrop(dropRngFor(this.lootSeed, actor.instanceId), regionBeer(region), this.chapter);
     if (drop === null) return;
     this.spawnPickup({ id: `drop.${actor.instanceId}`, item: { kind: 'drink', drinkId: drop, count: 1 }, screenId: this.screen.id, position: actor.pos });
+  }
+
+  /** The fight whose wave spawned this enemy and declares a guaranteed drop, if any (`WaveDef.guaranteedDrop`). */
+  private guaranteedDropFor(actor: EnemyActor): { readonly drink: CarriedDrinkId | null } | null {
+    for (const f of this.fights.values()) {
+      const g = f.guaranteedDropFor(actor);
+      if (g) return g;
+    }
+    return null;
   }
 
   private dropLoot(prop: LiveProp, at: Vec2): void {
@@ -1476,6 +1584,40 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (thud) this.opts.playEffect?.('thud');
   }
 
+  /** A charge or lurch's lane touches hooks and breakables (`PlayerCombatHost.moveWorldHits`). */
+  private moveWorldHits(moveId: MoveId, lane: AttackShape, breakAll: boolean): void {
+    const p = this.player;
+    let thud = false;
+    // Only what he could reach: the lane stops where a wall or puzzle piece (not a breakable) stops him, plus a
+    // fingertip (HOOK_TOUCH) so the thing that stops him, or what he stands against, still counts.
+    const reach = this.reachableLane(lane);
+    const hookLane: AttackShape =
+      reach.kind === 'charge' && lane.kind === 'charge' && reach.distance < lane.distance
+        ? { ...reach, distance: reach.distance + HOOK_TOUCH }
+        : reach;
+    for (const h of [...this.moveHooks]) {
+      if (h.screenId === this.screen.id && shapeHitsRect(hookLane, p.pos, p.aimDeg, h.area)) h.callback({ moveId });
+    }
+    if (breakAll) {
+      for (const prop of this.dressing.breakablesOn(this.screen.id)) {
+        if (!shapeHitsRect(reach, p.pos, p.aimDeg, propHitRect(prop))) continue;
+        thud = true;
+        // Through it, whatever it takes: every hit it has left.
+        for (let i = 0; i < 16 && this.hitBreakable(prop) === 'hit'; i++);
+      }
+    }
+    if (thud) this.opts.playEffect?.('thud');
+  }
+
+  /** The lane cut short where a solid that is not a breakable would stop Andrew. */
+  private reachableLane(lane: AttackShape): AttackShape {
+    if (lane.kind !== 'charge') return lane;
+    const p = this.player;
+    const grid = this.dressing.gridWithoutBreakables(this.screen);
+    const end = moveBox(grid, p.pos, TUNING.player.bodyWidth, TUNING.player.bodyHeight, fromAngle(p.aimDeg, lane.distance), (c, r) => this.extraBlocked(c, r)).position;
+    return { ...lane, distance: Math.min(lane.distance, distance(p.pos, end)) };
+  }
+
   /** What `PlayerCombat` needs from this chapter. */
   private combatHost(): PlayerCombatHost {
     return {
@@ -1483,12 +1625,14 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       player: this.player,
       screenId: () => this.screen.id,
       grid: () => this.grid,
+      extraBlocked: (c, r) => this.extraBlocked(c, r),
       actors: () => this.actorList,
       guardsHere: () => this.guardsHere(),
       hidingPropsHere: () => this.hidingPropsHere(),
       damageActor: (a, amount, kb, stunMs, source, from, pierce) => this.damageActor(a, amount, kb, stunMs, source, from, pierce),
       defeat: (a, by) => this.defeat(a, by),
       meleeWorldHits: (shape, swing) => this.meleeWorldHits(shape, swing),
+      moveWorldHits: (moveId, lane, breakAll) => this.moveWorldHits(moveId, lane, breakAll),
       alarmGuardsHit: (shape, angle) => this.alarmGuardsHit(shape, angle),
       emitNoise: (n) => this.emitNoise(n),
       spawnProjectile: (s) => this.spawnProjectile(s),
@@ -1566,6 +1710,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   emitNoise(n: NoiseEvent): void {
     this.bus.emit(GameEvents.StealthNoise, n);
     for (const { runner } of this.stealthHere()) runner.noise(n);
+    // A bottle landing near a distractible body (the ram) stops it and makes it look.
+    if (n.kind === 'bottle') {
+      for (const a of this.actorList) if (!a.down && distance(a.pos, n.position) <= n.radius) a.distractBy(n.position);
+    }
   }
 
   private interact(): void {
@@ -1580,6 +1728,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (best.item) this.give(best.item);
     if (this.module.deduction?.examinableId === best.id) this.openDeduction();
     for (const pp of this.pushPuzzlesHere()) if (pp.placement.resetExaminableId === best.id) pp.puzzle.reset();
+    // E at a gate swings it (a sheep or Andrew in the way refuses).
+    for (const sp of this.sheepPuzzlesHere()) if (sp.puzzle.gateFor(best.id)) sp.puzzle.toggleGate(sp.puzzle.gateFor(best.id)?.id ?? '', this.player.pos);
   }
 
   private checkPickups(): void {

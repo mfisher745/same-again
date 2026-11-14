@@ -171,7 +171,8 @@ export function carryOver(snap: OverhaulSaveState, _endState: DrunkState, next: 
   const ended = snap.chapter;
   const finished = snap.finishedChapters.includes(ended) ? snap.finishedChapters : [...snap.finishedChapters, ended];
   // Buzz does not carry over: every chapter starts at the bottom of Grand in its bar (DESIGN.md 7.1).
-  return saveAtChapterStart(next, { ...snap, finishedChapters: finished });
+  // Every chapter starts in its bar, and leaving the bar means at least two bottles (DESIGN.md 7.1).
+  return saveAtChapterStart(next, { ...snap, kit: topUpBottles(snap.kit).kit, finishedChapters: finished });
 }
 
 export interface SessionOptions {

@@ -76,6 +76,8 @@ const attack = (
 ): AttackDef => ({ id, shape, damage, knockback, telegraphMs, cooldownMs, recoveryMs, weight: weightOf(id), ...extra });
 
 const wave = (...enemies: WaveDef['enemies'][number][]): WaveDef => ({ enemies });
+/** A wave that drops one given drink for certain (from the last to fall) instead of rolling for each enemy. */
+const waveDropping = (guaranteedDrop: NonNullable<WaveDef['guaranteedDrop']>, ...enemies: WaveDef['enemies'][number][]): WaveDef => ({ enemies, guaranteedDrop });
 
 // ---------------------------------------------------------------------------
 // Buzz
@@ -369,7 +371,7 @@ const enemies: Tuning['enemies'] = {
 // Bosses and set pieces (docs/chapters, "Boss" and "Set piece" sections)
 // ---------------------------------------------------------------------------
 
-type BossMotion = Pick<BossDef, 'moveSpeed' | 'dazedMs' | 'dazedDamageMultiplier'>;
+type BossMotion = Pick<BossDef, 'moveSpeed' | 'dazedMs' | 'dazedDamageMultiplier' | 'noiseStopMs'>;
 
 const boss = (
   id: BossDef['id'],
@@ -427,7 +429,7 @@ const bosses: Tuning['bosses'] = {
     220,
   ),
   // The ram must stay faster than Andrew's runSpeed (100).
-  'c2.setpiece.ram': boss('c2.setpiece.ram', 'setpiece', [90, 12], { moveSpeed: 115 }, { kind: 'reachExit' }, [
+  'c2.setpiece.ram': boss('c2.setpiece.ram', 'setpiece', [90, 12], { moveSpeed: 115, noiseStopMs: 1500 }, { kind: 'reachExit' }, [
     {
       id: 'chase',
       trigger: { kind: 'start' },
@@ -675,9 +677,11 @@ const fight = (id: FightDef['id'], ...waves: WaveDef[]): [FightDef['id'], FightD
 const n = (enemyId: EnemyDef['id'], count: number) => ({ enemyId, count });
 
 const fights: Tuning['fights'] = Object.fromEntries([
-  fight('c1.fight.chipper', wave(n('lad', 1)), wave(n('lad', 2))),
+  // The pair of lads drop exactly one stout between them (owner ruling).
+  fight('c1.fight.chipper', wave(n('lad', 1)), waveDropping('stout', n('lad', 2))),
   fight('c2.fight.yard', wave(n('cousin', 2), n('lad', 1))),
-  fight('c2.stealth.bog.alarm', wave(n('suit', 3))),
+  // Caught in the bog: the three patrolling suits plus one reinforcement (owner ruling).
+  fight('c2.stealth.bog.alarm', wave(n('suit', 1))),
   fight('c3.fight.bay', wave(n('worker', 4), n('lad', 2))),
   fight('c3.stealth.yard.alarm', wave(n('suit', 3))),
   fight('c4.fight.brawl', wave(n('brawler', 2)), wave(n('brawler', 2)), wave(n('brawler', 2))),
@@ -844,6 +848,12 @@ const overhaul: OverhaulTuning = {
   // Walking: the old 56, x1.75 at Bit much, x2 at Fecked. Sneaking is silent until Fecked.
   footstepNoiseRadiusByLevel: { 0: 56, 1: 56, 2: 56, 3: 98, 4: 112 },
   sneakNoiseRadiusByLevel: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 28 },
+  // stand-in: creative director to set. Puddles in the ram lane (chapter 2): Andrew at three quarters speed.
+  slowGroundMultiplier: 0.75,
+  // stand-in: creative director to set. The camera looks this far ahead of Andrew down the ram lane.
+  cameraLeadPx: 96,
+  // stand-in: creative director to set. The chapter 2 sheep: slower than Andrew, shy of him at about two tiles.
+  sheep: { speed: 60, fleeRadius: 40, bodySize: 10, settleMs: 600 },
 };
 
 export const TUNING: Tuning = {

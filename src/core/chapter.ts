@@ -71,6 +71,7 @@ import type { BossBodyPlacement, BossHooks, BossRunner } from '../systems/boss';
 import type { FightHooks, FightRunner } from '../systems/fight';
 import type { PuzzleBase } from '../systems/investigation';
 import type { PushPuzzleLayout } from '../systems/puzzles';
+import type { SheepPuzzleLayout } from '../systems/sheep';
 import type { SectionHost } from '../systems/sections';
 import type {
   AbilityId,
@@ -91,6 +92,7 @@ import type {
   Facing,
   FightSectionId,
   GameEventBus,
+  Kit,
   ObjectiveId,
   PickupDef,
   PickupItem,
@@ -153,6 +155,16 @@ export interface PropPlacement {
   readonly solid?: TileFootprint;
   /** Tiles that block vision cones and headlights while visible (default: none). `true` uses `solid`. */
   readonly blocksSight?: TileFootprint | true;
+  /**
+   * Slow ground while visible (puddles): Andrew walks at `TUNING.overhaul.slowGroundMultiplier` of his speed
+   * on these tiles. Enemies are not slowed.
+   */
+  readonly slows?: TileFootprint;
+  /**
+   * Tiles that enemies and bosses cannot enter while the prop is visible, though Andrew can (the cattle grid the
+   * ram will not cross). Guards on a patrol ignore it.
+   */
+  readonly blocksEnemies?: TileFootprint;
   /** Starts hidden (shown later with `ctx.setPropVisible`). */
   readonly hidden?: boolean;
   /** 'floor' draws under every character (rugs, puddles, markings); default 'sorted'. */
@@ -251,6 +263,12 @@ export interface MeleeHitInfo {
   readonly haymaker: boolean;
 }
 
+/** What a charge or lurch that touched an `onMoveHit` area was. */
+export interface MoveHitInfo {
+  /** `shoulder` (the charge) or `stumble` (the lurch). */
+  readonly moveId: MoveId;
+}
+
 /** What starts a section: Andrew walking into an area, or the script. */
 export type SectionTrigger = { readonly kind: 'area'; readonly area: AreaRect } | { readonly kind: 'script' };
 
@@ -276,8 +294,11 @@ export interface BossPlacement {
 export interface StealthPlacement {
   readonly sectionId: StealthSectionId;
   readonly screenId: ScreenId;
-  /** Walking in starts the section (and reaches its checkpoint). */
-  readonly startArea: AreaRect;
+  /**
+   * Walking in starts the section. Absent: only the script starts it (`ctx.startSection(id)`), for guards that
+   * arrive in a scene (the "Department" van in chapter 2). Until it starts the guards are not in the world.
+   */
+  readonly startArea?: AreaRect;
   /** Walking in without the alarm is a clean run. */
   readonly exitArea: AreaRect;
   readonly entrance: Vec2;
@@ -293,6 +314,12 @@ export interface PushPuzzlePlacement {
   readonly resetExaminableId?: string;
   /** Art frame name / texture key hint for the pieces ('keg', 'crate'). */
   readonly pieceKind: string;
+}
+
+export interface SheepPuzzlePlacement {
+  readonly sectionId: PuzzleSectionId;
+  readonly screenId: ScreenId;
+  readonly layout: SheepPuzzleLayout;
 }
 
 export interface DeductionPlacement {
@@ -317,6 +344,8 @@ export interface ChapterModule {
   readonly bosses: readonly BossPlacement[];
   readonly stealth: readonly StealthPlacement[];
   readonly pushPuzzles?: readonly PushPuzzlePlacement[];
+  /** The chapter 2 sheep puzzle: gates that swing, a flock that shies from Andrew. Built by the systems (`sheep.ts`). */
+  readonly sheepPuzzles?: readonly SheepPuzzlePlacement[];
   readonly deduction?: DeductionPlacement;
   readonly triggers: readonly TriggerDef[];
   /** Pools for Myko's tangents (DESIGN.md 7.5: Ohio from chapter 6). */
@@ -425,6 +454,23 @@ export interface ChapterContext {
   unlockAbility(id: AbilityId): void;
   give(item: PickupItem): void;
   addEvidence(id: EvidenceId): void;
+  /** What Andrew carries right now: weapon, moves, bottles, drinks, slots. Read it at chapter start; `kit:changed` announces changes. */
+  kit(): Kit;
+  /**
+   * Hide or show the drink meter. While hidden the HUD does not draw it (`MeterSnapshot.hidden`; `meter:hiddenChanged`
+   * fires on a change). Saved, and kept across a return to the bar until the script shows it again.
+   */
+  setMeterHidden(hidden: boolean): void;
+  /**
+   * Hold or release the plain drain. While held the value does not fall and no sober return comes from drain.
+   * Drinks, hits, sun and tea/spirit timers still apply. Saved, and kept across a return to the bar.
+   */
+  holdDrain(held: boolean): void;
+  /**
+   * Called at the end of a return to the bar, after `onBarReturn` has run, so the world is final. Returns an
+   * unsubscribe function.
+   */
+  onBarReturnSettled(fn: () => void): () => void;
   /** Take the bar's free hot drink into the kit. False if one is already carried or it was taken. */
   takeHotDrink(id: HotDrinkId): boolean;
   /** The bar is offering a free hot drink and Andrew carries none. */
@@ -439,6 +485,11 @@ export interface ChapterContext {
   setMykoScripted(pos: Vec2 | null): void;
   playerPosition(): Vec2;
   setPlayerPosition(pos: Vec2): void;
+  /**
+   * The camera looks ahead of Andrew in `direction` (by `TUNING.overhaul.cameraLeadPx`), or follows him
+   * centred again with null. For the ram's lane, where he runs left to right and the camera leads. Run-time only.
+   */
+  setCameraLead(direction: Facing | null): void;
   /** Freeze Andrew's controls (cutscene walk-ins). */
   setControlsLocked(locked: boolean): void;
   spawnPickup(def: PickupDef): void;
@@ -467,6 +518,13 @@ export interface ChapterContext {
    * Fires once per swing. Returns a function that removes the hook.
    */
   onMeleeHit(area: AreaRect, callback: (hit: MeleeHitInfo) => void, screenId?: ScreenId): () => void;
+  /**
+   * Calls `callback` when the lane of Andrew's Shoulder or Stumble touches `area` on `screenId` (default: the
+   * screen current when this is called), before he moves. Fires once per use. Returns a function that removes the
+   * hook. The Stumble also breaks every breakable prop in its lane, whatever hits it had left, so a stack of
+   * feed buckets placed as breakables is gone before he arrives.
+   */
+  onMoveHit(area: AreaRect, callback: (hit: MoveHitInfo) => void, screenId?: ScreenId): () => void;
 
   // Timers in game time. They keep running while a scene or the call-in
   // blackout is showing (not while the game is paused) and are cancelled when

@@ -184,6 +184,7 @@ export class BossRunner extends CompletableSection {
         knockbackResistance: p.knockbackResistance ?? 1,
         flies: p.flies ?? false,
         attacks: [],
+        ...(this.def.noiseStopMs === undefined ? {} : { noiseStopMs: this.def.noiseStopMs }),
         ...(p.frontalShieldDeg === undefined ? {} : { frontalShieldDeg: p.frontalShieldDeg }),
         spriteKey: p.spriteKey ?? this.def.spriteKey,
       };

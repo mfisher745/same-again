@@ -8,7 +8,7 @@
 
 import type { Random } from '../core/random';
 import type { DialogueId } from '../core/types';
-import { createMykoLines, mykoLineFor, stepMykoLines } from './mykoLines';
+import { createMykoLines, mykoLineFor, stepMykoLines, syncMykoLow } from './mykoLines';
 import type { MykoLinesState, MykoMeterPool, MykoTrigger } from './mykoLines';
 
 export interface MykoMeterHost {
@@ -17,6 +17,8 @@ export interface MykoMeterHost {
   pool(poolId: string): readonly DialogueId[];
   /** Play a line (pool lines may repeat). */
   say(id: DialogueId): void;
+  /** True while the chapter script has the meter hidden; the low and level remarks stay silent. */
+  meterHidden?(): boolean;
 }
 
 export class MykoMeterVoice {
@@ -32,6 +34,12 @@ export class MykoMeterVoice {
 
   /** Something happened (or, for `meterValue`, a frame passed). `meterValue` is the meter now. */
   trigger(trigger: MykoTrigger, meterValue: number): void {
+    if (this.host.meterHidden?.() === true) {
+      // Hidden meter: no low or level remark, none queued, none replayed on show. The low
+      // remark's arming follows the meter so showing it does not itself cause a remark.
+      if (trigger.kind === 'meterValue') this.state = syncMykoLow(this.state, meterValue);
+      if (trigger.kind === 'meterValue' || trigger.kind === 'levelChanged') return;
+    }
     const r = mykoLineFor(this.state, trigger, meterValue);
     this.state = r.state;
     if (r.poolId) this.speak(r.poolId);

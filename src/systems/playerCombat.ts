@@ -51,6 +51,8 @@ export interface PlayerCombatHost {
   readonly player: Player;
   screenId(): ScreenId;
   grid(): TileGrid;
+  /** Cells that stop walking but are not in `grid()` (push-puzzle pieces, closed gates). */
+  extraBlocked(col: number, row: number): boolean;
   actors(): readonly EnemyActor[];
   guardsHere(): readonly Guard[];
   hidingPropsHere(): readonly HidingPropDef[];
@@ -60,6 +62,12 @@ export interface PlayerCombatHost {
   defeat(actor: EnemyActor, by: CompletionSource): void;
   /** A swing touched a section hook or a breakable. */
   meleeWorldHits(shape: AttackShape, swingResult: SwingResult): void;
+  /**
+   * A charge or lurch is about to carry Andrew along `lane`: `breakAll` smashes every breakable in it (the Stumble
+   * goes through the feed buckets) and chapter hooks (`ctx.onMoveHit`) are told. Called before he moves, so what
+   * broke no longer blocks him.
+   */
+  moveWorldHits(moveId: MoveId, lane: AttackShape, breakAll: boolean): void;
   /** A swing near a stealth guard raises the alarm. */
   alarmGuardsHit(shape: AttackShape, angleDeg: number): void;
   emitNoise(n: NoiseEvent): void;
@@ -351,7 +359,8 @@ export class PlayerCombat {
     switch (effect.kind) {
       case 'charge': {
         const who = byId(selectTargets(effect, p.pos, p.aimDeg, candidates));
-        p.lurch(effect.distance, p.aimDeg, h.grid());
+        h.moveWorldHits(id, { kind: 'charge', distance: effect.distance, width: TUNING.combat.characterHitRadius * 2 }, false);
+        p.lurch(effect.distance, p.aimDeg, h.grid(), (c, r) => h.extraBlocked(c, r));
         for (const a of who) hit(a, 0, effect.knockback);
         break;
       }
@@ -378,7 +387,8 @@ export class PlayerCombat {
         const who = byId(selectTargets(effect, p.pos, p.aimDeg, candidates));
         const damage = this.weaponDamage();
         const kb = this.tuning.weapons[p.kit.slots.melee].knockback;
-        p.lurch(effect.distance, p.aimDeg, h.grid());
+        h.moveWorldHits(id, { kind: 'charge', distance: effect.distance, width: effect.width }, true);
+        p.lurch(effect.distance, p.aimDeg, h.grid(), (c, r) => h.extraBlocked(c, r));
         for (const a of who) hit(a, damage, kb);
         break;
       }

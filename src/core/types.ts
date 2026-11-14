@@ -682,11 +682,21 @@ export interface BossDef {
   readonly dazedMs?: number;
   /** Damage-taken multiplier while dazed. */
   readonly dazedDamageMultiplier?: number;
+  /**
+   * A thrown bottle that lands within its noise radius of a body makes the body stop and look at the landing
+   * for this long, attacking nothing (the ram, docs/chapters/02). Absent: bodies ignore noise.
+   */
+  readonly noiseStopMs?: number;
 }
 
 /** One wave of a fight. docs/chapters, "Beats". */
 export interface WaveDef {
   readonly enemies: readonly { readonly enemyId: EnemyId; readonly count: number }[];
+  /**
+   * One drink this wave drops for certain, from the last of its enemies to fall. The wave's members then roll no
+   * random drop, so the wave drops exactly this and nothing else. Absent: each enemy rolls the usual chance.
+   */
+  readonly guaranteedDrop?: CarriedDrinkId;
 }
 
 /** A fight's waves. Defined in `src/content/tuning.ts` under its section ID. docs/chapters/README.md. */
@@ -1168,7 +1178,7 @@ export interface ChapterDef {
   readonly screens: readonly ScreenDef[];
   readonly startScreenId: ScreenId;
   /** @deprecated overhaul phase 2/5 removes this. */
-  readonly checkpoints: readonly CheckpointDef[];
+  readonly checkpoints?: readonly CheckpointDef[];
   /** Every section in beat order. */
   readonly sections: readonly SectionDef[];
   readonly stealthSections: readonly StealthSectionDef[];
@@ -1490,7 +1500,7 @@ export interface UiTuning {
 // ---------------------------------------------------------------------------
 
 /** Why a save was written. DESIGN.md section 7.6. */
-export type SaveReason = 'sectionDone' | 'mykoCall' | 'chapterComplete';
+export type SaveReason = 'sectionDone' | 'mykoCall' | 'chapterComplete' | 'clue' | 'move' | 'weapon';
 
 /**
  * Payload for every game event, keyed by event name. Systems, UI, audio and
@@ -1594,6 +1604,8 @@ export interface GameEventPayloads {
   'move:learned': { readonly moveId: MoveId };
   'weapon:gained': { readonly weaponId: WeaponId };
   'kit:changed': { readonly kit: Kit };
+  /** The chapter script hid or showed the meter (`ChapterContext.setMeterHidden`). Also in `MeterSnapshot.hidden`. */
+  'meter:hiddenChanged': { readonly hidden: boolean };
   'spirit:started': { readonly drinkId: SpiritId; readonly durationMs: number };
   'spirit:ended': { readonly drinkId: SpiritId };
 }
@@ -1669,6 +1681,7 @@ export const GameEvents = {
   MoveLearned: 'move:learned',
   WeaponGained: 'weapon:gained',
   KitChanged: 'kit:changed',
+  MeterHiddenChanged: 'meter:hiddenChanged',
   SpiritStarted: 'spirit:started',
   SpiritEnded: 'spirit:ended',
 } as const satisfies Readonly<Record<string, keyof GameEventPayloads>>;
@@ -1760,6 +1773,10 @@ export interface MeterSnapshot {
   readonly teaHoldActive: boolean;
   /** Andrew is out in the sun (drain doubles, beer goes further). */
   readonly inSun: boolean;
+  /** The chapter script has hidden the meter (chapter 1 until the first pint): the HUD must not draw it. `ChapterContext.setMeterHidden`. */
+  readonly hidden?: boolean;
+  /** The chapter script is holding the drain: the value does not fall. `ChapterContext.holdDrain`. */
+  readonly drainHeld?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -2145,6 +2162,24 @@ export interface OverhaulTuning {
   readonly footstepNoiseRadiusByLevel?: Readonly<Record<DrunkLevel, number>>;
   /** Footstep noise radius while sneaking: silent until Fecked, then short range. */
   readonly sneakNoiseRadiusByLevel?: Readonly<Record<DrunkLevel, number>>;
+  /** Andrew's speed on slow ground (puddles, `PropPlacement.slows`) as a fraction of his normal speed. Chapter 2. */
+  readonly slowGroundMultiplier?: number;
+  /** How far ahead of Andrew the camera looks while `ChapterContext.setCameraLead` is on, pixels. Chapter 2. */
+  readonly cameraLeadPx?: number;
+  /** The sheep puzzle's flock (`sheep.ts`). Chapter 2. */
+  readonly sheep?: SheepTuning;
+}
+
+/** How the flock in the chapter 2 yard behaves. All first guesses. */
+export interface SheepTuning {
+  /** Sheep walking pace, pixels per second (below Andrew's 100). */
+  readonly speed: number;
+  /** A sheep within this of Andrew moves away from him, pixels. */
+  readonly fleeRadius: number;
+  /** Sheep body size, pixels (square). */
+  readonly bodySize: number;
+  /** The flock must stay in the far pen this long to count as penned, ms. */
+  readonly settleMs: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -2188,4 +2223,8 @@ export interface OverhaulSaveState {
   readonly playedDialogue: readonly DialogueId[];
   readonly brokenProps: readonly string[];
   readonly lootSeed: number;
+  /** The meter is hidden by the chapter script (absent = shown). */
+  readonly meterHidden?: boolean;
+  /** The drain is held by the chapter script (absent = draining). */
+  readonly drainHeld?: boolean;
 }
