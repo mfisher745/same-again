@@ -59,8 +59,24 @@ export class BarFlow {
 
   constructor(private readonly host: BarFlowHost) {}
 
-  /** The meter reached 0 or the floor. */
-  returnToBar(reason: BarReturnReason): void {
+  /** A return has begun and not yet completed: the world is frozen where Andrew was. */
+  pending: { readonly reason: BarReturnReason; readonly andrew: Vec2 } | null = null;
+
+  /** The meter reached 0 or the floor: freeze in place and tell the scene. Nothing moves or resets yet. */
+  beginReturn(reason: BarReturnReason): void {
+    if (this.pending) return;
+    const andrew = { ...this.host.player.pos };
+    this.pending = { reason, andrew };
+    this.host.player.returning = true;
+    this.host.bus.emit(GameEvents.BarReturning, { reason, andrew });
+  }
+
+  /** The scene is at black: do the return. Returns the reason, or null if none was pending. */
+  completeReturn(): BarReturnReason | null {
+    const pending = this.pending;
+    if (!pending) return null;
+    this.pending = null;
+    const reason = pending.reason;
     const h = this.host;
     const p = h.player;
     const arrival = arriveAtBar<BarProgress>(
@@ -78,6 +94,7 @@ export class BarFlow {
     this.last = { reason, count: this.count };
     h.bus.emit(GameEvents.BarReturned, { reason });
     h.scriptReturned(reason, arrival.resetSectionId);
+    return reason;
   }
 
   /** Arriving at the chapter's bar by the front door: the offer is open, nothing else changes. */

@@ -73,7 +73,7 @@ export interface RunHarness {
 
 /** A headless chapter run on the dev sandbox, capturing every save the run writes. */
 export function makeRun(
-  opts: { chapter?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10; save?: (base: OverhaulSaveState) => OverhaulSaveState; seed?: number; module?: ChapterModule; playEffect?: (id: RunEffect) => void } = {},
+  opts: { chapter?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10; save?: (base: OverhaulSaveState) => OverhaulSaveState; seed?: number; module?: ChapterModule; playEffect?: (id: RunEffect) => void; manualReturn?: boolean } = {},
 ): RunHarness {
   const module = opts.module ?? createSandboxModule(opts.chapter ?? 1);
   const base = saveAtChapterStart(module, emptyProgress());
@@ -105,13 +105,26 @@ export function makeRun(
       completions.push({ endState, snapshot });
     },
   });
+  // The return is two-phase (bar:returning, then the scene calls completeBarReturn); here the scene is instant.
+  if (!opts.manualReturn) bus.on('bar:returning', () => run.completeBarReturn());
   run.tick(16, NO_INPUT);
   return { run, bus, saves, returns, completions, module };
 }
 
-/** Ticks `ms` of game time in `step` ms slices with no input. */
+/**
+ * Ticks `ms` of game time in `step` ms slices with no input. Never completes a waiting bar return: a run from
+ * `makeRun` does it itself (unless `manualReturn`), and a `GameSession` run needs `advanceWithScene`.
+ */
 export function advance(run: ChapterRun, ms: number, step = 16): void {
   for (let t = 0; t < ms; t += step) run.tick(step, NO_INPUT);
+}
+
+/** Like `advance`, but plays the part of an instant scene: completes any waiting bar return after each tick. */
+export function advanceWithScene(run: ChapterRun, ms: number, step = 16): void {
+  for (let t = 0; t < ms; t += step) {
+    run.tick(step, NO_INPUT);
+    run.completeBarReturn();
+  }
 }
 
 /** Moves Andrew to a tile centre of the sandbox and ticks once so triggers fire. */

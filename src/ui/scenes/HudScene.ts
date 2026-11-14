@@ -13,7 +13,7 @@ import type { ColourName } from '../../art/palette';
 import { format, sequence, text } from '../../content/dialogue';
 import { isAlienLine } from '../../content/dialogue/speakers';
 import { GameEvents } from '../../core/types';
-import type { BarReturnReason, DialogueId, DialogueLine, SpeakerId, TextId } from '../../core/types';
+import type { BarReturnReason, DialogueId, DialogueLine, SpeakerId, TextId, Vec2 } from '../../core/types';
 import type { EffectId } from '../../audio';
 import { bindFullscreenHotkey } from '../fullscreen';
 import type { Label, Pic } from '../gfx';
@@ -34,6 +34,7 @@ import { ReturnDirector } from '../returns/director';
 import { ThrowPreview } from '../returns/throwPreview';
 import { FlatColour } from '../returns/flat';
 import { uiTuning } from '../uiTuning';
+import { worldCamera } from '../worldCamera';
 import { DialogueQueue } from '../model/dialogue';
 import type { DialogueView } from '../model/dialogue';
 import type { PromptValues } from '../model/promptText';
@@ -67,6 +68,8 @@ export class HudScene extends Phaser.Scene {
   private flat!: FlatColour;
   private throwPreview!: ThrowPreview;
   private returns!: ReturnDirector;
+  /** 'live': the world is frozen but running (no pause); 'covered': black or later, the game is paused. */
+  private returnPhase: 'none' | 'live' | 'covered' = 'none';
   private lastRefusalSeq = -1;
   private refusalNotice!: Notice;
   private bossBacking!: Phaser.GameObjects.Rectangle;
@@ -123,7 +126,17 @@ export class HudScene extends Phaser.Scene {
     this.strip = new HudStrip(this, D.hud, (e) => this.shared.hooks.play?.(e));
     this.flat = new FlatColour(this.game);
     this.throwPreview = new ThrowPreview(this, D.hud - 2);
-    this.returns = new ReturnDirector(this, this.flat, D.ret, () => this.shared.overlays.hide('return'));
+    this.returnPhase = 'none';
+    this.returns = new ReturnDirector(
+      this,
+      this.flat,
+      D.ret,
+      () => {
+        this.returnPhase = 'none';
+        this.shared.overlays.hide('return');
+      },
+      () => this.onReturnBlack(),
+    );
     this.buildBoss();
     this.buildDialogueBox();
     this.buildNotices();
@@ -205,7 +218,8 @@ export class HudScene extends Phaser.Scene {
         this.setNotice(this.pickup, msg, NOTICE_MS.pickup);
       }),
       bus.on(GameEvents.PickupRefused, ({ reason, max }) => this.setNotice(this.pickup, format(`pickup.refused.${reason}`, { max: String(max) }), NOTICE_MS.pickup)),
-      bus.on(GameEvents.BarReturned, ({ reason }) => this.startReturn(reason)),
+      bus.on(GameEvents.BarReturning, ({ reason, andrew }) => this.startReturn(reason, andrew)),
+      bus.on(GameEvents.BarReturned, ({ reason }) => this.onReturned(reason)),
     );
     const onShow = (req: PromptRequest): void => this.prompts.show(req.textId, req.values);
     const onHide = (textId?: TextId): void => this.prompts.hide(textId);
@@ -220,24 +234,56 @@ export class HudScene extends Phaser.Scene {
     );
   }
 
-  /** The fade (sober) or the fall (floor), with the game paused and the dialogue waiting until it is over. */
-  private startReturn(reason: BarReturnReason): void {
+  /**
+   * `bar:returning`: the fade (sober) or the smoke (floor) over the frozen world. The game must not be paused
+   * yet (Myko's walk, the fall and the run's failsafe all run on it), so the input blocks check `returnPhase`.
+   */
+  private startReturn(reason: BarReturnReason, andrew: Vec2): void {
+    if (this.returnPhase !== 'none') return;
+    this.returnPhase = 'live';
+    this.returns.start(reason, this.onScreen(andrew));
+  }
+
+  /** The cover is black: pause the game, then let the run move Andrew to the bar. Called once per return. */
+  private onReturnBlack(): void {
+    this.returnPhase = 'covered';
     this.shared.overlays.show('return');
-    this.returns.start(reason);
+    this.shared.source.completeBarReturn();
+  }
+
+  /** `bar:returned`: normally our own `completeBarReturn`; otherwise the failsafe (or no sequence at all) got there first. */
+  private onReturned(reason: BarReturnReason): void {
+    if (this.returnPhase === 'covered') return;
+    this.returnPhase = 'covered';
+    this.shared.overlays.show('return');
+    this.returns.jumpToBlack(reason);
+  }
+
+  /** Andrew's world position on this screen, clamped inside it; the middle if the world camera is not reachable. */
+  private onScreen(world: Vec2): { x: number; y: number } {
+    const cam = worldCamera(this.game, false);
+    if (cam === null) return { x: SCREEN.width / 2, y: SCREEN.height / 2 };
+    const x = (world.x - cam.worldView.x) * cam.zoom;
+    const y = (world.y - cam.worldView.y) * cam.zoom;
+    return { x: Math.max(0, Math.min(SCREEN.width, x)), y: Math.max(0, Math.min(SCREEN.height, y)) };
+  }
+
+  private returnLive(): boolean {
+    return this.returnPhase === 'live';
   }
 
   private bindInput(): void {
     const kb = this.input.keyboard;
     if (kb !== null) {
       const onEsc = (e: KeyboardEvent): void => {
-        if (e.repeat || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Settings) || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.HotDrink)) return;
+        if (e.repeat || this.returnLive() || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Settings) || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.HotDrink)) return;
         if (this.shared.overlays.isOpen('tab')) this.closeTab();
         else if (this.shared.overlays.isOpen('pause')) this.closePause();
         else this.openPause();
       };
       const onTab = (e: KeyboardEvent): void => {
         e.preventDefault();
-        if (e.repeat || this.shared.overlays.isOpen('pause') || this.shared.overlays.isOpen('hotdrink') || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Deduction)) return;
+        if (e.repeat || this.returnLive() || this.shared.overlays.isOpen('pause') || this.shared.overlays.isOpen('hotdrink') || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Deduction)) return;
         if (this.shared.overlays.isOpen('tab')) {
           if (this.shared.source.tabMode() === 'toggle') this.closeTab();
         } else if (!this.queue.blocking) this.openTab();
@@ -246,7 +292,9 @@ export class HudScene extends Phaser.Scene {
       const onTabUp = (): void => {
         if (this.shared.source.tabMode() === 'hold' && this.shared.overlays.isOpen('tab')) this.closeTab();
       };
-      const onE = (): void => this.queue.advance();
+      const onE = (): void => {
+        if (!this.returnLive()) this.queue.advance();
+      };
       kb.on('keydown-ESC', onEsc);
       kb.on('keydown-TAB', onTab);
       kb.on('keyup-TAB', onTabUp);
@@ -261,7 +309,7 @@ export class HudScene extends Phaser.Scene {
       );
     }
     const onClick = (p: Phaser.Input.Pointer): void => {
-      if (p.leftButtonDown()) this.queue.advance();
+      if (p.leftButtonDown() && !this.returnLive()) this.queue.advance();
     };
     this.input.on('pointerdown', onClick);
     this.unsubs.push(() => this.input.off('pointerdown', onClick));
@@ -282,7 +330,7 @@ export class HudScene extends Phaser.Scene {
 
   /** The coffee-or-tea choice, once per visit to the bar. */
   openHotDrink(): void {
-    if (this.queue.blocking || this.scene.isActive(UiSceneKeys.HotDrink) || this.shared.overlays.any || !this.shared.source.hotDrinkOffered()) return;
+    if (this.returnLive() || this.queue.blocking || this.scene.isActive(UiSceneKeys.HotDrink) || this.shared.overlays.any || !this.shared.source.hotDrinkOffered()) return;
     this.shared.overlays.show('hotdrink');
     this.scene.launch(UiSceneKeys.HotDrink);
     this.scene.bringToTop(UiSceneKeys.HotDrink);
@@ -310,6 +358,7 @@ export class HudScene extends Phaser.Scene {
     this.shared.overlays.hide('hotdrink');
     this.shared.overlays.hide('return');
     this.returns.cancel();
+    this.returnPhase = 'none';
     this.flat.clear();
     this.throwPreview.destroy();
     this.prompts.destroy();
@@ -346,7 +395,7 @@ export class HudScene extends Phaser.Scene {
     this.drawBoss(m);
     this.showRefusal(m);
 
-    if (!this.shared.overlays.isOpen('pause') && !this.shared.overlays.isOpen('tab') && !this.shared.overlays.isOpen('return')) this.queue.update(delta);
+    if (!this.shared.overlays.isOpen('pause') && !this.shared.overlays.isOpen('tab') && !this.shared.overlays.isOpen('return') && !this.returnLive()) this.queue.update(delta);
     this.drawDialogue(this.queue.view());
 
     const now = this.time.now;

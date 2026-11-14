@@ -1586,6 +1586,8 @@ export interface GameEventPayloads {
     /** Points moved, after spirit doubling. */
     readonly amount: number;
   };
+  /** The meter returned him: the world is frozen where he was; the scene plays the fall or fade, then calls `completeBarReturn`. `andrew` is his position before the move. */
+  'bar:returning': { readonly reason: BarReturnReason; readonly andrew: Vec2 };
   /** Andrew went back to the bar. */
   'bar:returned': { readonly reason: BarReturnReason };
   'move:used': { readonly moveId: MoveId; readonly slot: SpecialSlotIndex };
@@ -1661,6 +1663,7 @@ export const GameEvents = {
   PropBroken: 'prop:broken',
   BuzzLevelChanged: 'buzz:levelChanged',
   PlayerHit: 'player:hit',
+  BarReturning: 'bar:returning',
   BarReturned: 'bar:returned',
   MoveUsed: 'move:used',
   MoveLearned: 'move:learned',
@@ -2134,6 +2137,8 @@ export interface OverhaulTuning {
   readonly mykoLineCooldownMs?: number;
   /** Longest gap between swings that keeps a combo or a hit count going, ms. */
   readonly weaponComboWindowMs?: number;
+  /** If `completeBarReturn()` is not called within this many ms of `bar:returning`, the run completes it (headless runs, tests). The longest UI return plus 2 s. */
+  readonly barReturnFailsafeMs?: number;
   /** The thrown bottle. Optional until phase 2 switches the systems over. */
   readonly throw?: ThrowTuning;
   /** Footstep noise radius by level while walking. DESIGN.md 7.3: louder from Bit much. */

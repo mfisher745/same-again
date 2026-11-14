@@ -156,6 +156,26 @@ export class Myko {
     this.hurrying = true;
   }
 
+  /**
+   * Like `hurryTo`, but he arrives within `withinMs` at his walk speed. If he is too far, he is first put at the
+   * furthest point on the straight line to `p` he can cover in that time (kept inside `bounds`), then hurries.
+   */
+  hurryToWithin(p: Vec2, withinMs: number, bounds: { readonly width: number; readonly height: number }): void {
+    const reach = (TUNING.myko.walkSpeed * withinMs) / 1000;
+    const d = distance(this.pos, p);
+    if (d > reach) {
+      const start = add(p, scale(normalize(sub(this.pos, p)), reach));
+      this.pos = { x: Math.min(Math.max(start.x, 0), bounds.width), y: Math.min(Math.max(start.y, 0), bounds.height) };
+    }
+    this.hurryTo(p);
+  }
+
+  /** A frozen world (the return waiting for its scene): only his scripted walk and smoke run. */
+  tickScripted(dtMs: number): void {
+    this.moveStep(dtMs);
+    this.tickSmoke(dtMs);
+  }
+
   placeNear(p: Vec2): void {
     this.pos = { x: p.x - TUNING.myko.followDistance, y: p.y };
   }
@@ -340,7 +360,10 @@ export class Myko {
       if (this.mode === 'scripted') this.hurrying = false;
       return;
     }
-    const step = Math.min(d - slack, (TUNING.myko.walkSpeed * dtMs) / 1000);
+    const reach = (TUNING.myko.walkSpeed * dtMs) / 1000;
+    const step = Math.min(d - slack, reach);
+    // This step lands on the slack boundary: he has arrived (a float epsilon would leave d just above slack).
+    if (this.mode === 'scripted' && reach >= d - slack) this.hurrying = false;
     const dir = normalize(sub(goal, this.pos));
     this.pos = add(this.pos, scale(dir, step));
     this.moving = step > 0;

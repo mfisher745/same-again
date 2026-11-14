@@ -29,6 +29,7 @@ import type {
   SpecialSlotIndex,
   TabMode,
   BarReturnReason,
+  Vec2,
 } from '../../core/types';
 import { GameEvents } from '../../core/types';
 import { assignDrink, assignMove, assignWeapon, drinkFromInventory, gainWeapon, learnMove, takeHotDrink } from '../../systems/kit';
@@ -156,12 +157,24 @@ export class FakeSource implements UiStateSource {
     if (this.apply(r) && r.gained) this.bus.emit(GameEvents.WeaponGained, { weaponId: r.gained });
     if (select) this.assignWeapon(id);
   }
-  /** Fire the return to the bar the way the game does: reset, then the event. */
+  /** Where the fake Andrew "fell" (a point off the middle, so the smoke is seen to start there). */
+  andrewAt: Vec2 = { x: 300, y: 150 };
+  private waitingReturn: { readonly reason: BarReturnReason; readonly andrew: Vec2 } | null = null;
+  /** Fire the return to the bar the way the game does: `bar:returning` now, the reset and `bar:returned` at `completeBarReturn`. */
   returnToBar(reason: BarReturnReason): void {
-    this.buzzValue = reason === 'sober' ? 0 : 20;
-    this.hotOffer = true;
-    this.bus.emit(GameEvents.BarReturned, { reason });
+    if (this.waitingReturn !== null) return;
+    this.waitingReturn = { reason, andrew: this.andrewAt };
+    this.bus.emit(GameEvents.BarReturning, this.waitingReturn);
   }
+  completeBarReturn(): void {
+    const r = this.waitingReturn;
+    if (r === null) return;
+    this.waitingReturn = null;
+    this.buzzValue = r.reason === 'sober' ? 0 : 20;
+    this.hotOffer = true;
+    this.bus.emit(GameEvents.BarReturned, { reason: r.reason });
+  }
+  barReturning = (): { readonly reason: BarReturnReason; readonly andrew: Vec2 } | null => this.waitingReturn;
   assignDrink = (id: OverhaulDrinkId | null): boolean => this.apply(assignDrink(this.kitState, id));
   assignMove = (slot: SpecialSlotIndex, id: MoveId | null): boolean => this.apply(assignMove(this.kitState, slot, id));
   assignWeapon = (id: WeaponId): boolean => this.apply(assignWeapon(this.kitState, id));

@@ -77,6 +77,7 @@ import type {
   StealthSectionId,
   TileGrid,
   Vec2,
+  BarReturnReason,
   WeaponId,
 } from '../core/types';
 import { SAVE_VERSION_OVERHAUL } from '../core/types';
@@ -92,7 +93,7 @@ import { EnemyActor, statsFromDef } from './enemies';
 import type { ActorStats, CombatWorld } from './enemies';
 import { FightRunner } from './fight';
 import { add, distance, normalize, rectContains, scale } from './geometry';
-import { isShade } from './grid';
+import { TILE, isShade } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
 import { assignDrink, assignMove, assignWeapon, cycleDrink, drinkFromInventory, drinkSelected, gainWeapon, learnMove } from './kit';
 import { takeItem } from './pickups';
@@ -227,6 +228,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** The current screen is out in the sun (`ScreenDef.sun`). */
   private screenInSun = false;
   private readonly barFlow: BarFlow;
+  /** Time waiting for `completeBarReturn`, for the failsafe. */
+  private returnWaitMs = 0;
   private readonly mykoVoice: MykoMeterVoice;
 
   constructor(private readonly opts: RunOptions) {
@@ -442,11 +445,23 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       this.begun = true;
       this.begin();
     }
-    this.clock += dtMs;
+    // The run's clock (script timers, dialogue staleness) stands still while a return waits, so timers resume, not burst.
+    if (!this.barFlow.pending) this.clock += dtMs;
     for (const f of this.fx) f.ttlMs -= dtMs;
     while (this.fx.length > 0 && (this.fx[0]?.ttlMs ?? 1) <= 0) this.fx.shift();
     this.dressing.tick(dtMs);
     this.dialogue.dropStale();
+    // A return to the bar is waiting for the scene: the world is frozen where Andrew was.
+    // Script timers do not fire. Only Myko's scripted walk (and the view) keep running;
+    // the failsafe completes the return if the scene never does.
+    if (this.barFlow.pending) {
+      this.returnWaitMs += dtMs;
+      this.myko.tickScripted(dtMs);
+      const limit = TUNING.overhaul?.barReturnFailsafeMs;
+      if (limit !== undefined && this.returnWaitMs >= limit) this.completeBarReturn();
+      return;
+    }
+
     // Script timers keep running through scenes and the blackout.
     this.tickTimers();
     if (this.ended) return;
@@ -518,9 +533,51 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private handleReturn(): void {
     const reason = this.player.meter.returnReason;
     if (!reason) return;
-    this.barFlow.returnToBar(reason);
+    this.returnWaitMs = 0;
+    this.barFlow.beginReturn(reason);
+    const hurryMs = TUNING.ui?.floorReturn.hurryMs;
+    if (reason === 'floor' && this.barFlow.pending && hurryMs !== undefined) {
+      // Myko hurries to Andrew's side during the fall; he arrives within the UI's hurry stage.
+      const a = this.barFlow.pending.andrew;
+      const g = this.screen.grid;
+      const bounds = { width: g.widthTiles * TILE, height: g.heightTiles * TILE };
+      const target = {
+        x: Math.min(Math.max(a.x - TUNING.myko.followDistance, 0), bounds.width),
+        y: Math.min(Math.max(a.y, 0), bounds.height),
+      };
+      this.myko.hurryToWithin(target, hurryMs, bounds);
+    }
+  }
+
+  /** A return is waiting for `completeBarReturn`: the reason and where Andrew fell, else null. The view plays `fall` for `floor`. */
+  get barReturning(): { readonly reason: BarReturnReason; readonly andrew: Vec2 } | null {
+    return this.barFlow.pending;
+  }
+
+  /**
+   * The scene is at black: move Andrew to the bar, keep finished sections, reset the one under way, top up
+   * bottles, offer the hot drink again, release Myko, and emit `bar:returned`. Does nothing if no return is waiting.
+   */
+  completeBarReturn(): void {
+    if (!this.barFlow.pending) return;
+    // Release Myko first, so a chapter script's `onBarReturn` can place him again.
+    this.setMykoScripted(null);
+    const reason = this.barFlow.completeReturn();
+    if (!reason) return;
     // Myko says his piece once Andrew is back in the bar (silent at 0, and the meter is reset by now).
     this.mykoVoice.trigger({ kind: 'barReturn', reason }, this.player.meter.value);
+    for (const fn of [...this.returnSettledListeners]) fn();
+  }
+
+  private readonly returnSettledListeners = new Set<() => void>();
+
+  /**
+   * Called at the end of `completeBarReturn`, after the bar script's `onBarReturn` has run, so the world is final.
+   * The scene draws it at once (it may be paused). Returns an unsubscribe function.
+   */
+  onBarReturnSettled(fn: () => void): () => void {
+    this.returnSettledListeners.add(fn);
+    return () => this.returnSettledListeners.delete(fn);
   }
 
   /** The latest return to the bar, for the scene that plays the fade or the fall. Null before the first. */

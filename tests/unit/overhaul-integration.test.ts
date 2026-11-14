@@ -27,6 +27,36 @@ const hazard = (weight: HitInfo['weight'] = 'ordinary'): Omit<HitInfo, 'targetIn
 /** Chapter 1 meter values: Buzzed 1-34, Grand 35-65, Bit much 66-90, Fecked 91-99, floor 100. */
 const AT = { buzzed: 20, grand: 50, bitMuch: 75, fecked: 95 } as const;
 
+// The two-phase return itself (freeze, Myko, timers, failsafe, settled hook) is in overhaul-return-two-phase.test.ts.
+describe('the two-phase return, through the run', () => {
+  it('freezes where Andrew was, lets a scripted Myko walk, and completes only when asked', () => {
+    const { run, bus, returns } = makeRun({ manualReturn: true });
+    const returning = record(bus, 'bar:returning');
+    run.setPlayerPosition({ x: 300, y: 100 });
+    run.player.meter = createMeter(1, 0.01);
+    for (let t = 0; t < 100; t += 10) run.tick(10, frame());
+    expect(returning).toEqual([{ reason: 'sober', andrew: { x: 300, y: 100 } }]);
+    expect(returns).toEqual([]);
+    expect(run.barReturning?.reason).toBe('sober');
+    expect(run.player.pos).toEqual({ x: 300, y: 100 });
+    // A scripted walk still runs in the freeze and ends on its mark.
+    run.setPlayerPosition({ x: 300, y: 100 });
+    run.myko.pos = { x: 250, y: 100 };
+    const target = { x: 330, y: 100 };
+    run.myko.hurryTo(target);
+    for (let i = 0; i < 600; i++) run.tick(10, frame());
+    expect(Math.hypot(run.myko.pos.x - target.x, run.myko.pos.y - target.y)).toBeLessThanOrEqual(1.5);
+    expect(returns).toEqual([]);
+    expect(run.player.pos).toEqual({ x: 300, y: 100 });
+    run.completeBarReturn();
+    expect(returns).toEqual(['sober']);
+    expect(run.barReturning).toBeNull();
+    expect(run.player.pos).toEqual(run.screenLayout.playerStart);
+    expect(run.myko.hurrying).toBe(false);
+    expect(run.myko.mode).toBe('following');
+  });
+});
+
 describe('return to the bar through the run', () => {
   it('at 0: fires bar:returned with reason sober, meter at rest, Andrew in the bar', () => {
     const { run, bus, returns } = makeRun();

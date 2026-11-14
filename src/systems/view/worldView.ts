@@ -83,6 +83,17 @@ export class WorldView {
     this.buildScreen();
   }
 
+  /**
+   * Draw the world as it is now and put the camera on Andrew with no slide. For a jump (the return to the bar)
+   * that happens while the Game scene is paused, so `update()` and the camera follow are not running.
+   */
+  snap(): void {
+    this.sync();
+    const cam = this.scene.cameras.main;
+    const b = this.playerBody;
+    cam.centerOn(b.x, b.y);
+  }
+
   /** Call once per frame after the simulation ticks. */
   sync(): void {
     if (this.run.screenId !== this.screenId) this.buildScreen();
@@ -134,6 +145,13 @@ export class WorldView {
     const body = this.playerBody;
     const c = this.run.combat;
     if (body instanceof Phaser.GameObjects.Sprite) {
+      // A floor return waiting for its scene: Andrew falls where he was and stays down.
+      if (this.run.barReturning?.reason === 'floor') {
+        const fall = animKey(TEX.andrew, 'fall', p.facing);
+        if (body.anims.currentAnim?.key !== fall && this.scene.anims.exists(fall)) body.play(fall);
+        body.setPosition(Math.round(p.pos.x), Math.round(p.pos.y + FEET_OFFSET)).setDepth(p.pos.y);
+        return;
+      }
       const sw = c.lastSwing;
       if (sw && sw.seq !== this.seenSwing) {
         this.seenSwing = sw.seq;
@@ -307,14 +325,9 @@ export class WorldView {
       }
     }
 
-    // Aim reticle, and the throw's dotted path while right mouse is held (the same path the bottle takes).
+    // Aim reticle (the throw preview is drawn from the HUD layer).
     const pl = r.player;
     g.lineStyle(1, PALETTE.white, 0.6).strokeCircle(pl.aimPoint.x, pl.aimPoint.y, 3);
-    const preview = r.combat.throwPreview();
-    if (preview) {
-      for (const pt of preview.path) g.fillStyle(PALETTE.bone, 0.9).fillCircle(pt.x, pt.y, 1);
-      g.lineStyle(1, PALETTE.bone, 0.9).strokeCircle(preview.landing.x, preview.landing.y, 3);
-    }
   }
 
   /** `?debug=1`: checkpoints, examinable boxes, triggers, section areas, entrances, spawn points, hiding radii, puzzle bounds. */

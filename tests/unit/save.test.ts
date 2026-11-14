@@ -11,7 +11,7 @@ import { createKit, gainWeapon, learnMove, pickUpDrink } from '../../src/systems
 import { restValue } from '../../src/systems/meter';
 import { GameSession, carryOver, chapterOf, chapterSelectSave, emptyProgress, saveAtChapterStart } from '../../src/systems/session';
 import type { SceneDriver } from '../../src/systems/session';
-import { NO_INPUT, advance, record } from './helpers';
+import { NO_INPUT, advanceWithScene, record } from './helpers';
 
 const BAD_KITS = [null, 5, 'x', {}, { drinks: {} }];
 
@@ -319,7 +319,7 @@ describe('GameSession flow', () => {
     const returns = record(session.bus, 'bar:returned');
     run.setFlag('c1.later', true);
     run.player.meter = { ...run.player.meter, value: 0.01 };
-    advance(run, 300);
+    advanceWithScene(run, 300);
     expect(returns).toEqual([{ reason: 'sober' }]);
     expect(JSON.stringify(store.load())).toBe(before);
     expect(run.flag('c1.later')).toBeUndefined();
@@ -332,7 +332,7 @@ describe('GameSession flow', () => {
     if (!run) throw new Error('no run');
     run.tick(16, NO_INPUT);
     run.player.meter = { ...run.player.meter, value: 0.01 };
-    advance(run, 300);
+    advanceWithScene(run, 300);
     expect(started).toHaveLength(1);
     expect(session.run).toBe(run);
   });
