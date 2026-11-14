@@ -27,6 +27,7 @@ import { decayVelocity } from './combat';
 import { angleOf, facingFromAngle, fromAngle, scale, normalize, sub } from './geometry';
 import { moveBox } from './grid';
 import { applyHit } from './hits';
+import { footstepNoiseRadius } from './rewards';
 import { createMeter, drink, levelFor, levelTable, setInSun, snapshot, stepMeter } from './meter';
 import type { MeterResult, MeterState } from './meter';
 
@@ -213,6 +214,6 @@ export class Player {
   /** Noise radius of Andrew's footsteps right now; 0 when silent. DESIGN.md 7.3. */
   footstepNoiseRadius(): number {
     if (!this.moving) return 0;
-    return this.sneaking ? TUNING.player.sneakNoiseRadius : TUNING.player.footstepNoiseRadius;
+    return footstepNoiseRadius(this.level, this.sneaking);
   }
 }

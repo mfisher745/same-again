@@ -28,7 +28,6 @@ import type {
 } from '../core/chapter';
 import { BusScope } from '../core/events';
 import type { Random } from '../core/random';
-import { seededRandom } from '../core/random';
 import { GameEvents } from '../core/types';
 import type {
   AbilityId,
@@ -86,7 +85,7 @@ import type { BarFlowHost, BarLocation, BarReturnRecord } from './barFlow';
 import { BossRunner } from './boss';
 import { knockbackVector, shapeHits, shapeHitsRect } from './combat';
 import { DialogueRunner } from './dialogue';
-import { Dressing, hashKey, pickLoot, propHitRect } from './dressing';
+import { Dressing, propHitRect } from './dressing';
 import type { InteractPoint, LiveProp } from './dressing';
 import type { DialogueLookup } from './dialogue';
 import { EnemyActor, statsFromDef } from './enemies';
@@ -97,6 +96,9 @@ import { isShade } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
 import { assignDrink, assignMove, assignWeapon, cycleDrink, drinkFromInventory, drinkSelected, gainWeapon, learnMove } from './kit';
 import { takeItem } from './pickups';
+import { dropRngFor, regionBeer, rollBreakableDrop, rollEnemyDrop } from './drops';
+import { MykoMeterVoice } from './mykoMeter';
+import { applyDrinkReward, claimReward, createRewardState, openShortcut } from './rewards';
 import { Myko } from './myko';
 import type { CallTarget, MykoHost } from './myko';
 import { Player } from './player';
@@ -188,7 +190,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** The script flags as the last save held them; a return to the bar puts them back. */
   private savedFlags: Record<string, ChapterFlagValue>;
   private readonly settings: GameSettings;
-  private openedShortcuts: string[];
+  private openedShortcuts: readonly string[];
 
   // Sections
   private readonly sections = new Map<CompletableSectionId, SectionEntry>();
@@ -225,6 +227,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** The current screen is out in the sun (`ScreenDef.sun`). */
   private screenInSun = false;
   private readonly barFlow: BarFlow;
+  private readonly mykoVoice: MykoMeterVoice;
 
   constructor(private readonly opts: RunOptions) {
     const save = opts.save;
@@ -247,6 +250,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
     this.player = new Player(this.bus, save.kit, this.chapter);
     this.combat = new PlayerCombat(this.combatHost());
+    this.mykoVoice = new MykoMeterVoice({ rng: this.rng, pool: (id) => this.opts.pool(id), say: (id) => void this.say(id, { repeat: true }) });
     this.dialogue = new DialogueRunner(this.bus, opts.dialogue, {
       played: save.playedDialogue,
       context: {
@@ -281,6 +285,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
    */
   private begin(): void {
     this.script.onStart?.({ resumed: this.opts.resumed });
+    this.mykoVoice.trigger({ kind: 'chapterStart', chapter: this.chapter }, this.player.meter.value);
     const region = this.module.def.screens.find((x) => x.id === this.screen.id)?.region;
     if (region) this.bus.emit(GameEvents.ScreenEntered, { screenId: this.screen.id, region });
   }
@@ -460,7 +465,9 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     p.move(dtMs, live, this.grid, (c, r) => this.extraBlocked(c, r));
     p.setInSun(this.screenInSun && !isShade(this.grid, p.pos));
     p.tickMeter(dtMs);
+    this.mykoVoice.step(dtMs);
     if (p.meter.returnReason) this.handleReturn();
+    else this.mykoVoice.trigger({ kind: 'meterValue' }, p.meter.value);
 
     this.handleKitInput(live);
     this.combat.tick(dtMs);
@@ -510,7 +517,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** The meter reached 0 or the floor: back to the bar (`barFlow.ts`). */
   private handleReturn(): void {
     const reason = this.player.meter.returnReason;
-    if (reason) this.barFlow.returnToBar(reason);
+    if (!reason) return;
+    this.barFlow.returnToBar(reason);
+    // Myko says his piece once Andrew is back in the bar (silent at 0, and the meter is reset by now).
+    this.mykoVoice.trigger({ kind: 'barReturn', reason }, this.player.meter.value);
   }
 
   /** The latest return to the bar, for the scene that plays the fade or the fall. Null before the first. */
@@ -577,6 +587,11 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.stealthRunners.get(id as StealthSectionId)?.runner.reset();
     const c = this.sections.get(id as CompletableSectionId)?.completable;
     if (c instanceof PushPuzzle) c.reset();
+  }
+
+  /** A way back that Andrew opened from the far side (a clean-run reward). */
+  shortcutOpened(id: string): boolean {
+    return this.openedShortcuts.includes(id);
   }
 
   /** Take the free hot drink on offer in the bar. DESIGN.md 7.1 "The hot drink". */
@@ -1167,11 +1182,19 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.script.onSectionStarted?.(fightId);
   }
 
+  /** Finished without the alarm: the section's reward, once (DESIGN.md 7.3; `rewards.ts`). */
   private cleanRun(def: StealthSectionDef): void {
+    const claimed = claimReward(createRewardState([...this.cleanRuns]), def.id, def.reward, true);
     this.cleanRuns.add(def.id);
-    const r = def.cleanRunReward;
-    if (r?.kind === 'pickup') this.give(r.item);
-    if (r?.kind === 'clue') this.addEvidence(r.clueId);
+    const g = claimed.grant;
+    if (g?.kind === 'clue') this.addEvidence(g.clueId);
+    else if (g?.kind === 'shortcut') this.openedShortcuts = [...openShortcut(this.openedShortcuts, g.shortcutId)];
+    else if (g) {
+      // A drink from the section or from home. A full kit leaves it on the ground; it still counts as given.
+      const r = applyDrinkReward(this.player.kit, g);
+      if (r.changed) this.player.setKit(r.kit);
+      else this.spawnPickup({ id: `reward.${def.id}`, item: { kind: 'drink', drinkId: g.drinkId, count: 1 }, screenId: this.screen.id, position: this.player.pos });
+    }
     this.bus.emit(GameEvents.StealthCleanRun, { sectionId: def.id });
     void this.say('myko.cleanRun', { repeat: true });
     this.markCompleted(def.id, 'stealth', 'player');
@@ -1291,7 +1314,17 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (loot === 'none') return null;
     if (loot !== 'table') return loot;
     const region = this.module.def.screens.find((s) => s.id === prop.screenId)?.region ?? 'kilnamoe';
-    return pickLoot(TUNING.breakables.loot[region], seededRandom((hashKey(prop.key) ^ this.lootSeed) >>> 0));
+    // A drink or nothing: usually the region's beer, now and then a whiskey (drops.ts). Seeded by the save and the prop.
+    const drop = rollBreakableDrop(dropRngFor(this.lootSeed, prop.key), regionBeer(region));
+    return drop === null ? null : { kind: 'drink', drinkId: drop, count: 1 };
+  }
+
+  /** A defeated enemy leaves a drink or nothing: its region's beer, rarely a whiskey, from chapter 7 a tequila. */
+  private dropEnemyLoot(actor: EnemyActor): void {
+    const region = this.module.def.screens.find((s) => s.id === this.screen.id)?.region ?? 'kilnamoe';
+    const drop = rollEnemyDrop(dropRngFor(this.lootSeed, actor.instanceId), regionBeer(region), this.chapter);
+    if (drop === null) return;
+    this.spawnPickup({ id: `drop.${actor.instanceId}`, item: { kind: 'drink', drinkId: drop, count: 1 }, screenId: this.screen.id, position: actor.pos });
   }
 
   private dropLoot(prop: LiveProp, at: Vec2): void {
@@ -1344,7 +1377,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.player.setKit(r.kit);
     this.player.drinkDrink(r.consumed);
     this.bus.emit(GameEvents.DrinkConsumed, { drinkId: r.consumed });
-    this.myko.maybeComment('drink', 'myko.drink', TUNING.myko.drinkCommentChance);
+    if (r.consumed === 'coffee' || r.consumed === 'tea') this.mykoVoice.trigger({ kind: 'hotDrink' }, this.player.meter.value);
     return true;
   }
 
@@ -1415,6 +1448,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (this.defeatedEmitted.has(actor.instanceId)) return;
     this.defeatedEmitted.add(actor.instanceId);
     if (actor.enemyId) this.bus.emit(GameEvents.EnemyDefeated, { instanceId: actor.instanceId, enemyId: actor.enemyId, by });
+    if (actor.enemyId && by !== 'debug') this.dropEnemyLoot(actor);
   }
 
   private tickProjectiles(dtMs: number): void {
@@ -1514,7 +1548,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       this.refusedNear.add(live.def.id);
     } else {
       this.pickupsLive.delete(live.def.id);
-      this.collected.add(live.def.id);
+      // Dropped drinks and rewards are made on the spot; only placed pickups are remembered in the save.
+      if (!live.def.id.startsWith('drop.') && !live.def.id.startsWith('reward.')) this.collected.add(live.def.id);
     }
   }
 
@@ -1563,6 +1598,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   }
 
   private wireBus(): void {
+    this.scope.on(GameEvents.BuzzLevelChanged, ({ from, to, value }) => this.mykoVoice.trigger({ kind: 'levelChanged', from, to }, value));
+    this.scope.on(GameEvents.SpiritStarted, ({ drinkId }) => this.mykoVoice.trigger({ kind: 'spiritStarted', drinkId }, this.player.meter.value));
     this.scope.on(GameEvents.DialogueShow, ({ sequenceId }) => {
       if (!this.dialogue.hasPlayed(sequenceId)) return;
       this.opts.patchSave?.((s) => ((s.playedDialogue ?? []).includes(sequenceId) ? s : { ...s, playedDialogue: [...(s.playedDialogue ?? []), sequenceId] }));

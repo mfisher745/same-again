@@ -416,7 +416,7 @@ export type DrinkSlotIndex = 0 | 1 | 2;
 
 /** Something Andrew can pick up or be given. DESIGN.md section 7.1. */
 export type PickupItem =
-  | { readonly kind: 'drink'; readonly drinkId: DrinkId; readonly count: number }
+  | { readonly kind: 'drink'; readonly drinkId: DrinkId | CarriedDrinkId; readonly count: number }
   | { readonly kind: 'food'; readonly foodId: FoodId }
   | { readonly kind: 'empties'; readonly count: number };
 

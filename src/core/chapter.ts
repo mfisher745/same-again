@@ -426,6 +426,8 @@ export interface ChapterContext {
   takeHotDrink(id: HotDrinkId): boolean;
   /** The bar is offering a free hot drink and Andrew carries none. */
   hotDrinkOffered(): boolean;
+  /** A shortcut Andrew opened from the far side (a clean-run reward) is open. */
+  shortcutOpened(id: string): boolean;
   goToScreen(screenId: ScreenId, spawn: Vec2): void;
   currentScreen(): ScreenId;
   setExitLocked(exitId: string, locked: boolean): void;

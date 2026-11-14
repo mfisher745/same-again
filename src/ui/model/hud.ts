@@ -4,8 +4,9 @@
  */
 
 import { TUNING } from '../../content/tuning';
-import type { AbilityId, BossId, DrinkId, DrunkState, Kit, OverhaulDrinkId, SpecialAbilityId, TextId } from '../../core/types';
+import type { AbilityId, BossId, DrinkId, DrunkState, Kit, SpecialAbilityId, TextId } from '../../core/types';
 import { heldDrinks } from '../../systems/kit';
+import { iconDrink } from '../../systems/pickups';
 import { legacyAbilityOf } from '../../systems/playerCombat';
 import type { UiStateSource } from '../contract';
 
@@ -80,19 +81,6 @@ export function hudDrinkCells(kit: Kit): readonly [HudSlotView, HudSlotView, Hud
     return { drinkId: iconDrink(id), count, selected: i === 0 };
   };
   return [cell(0), cell(1), cell(2)];
-}
-
-/** The drink icon that stands in for a kit drink until phase 3 draws the new ones (lager, coffee, tea). */
-export function iconDrink(id: OverhaulDrinkId): DrinkId {
-  switch (id) {
-    case 'lager':
-      return 'lightBeer';
-    case 'coffee':
-    case 'tea':
-      return 'water';
-    default:
-      return id;
-  }
 }
 
 const clamp01 = (n: number): number => (Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0);
