@@ -2172,6 +2172,8 @@ export interface OverhaulTuning {
   readonly weapons: Readonly<Record<WeaponId, WeaponDef>>;
   readonly swayByLevel: SwayByLevel;
   readonly drops: DropTuning;
+  /** Longest gap between swings that keeps a combo or a hit count going, ms. */
+  readonly weaponComboWindowMs?: number;
   /** The thrown bottle. Optional until phase 2 switches the systems over. */
   readonly throw?: ThrowTuning;
   /** Footstep noise radius by level while walking. DESIGN.md 7.3: louder from Bit much. */
