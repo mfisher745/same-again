@@ -55,6 +55,13 @@ export const MYKO: Look = {
   rollie: true,
 };
 
+const HURLEY_SWING: AnimSpec['poses'] = [
+  { arm: 'up', item: 'hurley', lean: -1 },
+  { arm: 'guard', item: 'hurley' },
+  { arm: 'out', item: 'hurley', lean: 1, step: 1 },
+  { arm: 'down', item: 'hurley' },
+];
+
 export function andrewSheet(): Sheet {
   return figureSheet(TEX.andrew, ANDREW, {
     idle: IDLE,
@@ -62,15 +69,7 @@ export function andrewSheet(): Sheet {
     punch1: once([{ arm: 'guard', otherArm: 'guard' }, { arm: 'out', otherArm: 'guard', lean: 1 }, { arm: 'guard', otherArm: 'guard' }], 14),
     punch2: once([{ arm: 'guard', otherArm: 'guard' }, { arm: 'guard', otherArm: 'out', lean: 1 }, { arm: 'guard', otherArm: 'guard' }], 14),
     punch3: once([{ arm: 'up', otherArm: 'guard', lean: -1 }, { arm: 'out', otherArm: 'down', lean: 2, step: 1 }, { arm: 'out', otherArm: 'down', lean: 1 }], 10),
-    hurley: once(
-      [
-        { arm: 'up', item: 'hurley', lean: -1 },
-        { arm: 'guard', item: 'hurley' },
-        { arm: 'out', item: 'hurley', lean: 1, step: 1 },
-        { arm: 'down', item: 'hurley' },
-      ],
-      14,
-    ),
+    hurley: once(HURLEY_SWING, 14),
     throw: once([{ arm: 'up', item: 'bottle', lean: -1 }, { arm: 'out', lean: 1 }, { arm: 'down' }], 12),
     drink: once([{ arm: 'guard', item: 'bottle' }, { arm: 'up', item: 'bottle' }, { arm: 'up', item: 'bottle', headUp: 1 }, { arm: 'down' }], 6),
     hurt: once([{ flash: true, lean: -1 }, { lean: -1, eyesClosed: true }], 8),
@@ -87,6 +86,56 @@ export function andrewSheet(): Sheet {
     fall: once([{ lean: -1, arm: 'up', otherArm: 'up' }, { lean: -2, drop: 2, arm: 'up', otherArm: 'up', eyesClosed: true }, { lying: true }, { lying: true }], 8),
     getUp: once([{ lying: true }, { drop: 3, eyesClosed: true }, { drop: 1 }], 6),
     actNatural: { poses: [{ arm: 'pocket', otherArm: 'pocket', glance: 1 }, { arm: 'pocket', otherArm: 'pocket', glance: -1 }], frameRate: 1 },
+    // Overhaul: one swing per melee weapon, four frames like the hurley. Fists keep punch1-3.
+    // Frame rates follow how quick each weapon feels; the world view may override with the weapon's swing time.
+    'swing.hurley': once(HURLEY_SWING, 14),
+    'swing.clipboard': once(
+      [
+        { arm: 'guard', item: 'clipboard', lean: -1 },
+        { arm: 'out', item: 'clipboard', lean: 1 },
+        { arm: 'out', item: 'clipboard' },
+        { arm: 'guard', item: 'clipboard' },
+      ],
+      24,
+    ),
+    'swing.shillelagh': once(
+      [
+        { arm: 'up', item: 'shillelagh', lean: -2 },
+        { arm: 'up', item: 'shillelagh', lean: -1 },
+        { arm: 'out', item: 'shillelagh', lean: 2, step: 1, drop: 1 },
+        { arm: 'down', item: 'shillelagh', lean: 1, drop: 1 },
+      ],
+      12,
+    ),
+    'swing.umbrella': once(
+      [
+        { arm: 'guard', item: 'umbrella', lean: -1 },
+        { arm: 'guard', item: 'umbrella', lean: -2 },
+        { arm: 'out', item: 'umbrella', lean: 2, step: 1 },
+        { arm: 'out', item: 'umbrella', lean: 1 },
+      ],
+      16,
+    ),
+    'swing.inflatable': once(
+      [
+        { arm: 'guard', item: 'inflatable', otherArm: 'up', lean: -2 },
+        { arm: 'guard', item: 'inflatable', otherArm: 'guard' },
+        { arm: 'out', item: 'inflatable', lean: 1, step: 1 },
+        { arm: 'down', item: 'inflatable', step: 3 },
+      ],
+      16,
+    ),
+    'swing.wand': once(
+      [
+        { arm: 'guard', item: 'wand', lean: -1 },
+        { arm: 'out', item: 'wand', lean: 1, step: 1 },
+        { arm: 'out', item: 'wand' },
+        { arm: 'down', item: 'wand' },
+      ],
+      20,
+    ),
+    // Overhaul: the bottle held back while the throw preview is up. Loops; a slight sway.
+    aim: { poses: [{ arm: 'up', item: 'bottle', otherArm: 'guard', lean: -1 }, { arm: 'up', item: 'bottle', otherArm: 'guard', lean: -1, glance: 1 }], frameRate: 2 },
   });
 }
 
@@ -97,5 +146,15 @@ export function mykoSheet(): Sheet {
     blink: once([{ arm: 'pocket', otherArm: 'pocket', eyesClosed: true }], 3),
     smoke: once([{ arm: 'guard', otherArm: 'pocket' }, { arm: 'up', otherArm: 'pocket', eyesClosed: true }, { arm: 'guard', otherArm: 'pocket' }], 4),
     swat: once([{ arm: 'guard', otherArm: 'pocket' }, { arm: 'out', otherArm: 'pocket' }, { arm: 'down', otherArm: 'pocket' }], 12),
+    // Overhaul: no run cycle, so a fast shuffle. Bent forward, bobbing, the rollie held up out of harm's way.
+    hurry: {
+      poses: [
+        { step: 0, lean: 1, arm: 'guard', otherArm: 'down', item: 'rollie', noRollie: true },
+        { step: 1, lean: 2, drop: 1, arm: 'guard', otherArm: 'out', item: 'rollie', noRollie: true },
+        { step: 2, lean: 1, arm: 'guard', otherArm: 'down', item: 'rollie', noRollie: true },
+        { step: 3, lean: 2, drop: 1, arm: 'guard', otherArm: 'out', item: 'rollie', noRollie: true },
+      ],
+      frameRate: 12,
+    },
   });
 }

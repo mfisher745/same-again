@@ -2,7 +2,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { FONT_CHARS, canDraw } from '../../src/art/font';
-import { FONT_CELL, TEX, animKey, frameName, fx, icon, portrait, tilesetKey } from '../../src/art/keys';
+import { FONT_CELL, PROPS_KEY, TEX, animKey, frameName, fx, icon, portrait, tilesetKey } from '../../src/art/keys';
+import { PROP } from '../../src/art/props';
 import { ANDREW, MYKO } from '../../src/art/characters';
 import { PALETTE, REGION_COLOURS, SHARED_COLOURS, css } from '../../src/art/palette';
 import type { ColourName } from '../../src/art/palette';
@@ -11,7 +12,7 @@ import type { Sheet } from '../../src/art/pixels';
 import { allSheets } from '../../src/art/sheets';
 import { TILE, regionTiles, tileFlags, tileIndex } from '../../src/art/tiles';
 import { REGIONS } from '../../src/core/types';
-import type { AbilityId, DrinkId, FoodId, SpeakerId } from '../../src/core/types';
+import type { AbilityId, DrinkId, FoodId, MoveId, OverhaulDrinkId, SpeakerId, WeaponId } from '../../src/core/types';
 
 const sheets = allSheets();
 const byKey = (k: string): Sheet => {
@@ -147,6 +148,31 @@ describe('characters', () => {
     for (const dir of ['up', 'down', 'left', 'right'] as const) for (let i = 0; i < 4; i++) expect(names.has(frameName('walk', dir, i)), `walk.${dir}.${i}`).toBe(true);
   });
 
+  it('Andrew has a four-frame swing for each non-fist weapon and the aim pose, in all four directions, registered as animations', () => {
+    const s = byKey(TEX.andrew);
+    const names = new Set(s.frames.map((f) => f.name));
+    const anims = new Set(s.anims.map((a) => a.key));
+    for (const anim of ['swing.hurley', 'swing.clipboard', 'swing.shillelagh', 'swing.umbrella', 'swing.inflatable', 'swing.wand']) {
+      for (const dir of ['up', 'down', 'left', 'right'] as const) {
+        for (let i = 0; i < 4; i++) expect(names.has(frameName(anim, dir, i)), `${anim}.${dir}.${i}`).toBe(true);
+        expect(anims.has(animKey(TEX.andrew, anim, dir)), `${anim}.${dir}`).toBe(true);
+      }
+    }
+    for (const dir of ['up', 'down', 'left', 'right'] as const) {
+      expect(names.has(frameName('aim', dir, 0)), `aim.${dir}`).toBe(true);
+      expect(anims.has(animKey(TEX.andrew, 'aim', dir)), `aim.${dir}`).toBe(true);
+    }
+  });
+
+  it('Myko hurries in all four directions, registered as a looping animation', () => {
+    const s = byKey(TEX.myko);
+    const names = new Set(s.frames.map((f) => f.name));
+    for (const dir of ['up', 'down', 'left', 'right'] as const) {
+      for (let i = 0; i < 4; i++) expect(names.has(frameName('hurry', dir, i)), `hurry.${dir}.${i}`).toBe(true);
+      expect(s.anims.find((a) => a.key === animKey(TEX.myko, 'hurry', dir))?.repeat, `hurry.${dir}`).toBe(-1);
+    }
+  });
+
   it('Myko has idle, walk, blink, smoke and swat but no run cycle', () => {
     const names = new Set(byKey(TEX.myko).frames.map((f) => f.name));
     for (const anim of ['idle', 'walk', 'blink', 'smoke', 'swat']) expect(names.has(frameName(anim, 'down', 0)), anim).toBe(true);
@@ -182,8 +208,42 @@ describe('keys.ts is fully drawn', () => {
     const drinks: DrinkId[] = ['stout', 'whiskey', 'poitin', 'lightBeer', 'bourbon', 'craftIpa', 'tequila', 'water'];
     const foods: FoodId[] = ['crisps', 'chickenFilletRoll', 'breakfastRoll', 'spiceBag', 'tea'];
     const abilities: AbilityId[] = ['punchCombo', 'bottleThrow', 'stumble', 'stoutSlam', 'actNatural', 'hurley', 'sliotarStrike', 'poitinBreath', 'borrowedGlove'];
-    const wanted = [icon.pintFull, icon.pintHalf, icon.pintEmpty, icon.empty, icon.rollie, icon.rollieSpent, icon.detection, icon.interact, ...drinks.map(icon.drink), ...foods.map(icon.food), ...abilities.map(icon.ability)];
+    const wanted = [icon.pintFull, icon.pintHalf, icon.pintEmpty, icon.empty, icon.leaf, icon.leafSpent, icon.detection, icon.interact, ...drinks.map(icon.drink), ...foods.map(icon.food), ...abilities.map(icon.ability)];
     expect(wanted.filter((n) => !names.has(n))).toEqual([]);
+  });
+
+  it('every overhaul drink, move and weapon icon and the sun mark exist in the icon sheet', () => {
+    const names = new Set(byKey(TEX.icons).frames.map((f) => f.name));
+    const drinks: (OverhaulDrinkId | 'bottle')[] = ['stout', 'lager', 'lightBeer', 'craftIpa', 'whiskey', 'tequila', 'coffee', 'tea', 'bottle'];
+    const moves: MoveId[] = ['shoulder', 'reflexTest', 'actNatural', 'stoutSlam', 'sameAgain', 'bedsideManner', 'stumble', 'lockIn', 'secondOpinion', 'borrowedGlove', 'oneForTheRoad', 'lastOrders', 'barred'];
+    const weapons: WeaponId[] = ['fists', 'hurley', 'clipboard', 'shillelagh', 'umbrella', 'inflatableAlien', 'securityWand'];
+    const wanted = [...drinks.map(icon.drink), ...moves.map(icon.move), ...weapons.map(icon.weapon), icon.sun];
+    expect(wanted.filter((n) => !names.has(n))).toEqual([]);
+  });
+
+  it('the thirteen move icons are all different pictures, and so are the seven weapon icons', () => {
+    const s = byKey(TEX.icons);
+    const picture = (name: string): string => {
+      const f = s.frames.find((x) => x.name === name);
+      if (!f) throw new Error(`no frame ${name}`);
+      const px: string[] = [];
+      for (let y = 0; y < f.height; y++) for (let x = 0; x < f.width; x++) px.push(String(s.buffer.get(f.x + x, f.y + y)));
+      return px.join(',');
+    };
+    const moves = s.frames.filter((f) => f.name.startsWith('move.')).map((f) => picture(f.name));
+    const weapons = s.frames.filter((f) => f.name.startsWith('weapon.')).map((f) => picture(f.name));
+    expect(moves).toHaveLength(13);
+    expect(new Set(moves).size).toBe(13);
+    expect(weapons).toHaveLength(7);
+    expect(new Set(weapons).size).toBe(7);
+  });
+
+  it('the hot-drink props and a world object for every non-fist weapon exist in the props atlas', () => {
+    const names = new Set(byKey(PROPS_KEY).frames.map((f) => f.name));
+    const wanted = [PROP.hotDrinkUrn, PROP.flask, PROP.kettle, PROP.coffeePot, PROP.teaTrolley, ...Object.values(PROP.weapon)];
+    expect(wanted.filter((n) => !names.has(n))).toEqual([]);
+    const weapons: Exclude<WeaponId, 'fists'>[] = ['hurley', 'clipboard', 'shillelagh', 'umbrella', 'inflatableAlien', 'securityWand'];
+    expect(Object.keys(PROP.weapon).sort()).toEqual([...weapons].sort());
   });
 
   it('every fx.* frame exists in the fx sheet', () => {
