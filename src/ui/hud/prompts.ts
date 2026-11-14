@@ -59,8 +59,8 @@ export class PromptStack {
   }
 
   private layout(): void {
-    // Above the pickup line, stacked upwards.
-    let y = DIALOGUE_BOX.y - 28;
+    // Above the pickup and refusal lines, stacked upwards.
+    let y = DIALOGUE_BOX.y - 40;
     for (const e of this.entries) {
       e.bg.setPosition(0, y);
       let x = Math.round((SCREEN.width - e.width) / 2);

@@ -27,7 +27,7 @@ const COL2 = { x: 160, width: 150 } as const;
 const COL3 = { x: 320, width: 148 } as const;
 const TOP = 28;
 const DESC = { x: COL2.x, y: 192, chars: 25, lines: 7 } as const;
-const SLOT_BOX = { height: 28, gap: 2 } as const;
+const SLOT_BOX = { height: 31, gap: 1 } as const;
 
 interface Row {
   readonly bg: Phaser.GameObjects.Rectangle;
@@ -103,7 +103,7 @@ export class KitView {
     this.desc = L.label(DESC.x, DESC.y, '', 'ink');
     L.label(COL3.x, TOP, text('ui.kit.slots'), 'beanie');
     KIT_SLOTS.forEach((ref, i) => this.slotBoxes.push(this.makeSlot(L, ref, TOP + 12 + i * (SLOT_BOX.height + SLOT_BOX.gap))));
-    const by = TOP + 12 + 6 * (SLOT_BOX.height + SLOT_BOX.gap) + 2;
+    const by = TOP + 12 + 6 * (SLOT_BOX.height + SLOT_BOX.gap) + 1;
     this.assignBtn = this.makeButton(L, COL3.x, by, 72, text('ui.kit.assign'), () => this.assignSelected());
     this.drinkBtn = this.makeButton(L, COL3.x + 76, by, 72, text('ui.kit.drinkNow'), () => this.drinkSelected());
     this.message = L.label(COL3.x, by + 17, '', 'alarm');
@@ -132,7 +132,7 @@ export class KitView {
           : format('ui.kit.slot.special', { n: ref.slot });
     const t = L.label(COL3.x + 2, y + 2, title, 'ink');
     const level = L.label(COL3.x + 2, y + 11, ref.kind === 'special' ? format('ui.kit.slot.level', { state: text(SLOT_STATE_TEXT[ref.slot]) }) : '', 'slate');
-    const content = L.label(COL3.x + 2, y + (ref.kind === 'special' ? 19 : 11), '', 'ink');
+    const content = L.label(COL3.x + 2, y + (ref.kind === 'special' ? 20 : 11), '', 'ink');
     const icon = L.icon(COL3.x + COL3.width - 16, y + 8);
     if (ref.kind === 'special') L.label(COL3.x + COL3.width - 4, y + 2, keyText(KEY_IDS.slot(ref.slot)), 'slate', { anchor: 'right' });
     else if (ref.kind === 'drink') L.label(COL3.x + COL3.width - 4, y + 2, keyText(KEY_IDS.drink), 'slate', { anchor: 'right' });
@@ -217,7 +217,7 @@ export class KitView {
     const sel = itemKey(item) === this.selectedKey;
     row.bg.setFillStyle(PALETTE[sel ? 'fog' : 'bone']);
     row.icon.set(iconOf(item.kind === 'hot' ? 'drink' : item.kind, item.id), item.kind === 'move' ? 'amberLight' : item.kind === 'weapon' ? 'steel' : 'amber');
-    setLabelText(row.name, nameOf(item).slice(0, COL1.chars - 4));
+    setLabelText(row.name, nameOf(item).slice(0, note === '' ? COL1.chars - 1 : COL1.chars - 4));
     setLabelText(row.note, note);
     row.bg.off('pointerdown');
     row.bg.on('pointerdown', () => this.select(item));
