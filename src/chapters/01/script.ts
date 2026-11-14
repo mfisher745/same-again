@@ -198,7 +198,6 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
 
   const atCheckpoint = async (): Promise<void> => {
     setFlag('cp.done');
-    ctx.reachCheckpoint('c1.cp.boss');
     await ctx.say('c1.call.prompt');
     if (disposed) return;
     setPrompt('ui.prompt.callMyko', PROMPT_LINGER_MS);

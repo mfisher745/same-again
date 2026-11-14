@@ -9,7 +9,7 @@
  * - Chapter Select: the chapter with the abilities it expects (everything
  *   unlocked in earlier chapters), three stout, no hangover, the save's Myko
  *   calls and casebook, full health.
- * - Death: the save is reloaded and Andrew respawns where it says.
+ * - Back to the bar (meter at 0 or at the floor) happens inside the run; there is no death and no game over.
  * - Chapter complete: hangover rule, Buzz back to 0, health to max, save,
  *   next chapter (or the title after chapter 10).
  */
@@ -80,7 +80,6 @@ interface PendingRun {
   readonly module: ChapterModule;
   readonly save: SaveState;
   readonly resumed: boolean;
-  readonly afterDeath: boolean;
   /** Sandbox and missing-chapter runs never touch the real save. */
   readonly store: SaveStore;
 }
@@ -220,7 +219,7 @@ export class GameSession {
     const lootSeed = Math.floor(this.rng.next() * 0x7fffffff);
     const save = saveAtChapterStart(module.module, { ...emptyProgress(), lootSeed });
     module.store.write(save);
-    this.begin({ module: module.module, save, resumed: false, afterDeath: false, store: module.store });
+    this.begin({ module: module.module, save, resumed: false, store: module.store });
   }
 
   continueGame(): void {
@@ -231,7 +230,7 @@ export class GameSession {
     }
     const module = this.moduleFor(save.chapter);
     if (!module) return;
-    this.begin({ module: module.module, save, resumed: true, afterDeath: false, store: module.store });
+    this.begin({ module: module.module, save, resumed: true, store: module.store });
   }
 
   startChapter(chapter: ChapterNumber): void {
@@ -244,7 +243,7 @@ export class GameSession {
     }
     const save = chapterSelectSave(found.module, found.store === this.store ? this.store.load() : null, prior);
     found.store.write(save);
-    this.begin({ module: found.module, save, resumed: false, afterDeath: false, store: found.store });
+    this.begin({ module: found.module, save, resumed: false, store: found.store });
   }
 
   /** Starts a module directly with an in-memory save (sandbox, tests). */
@@ -252,7 +251,7 @@ export class GameSession {
     const store = new SaveStore(new MemoryStorage());
     const s = save ?? saveAtChapterStart(module, emptyProgress());
     store.write(s);
-    this.begin({ module, save: s, resumed: false, afterDeath: false, store });
+    this.begin({ module, save: s, resumed: false, store });
   }
 
   /** Called by the Game scene when it starts. */
@@ -268,9 +267,7 @@ export class GameSession {
       dialogue: contentDialogue,
       pool: poolOrEmpty,
       resumed: p.resumed,
-      afterDeath: p.afterDeath,
       writeSave: (state: SaveState) => p.store.write(state),
-      onDeath: () => this.onDeath(),
       onChapterComplete: (endState, snap) => this.onChapterComplete(endState, snap),
       playEffect: (id) => this.playEffect?.(id),
       patchSave: (patch) => {
@@ -331,13 +328,6 @@ export class GameSession {
     return fb ? { module: fb, store: new SaveStore(new MemoryStorage()) } : null;
   }
 
-  private onDeath(): void {
-    const p = this.pending;
-    if (!p) return;
-    const save = p.store.load() ?? p.save;
-    this.begin({ ...p, save, resumed: true, afterDeath: true });
-  }
-
   private onChapterComplete(endState: DrunkState, snap: SaveState): void {
     const p = this.pending;
     if (!p) return;
@@ -363,7 +353,7 @@ export class GameSession {
     const save = carryOver(snap, endState, next);
     p.store.write(save);
     this.bus.emit(GameEvents.SaveWritten, { reason: 'chapterComplete' });
-    this.begin({ module: next, save, resumed: false, afterDeath: false, store: p.store });
+    this.begin({ module: next, save, resumed: false, store: p.store });
   }
 }
 

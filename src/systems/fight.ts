@@ -67,6 +67,17 @@ export class FightRunner extends CompletableSection {
     this.spawnWave(0);
   }
 
+  /** Back to the start (the return to the bar resets the encounter under way). A finished fight stays finished. */
+  reset(): void {
+    if (this.isComplete()) return;
+    this.started = false;
+    this.wave = -1;
+    this.betweenMs = 0;
+    this.actorsList.length = 0;
+    this.spawnCursor = 0;
+    this.suspended = false;
+  }
+
   /** Adds existing actors (stealth guards joining their alarm fight). */
   adopt(actors: readonly EnemyActor[]): void {
     this.actorsList.push(...actors);

@@ -75,7 +75,8 @@ import type {
   ChapterDef,
   ChapterFlagValue,
   ChapterNumber,
-  CheckpointId,
+  BarReturnReason,
+  HotDrinkId,
   CompletableKind,
   CompletableSectionId,
   CompletionSource,
@@ -318,14 +319,22 @@ export interface ChapterModule {
 }
 
 export interface ChapterStartInfo {
-  readonly checkpointId: CheckpointId;
-  /** True after a death or Continue; false on a fresh chapter start. */
+  /** True after Continue; false on a fresh chapter start. */
   readonly resumed: boolean;
+}
+
+/** Andrew went back to the bar. The chapter puts its own run-time state right. DESIGN.md 7.1. */
+export interface BarReturnInfo {
+  readonly reason: BarReturnReason;
+  /** The section that started over, or null if none was under way. Finished sections are not reset. */
+  readonly resetSectionId: SectionId | null;
 }
 
 /** Hooks a chapter script may implement. All optional. */
 export interface ChapterScript {
   onStart?(info: ChapterStartInfo): void;
+  /** After a return to the bar: flags are back to the last save and the unfinished section starts over. */
+  onBarReturn?(info: BarReturnInfo): void;
   onScreenEntered?(screenId: ScreenId): void;
   onTrigger?(triggerId: string): void;
   /** Return true to replace the default examine behaviour. */
@@ -375,7 +384,7 @@ export interface ChapterContext {
   setObjective(id: ObjectiveId | null): void;
   objective(): ObjectiveId | null;
 
-  // Flags (saved at each checkpoint)
+  // Flags (saved when a section is finished; a return to the bar puts them back)
   flag(key: string): ChapterFlagValue | undefined;
   setFlag(key: string, value: ChapterFlagValue): void;
 
@@ -400,7 +409,10 @@ export interface ChapterContext {
   unlockAbility(id: AbilityId): void;
   give(item: PickupItem): void;
   addEvidence(id: EvidenceId): void;
-  reachCheckpoint(id: CheckpointId): void;
+  /** Take the bar's free hot drink into the kit. False if one is already carried or it was taken. */
+  takeHotDrink(id: HotDrinkId): boolean;
+  /** The bar is offering a free hot drink and Andrew carries none. */
+  hotDrinkOffered(): boolean;
   goToScreen(screenId: ScreenId, spawn: Vec2): void;
   currentScreen(): ScreenId;
   setExitLocked(exitId: string, locked: boolean): void;

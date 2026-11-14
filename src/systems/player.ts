@@ -18,6 +18,7 @@ import type {
   GameEventBus,
   HitInfo,
   InputFrame,
+  Kit,
   MeterSnapshot,
   OverhaulDrinkId,
   PlayerSnapshot,
@@ -30,6 +31,7 @@ import { angleOf, facingFromAngle, scale, normalize, sub } from './geometry';
 import { moveBox } from './grid';
 import { applyHit } from './hits';
 import type { ConsumableTarget } from './inventory';
+import { createKit } from './kit';
 import { Inventory } from './inventory';
 import { adjustMeter, createMeter, drink, levelFor, levelTable, restValue, setInSun, snapshot, stepMeter } from './meter';
 import type { MeterResult, MeterState } from './meter';
@@ -71,6 +73,8 @@ export class Player implements ConsumableTarget {
   private heldMs = 0;
   private stunMs = 0;
 
+  /** What he carries (DESIGN.md 7.1 "The kit"). Replace through `setKit`. */
+  kit: Kit = createKit();
   readonly inventory: Inventory;
   readonly abilities: Abilities;
 
@@ -127,9 +131,9 @@ export class Player implements ConsumableTarget {
     };
   }
 
-  /** Back in the bar: a fresh meter at the bottom of Grand, nothing in flight. */
-  resetForBar(): void {
-    this.meter = createMeter(this.chapter);
+  /** Back in the bar: a fresh meter (bottom of Grand), nothing in flight. */
+  resetForBar(meter: MeterState = createMeter(this.chapter)): void {
+    this.meter = meter;
     this.returning = false;
     this.invulnMs = 0;
     this.kb = { x: 0, y: 0 };
@@ -155,6 +159,13 @@ export class Player implements ConsumableTarget {
           break;
       }
     }
+  }
+
+  /** Adopt a kit; emits `kit:changed` if it differs. */
+  setKit(kit: Kit): void {
+    if (kit === this.kit) return;
+    this.kit = kit;
+    this.bus.emit(GameEvents.KitChanged, { kit });
   }
 
   setInSun(inSun: boolean): void {

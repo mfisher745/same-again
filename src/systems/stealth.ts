@@ -354,8 +354,8 @@ export interface StealthHost {
 }
 
 export class StealthRunner {
-  readonly guards: Guard[];
-  readonly hazards: Hazard[];
+  guards: Guard[];
+  hazards: Hazard[];
   private started = false;
   private alarmed = false;
   private finished = false;
@@ -364,12 +364,25 @@ export class StealthRunner {
     readonly def: StealthSectionDef,
     private readonly host: StealthHost,
   ) {
-    this.guards = def.guards.map((g) => {
+    this.guards = this.buildGuards();
+    this.hazards = def.hazards.map((h) => new Hazard(h));
+  }
+
+  private buildGuards(): Guard[] {
+    return this.def.guards.map((g) => {
       const enemy = TUNING.enemies[g.enemyId];
       const senses = enemy.senses ?? { visionRange: 0, visionAngleDeg: 0, hearingRadius: 0 };
       return new Guard(g.enemyId, g, senses, enemy.moveSpeed);
     });
-    this.hazards = def.hazards.map((h) => new Hazard(h));
+  }
+
+  /** Back to the start with fresh guards and hazards (the return to the bar). A finished section stays finished. */
+  reset(): void {
+    if (this.finished) return;
+    this.started = false;
+    this.alarmed = false;
+    this.guards = this.buildGuards();
+    this.hazards = this.def.hazards.map((h) => new Hazard(h));
   }
 
   get sectionId(): StealthSectionId {
