@@ -1,8 +1,7 @@
 /**
  * Unit tests for the systems-dev slice-gaps pass (proposed for tests/unit/ by qa):
  * dressing, ambience, melee world hits, boss moveSpeed / daze / setSprite,
- * spawn-in triggers, mykoStart on Continue, Chapter Select for chapter 1,
- * AbilityDef.requires.
+ * spawn-in triggers, mykoStart on Continue, Chapter Select for chapter 1.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -12,7 +11,7 @@ import { NO_INPUT } from '../../src/core/input';
 import { seededRandom } from '../../src/core/random';
 import { createSandboxModule } from '../../src/core/sandbox';
 import type { ChapterModule, MeleeHitInfo, ScreenLayout } from '../../src/core/chapter';
-import type { AttackDef, BossDef, BossId, GameEventBus, SaveState, TileGrid, Vec2 } from '../../src/core/types';
+import type { AttackDef, BossDef, BossId, GameEventBus, OverhaulSaveState, TileGrid, Vec2 } from '../../src/core/types';
 import { BossRunner } from '../../src/systems/boss';
 import type { BossWorld } from '../../src/systems/boss';
 import { shapeHitsRect } from '../../src/systems/combat';
@@ -22,7 +21,7 @@ import type { ActorStats, CombatWorld } from '../../src/systems/enemies';
 import { gridFromAscii } from '../../src/systems/grid';
 import type { SectionHost } from '../../src/systems/sections';
 import { chapterSelectSave } from '../../src/systems/session';
-import { abilities, advance, frame, makeRun, teleport } from './helpers';
+import { advance, frame, makeRun, teleport } from './helpers';
 
 const T = (col: number, row: number): Vec2 => ({ x: col * 16 + 8, y: row * 16 + 8 });
 const idx = (g: TileGrid, col: number, row: number): number => row * g.widthTiles + col;
@@ -327,20 +326,16 @@ describe('ChapterRun: dressing, talk, melee hooks, triggers', () => {
     const base = createSandboxModule(1);
     const screen = base.screens[0]!;
     const module: ChapterModule = { ...base, screens: [{ ...screen, mykoStart: T(10, 8) }] };
-    const { run } = makeRun({ module, save: (s) => JSON.parse(JSON.stringify(s)) as SaveState });
+    const { run } = makeRun({ module, save: (s) => JSON.parse(JSON.stringify(s)) as OverhaulSaveState });
     // makeRun ticks once, so he may have taken a step toward Andrew.
     expect(Math.hypot(run.myko.pos.x - T(10, 8).x, run.myko.pos.y - T(10, 8).y)).toBeLessThan(4);
   });
 });
 
-describe('Chapter Select and abilities', () => {
+describe('Chapter Select', () => {
   it('Chapter Select of chapter 1 gives no starting drinks (Dympna hands over the first pint)', () => {
-    expect(chapterSelectSave(createSandboxModule(1), null, []).player.drinkSlots).toEqual([null, null, null]);
-    expect(chapterSelectSave(createSandboxModule(2), null, []).player.drinkSlots).toEqual(TUNING.chapterSelect.startingDrinks);
-  });
-
-  it('an ability with `requires` is not usable without it', () => {
-    expect(abilities(['sliotarStrike']).usable('sliotarStrike')).toBe(false);
-    expect(abilities(['sliotarStrike', 'hurley']).usable('sliotarStrike')).toBe(true);
+    const one = chapterSelectSave(createSandboxModule(1), null, []).kit;
+    expect(Object.values(one.drinks).reduce((n, c) => n + (c ?? 0), 0)).toBe(0);
+    expect(chapterSelectSave(createSandboxModule(2), null, []).kit.drinks.stout).toBe(3);
   });
 });
