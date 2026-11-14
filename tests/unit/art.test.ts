@@ -182,7 +182,7 @@ describe('keys.ts is fully drawn', () => {
     const drinks: DrinkId[] = ['stout', 'whiskey', 'poitin', 'lightBeer', 'bourbon', 'craftIpa', 'tequila', 'water'];
     const foods: FoodId[] = ['crisps', 'chickenFilletRoll', 'breakfastRoll', 'spiceBag', 'tea'];
     const abilities: AbilityId[] = ['punchCombo', 'bottleThrow', 'stumble', 'stoutSlam', 'actNatural', 'hurley', 'sliotarStrike', 'poitinBreath', 'borrowedGlove'];
-    const wanted = [icon.pintFull, icon.pintHalf, icon.pintEmpty, icon.empty, icon.rollie, icon.rollieSpent, icon.detection, icon.interact, ...drinks.map(icon.drink), ...foods.map(icon.food), ...abilities.map(icon.ability)];
+    const wanted = [icon.pintFull, icon.pintHalf, icon.pintEmpty, icon.empty, icon.leaf, icon.leafSpent, icon.detection, icon.interact, ...drinks.map(icon.drink), ...foods.map(icon.food), ...abilities.map(icon.ability)];
     expect(wanted.filter((n) => !names.has(n))).toEqual([]);
   });
 

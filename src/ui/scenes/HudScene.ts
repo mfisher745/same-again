@@ -638,7 +638,7 @@ export class HudScene extends Phaser.Scene {
     // Myko's calls and the M key.
     this.rollies.forEach((pic, i) => {
       const available = m.calls[i] === true;
-      pic.set(available ? iconFrames.rollie : iconFrames.rollieSpent, available ? 'bone' : 'coal');
+      pic.set(available ? iconFrames.leaf : iconFrames.leafSpent, available ? 'bone' : 'coal');
     });
     this.callCap.show(keyText(KEY_IDS.call), STRIP.calls.capX, y + 7, 'slate', 'fog');
     this.ring.clear();

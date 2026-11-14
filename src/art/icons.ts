@@ -443,9 +443,9 @@ export function iconSheet(): Sheet {
   sheet.cell(icon.pintHalf, pint(2));
   sheet.cell(icon.pintEmpty, pint(0));
   sheet.cell(icon.empty, bottle('moss', 'mossDark'));
-  // Myko calls: a cannabis leaf each (the frame keys keep their old `rollie` names). No ink outline on the dark strip.
-  sheet.cell(icon.rollie, leaf('grass', 'moss'));
-  sheet.cell(icon.rollieSpent, leaf('slate', 'slate'));
+  // Myko calls: a cannabis leaf each. No ink outline on the dark strip.
+  sheet.cell(icon.leaf, leaf('grass', 'moss'));
+  sheet.cell(icon.leafSpent, leaf('slate', 'slate'));
   sheet.cell(
     icon.detection,
     outlined((b) => {

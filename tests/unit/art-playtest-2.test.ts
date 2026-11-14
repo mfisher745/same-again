@@ -109,8 +109,8 @@ describe('Andrew has a beard in the hair colour', () => {
 
 describe('Myko call icons are cannabis leaves', () => {
   const icons = byKey(TEX.icons);
-  const avail = frameOf(icons, icon.rollie);
-  const spent = frameOf(icons, icon.rollieSpent);
+  const avail = frameOf(icons, icon.leaf);
+  const spent = frameOf(icons, icon.leafSpent);
   const colours = (cell: Pixel[][]): Set<Pixel> => new Set(cell.flat().filter((c) => c !== null));
 
   it('both are non-empty', () => {
