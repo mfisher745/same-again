@@ -20,6 +20,7 @@ const T = TUNING.overhaul;
 if (!T) throw new Error('overhaul tuning missing');
 const table = levelTable(1);
 const at = (v: number, chapter: 1 | 5 = 1): MeterState => createMeter(chapter, v);
+const R = restValue(1);
 const run = (s: MeterState, ms: number): MeterState => stepMeter(s, ms).state;
 
 describe('levels', () => {
@@ -41,9 +42,10 @@ describe('levels', () => {
   });
 
   it('starts at the bottom of Grand in every chapter and grows by chapter', () => {
-    expect(restValue(1)).toBe(35);
-    expect(restValue(5)).toBe(43);
-    expect(createMeter(10).value).toBe(52);
+    expect(restValue(1)).toBe(levelTable(1).grand.min + T.restMargin);
+    expect(restValue(5)).toBe(levelTable(5).grand.min + T.restMargin);
+    expect(createMeter(10).value).toBe(restValue(10));
+    expect(levelFor(restValue(1), table)).toBe(2);
     expect(levelTable(10).floor).toBe(133);
   });
 
@@ -205,10 +207,10 @@ describe('tequila', () => {
 describe('hot drinks', () => {
   it('coffee resets at once, from above or below', () => {
     const a = drink(at(80), 'coffee');
-    expect(a.state.value).toBe(35);
-    expect(a.events).toEqual([{ kind: 'levelChanged', from: 3, to: 2, state: 'grand', value: 35 }]);
-    expect(drink(at(10), 'coffee').state.value).toBe(35);
-    expect(drink(at(35), 'coffee').events).toEqual([]);
+    expect(a.state.value).toBe(R);
+    expect(a.events).toEqual([{ kind: 'levelChanged', from: 3, to: 2, state: 'grand', value: R }]);
+    expect(drink(at(10), 'coffee').state.value).toBe(R);
+    expect(drink(at(R), 'coffee').events).toEqual([]);
   });
 
   it('coffee cancels a spirit window', () => {
@@ -222,36 +224,36 @@ describe('hot drinks', () => {
     let s = drink(at(85), 'tea').state;
     expect(s.value).toBe(85);
     s = run(s, 5000);
-    expect(s.value).toBeCloseTo(60, 6);
+    expect(s.value).toBeCloseTo((85 + R) / 2, 6);
     s = run(s, 5000);
-    expect(s.value).toBeCloseTo(35, 6);
+    expect(s.value).toBeCloseTo(R, 6);
     expect(snapshot(s).teaHoldActive).toBe(true);
     s = run(s, 19_000);
-    expect(s.value).toBeCloseTo(35, 6);
+    expect(s.value).toBeCloseTo(R, 6);
     expect(snapshot(s).teaHoldActive).toBe(true);
     s = run(s, 1000);
     expect(snapshot(s).teaHoldActive).toBe(false);
     s = run(s, 3000);
-    expect(s.value).toBeCloseTo(34, 6);
+    expect(s.value).toBeCloseTo(R - 1, 6);
   });
 
   it('tea also eases up from below', () => {
     let s = drink(at(15), 'tea').state;
     s = run(s, 10_000);
-    expect(s.value).toBeCloseTo(35, 6);
+    expect(s.value).toBeCloseTo(R, 6);
   });
 
   it('a step that spans ease, hold and drain lands in the right place', () => {
     const s = run(drink(at(85), 'tea').state, 33_000);
-    expect(s.value).toBeCloseTo(34, 6);
+    expect(s.value).toBeCloseTo(R - 1, 6);
   });
 
   it('a hit or beer during the hold moves the meter and the hold continues', () => {
     let s = run(drink(at(85), 'tea').state, 10_000);
     s = drink(s, 'lager').state;
-    expect(s.value).toBeCloseTo(45, 6);
+    expect(s.value).toBeCloseTo(R + 10, 6);
     s = run(s, 5000);
-    expect(s.value).toBeCloseTo(45, 6);
+    expect(s.value).toBeCloseTo(R + 10, 6);
     expect(snapshot(s).teaHoldActive).toBe(true);
   });
 

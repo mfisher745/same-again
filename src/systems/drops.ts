@@ -8,12 +8,20 @@
 import { TUNING } from '../content/tuning';
 import { seededRandom } from '../core/random';
 import type { Random } from '../core/random';
-import type { BeerId, CarriedDrinkId, ChapterNumber, OverhaulTuning } from '../core/types';
+import type { BeerId, CarriedDrinkId, ChapterNumber, OverhaulTuning, RegionId } from '../core/types';
 
 function tun(tuning?: OverhaulTuning): OverhaulTuning {
   const o = tuning ?? TUNING.overhaul;
   if (!o) throw new Error('TUNING.overhaul is missing');
   return o;
+}
+
+/**
+ * The beer a region mostly has (DESIGN.md 7.1 drink table): stout in Ireland; the American
+ * regions have light beer. Craft IPA and lager come by other means. For creative-director review.
+ */
+export function regionBeer(region: RegionId): BeerId {
+  return region === 'kilnamoe' ? 'stout' : 'lightBeer';
 }
 
 /** What a thing held. Null is nothing. The type cannot hold food or a hot drink. */

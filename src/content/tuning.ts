@@ -754,6 +754,11 @@ const overhaul: OverhaulTuning = {
   drainPerSecond: 1 / 3,
   sun: { drainMultiplier: 2, beerMultiplier: 1.5, spiritWindowMultiplier: 1.5 },
   restLevel: 2,
+  // About 9 s of Grand after a reset (first guess).
+  restMargin: 3,
+  // First guesses, carried over from the old abilities: single-target reach, melee arc.
+  moveRange: 220,
+  meleeArcDeg: 100,
   hitWeights: { ordinary: 5, heavy: 10, worst: 15 },
   meleeMultiplierByLevel: { 1: 1, 2: 1.5, 3: 2, 4: 3 },
   lowWarningBelow: 10,
@@ -802,7 +807,7 @@ const overhaul: OverhaulTuning = {
     shoulder: move('shoulder', 1, 1, { kind: 'charge', distance: 40, knockback: 140 }),
     reflexTest: move('reflexTest', 1, 2, { kind: 'stagger', durationMs: 2000 }),
     actNatural: move('actNatural', 1, 5, { kind: 'hideBesideProp', propRadius: 20 }),
-    stoutSlam: move('stoutSlam', 2, 1, { kind: 'knockdownAround', radius: 44 }),
+    stoutSlam: move('stoutSlam', 2, 1, { kind: 'knockdownAround', radius: 44, knockback: 160 }),
     sameAgain: move('sameAgain', 2, 3, { kind: 'repeatHits', hits: 3, times: 2 }),
     bedsideManner: move('bedsideManner', 2, 4, { kind: 'calmAround', radius: 64, durationMs: 3000 }),
     stumble: move('stumble', 3, 2, { kind: 'lurch', distance: 88, width: 20 }),
@@ -811,7 +816,7 @@ const overhaul: OverhaulTuning = {
     borrowedGlove: move('borrowedGlove', 3, 9, { kind: 'stunCone', range: 96, angleDeg: 100, durationMs: 4000 }),
     oneForTheRoad: move('oneForTheRoad', 4, 3, { kind: 'finisher', bossFraction: 1 / 3 }),
     lastOrders: move('lastOrders', 4, 7, { kind: 'screenWipe', leaveHealthFraction: 0.05, stunMs: 3000, bossFraction: 0.2 }),
-    barred: move('barred', 4, 8, { kind: 'throwOut', landingDamage: 60, bossDamage: 80 }),
+    barred: move('barred', 4, 8, { kind: 'throwOut', landingDamage: 60, landingRadius: 40, bossDamage: 80 }),
   },
   weapons: {
     fists: weapon('fists', 1, 20, 180, 8, 20, { kind: 'combo', hits: 3, finisherKnockbackMultiplier: 6 }),
@@ -833,7 +838,7 @@ const overhaul: OverhaulTuning = {
   // The old fists combo window.
   weaponComboWindowMs: 450,
   // Carried over from the old bottle throw (range 220, damage 10, noise 90). First guesses.
-  throw: { range: 220, damage: 10, knockback: 30, noiseRadius: 90, previewPoints: 12, swayPeriodMs: 1700 },
+  throw: { range: 220, speed: 150, damage: 10, knockback: 30, noiseRadius: 90, previewPoints: 12, swayPeriodMs: 1700 },
   // Walking: the old 56, x1.75 at Bit much, x2 at Fecked. Sneaking is silent until Fecked.
   footstepNoiseRadiusByLevel: { 0: 56, 1: 56, 2: 56, 3: 98, 4: 112 },
   sneakNoiseRadiusByLevel: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 28 },

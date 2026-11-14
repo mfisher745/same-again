@@ -4,9 +4,10 @@
  */
 
 import { TUNING } from '../../content/tuning';
-import { SPECIAL_ABILITIES } from '../../core/types';
-import type { AbilityId, BossId, BuzzState, DrinkId, SpecialAbilityId, TextId } from '../../core/types';
-import { HEALTH_PIPS } from '../layout';
+import type { AbilityId, BossId, DrinkId, DrunkState, Kit, SpecialAbilityId, TextId } from '../../core/types';
+import { heldDrinks } from '../../systems/kit';
+import { iconDrink } from '../../systems/pickups';
+import { legacyAbilityOf } from '../../systems/playerCombat';
 import type { UiStateSource } from '../contract';
 
 export type PipFill = 'full' | 'half' | 'empty';
@@ -21,16 +22,16 @@ export interface HudSlotView {
 export type SpecialReason = 'sober' | 'buzz' | 'recharge';
 
 export interface HudModel {
-  /** One entry per pip shown; fewer pips under a hangover (lower max health). */
+  /** Health pips: empty now that there is no health (kept so the HUD scene compiles until it is redone). */
   readonly pips: readonly PipFill[];
   readonly buzz: {
     /** 0..1 */
     readonly fraction: number;
-    /** Notch positions as 0..1 fractions of the meter (20, 60, 90 of 100). */
+    /** Notch positions as 0..1 fractions of the meter: where Buzzed, Grand, Bit much and Fecked begin. */
     readonly notches: readonly number[];
-    readonly state: BuzzState;
+    readonly state: DrunkState;
     readonly stateTextId: TextId;
-    /** Banjaxed has a timed peak then a fall; the meter flashes during the peak. */
+    /** A spirit window is running; the meter flashes. */
     readonly flashing: boolean;
   };
   readonly heat: { readonly fraction: number } | null;
@@ -64,70 +65,68 @@ export interface HudModel {
   readonly hangover: boolean;
 }
 
-const clamp01 = (n: number): number => (Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0);
-
-export function pipFills(current: number, max: number): PipFill[] {
-  // Pips are worth a fifth of the base health; the last one is stretched so that full health
-  // (reduced under a hangover) always draws every pip full.
-  const count = Math.max(1, Math.ceil(max / (TUNING.player.maxHealth / HEALTH_PIPS)));
-  const pipValue = max / count;
-  const out: PipFill[] = [];
-  for (let i = 0; i < count; i++) {
-    const inPip = current - i * pipValue;
-    out.push(inPip >= pipValue ? 'full' : inPip >= pipValue / 2 ? 'half' : 'empty');
-  }
-  return out;
+/**
+ * The drink cell the old HUD draws for each of three places: the drink in the
+ * slot first (selected), then the next two held drinks. A stand-in until the
+ * HUD is redone for the kit (docs/overhaul-plan.md phase 3).
+ */
+export function hudDrinkCells(kit: Kit): readonly [HudSlotView, HudSlotView, HudSlotView] {
+  const held = heldDrinks(kit);
+  const first = kit.slots.drink;
+  const order = first === null ? held : [first, ...held.filter((id) => id !== first)];
+  const cell = (i: number): HudSlotView => {
+    const id = order[i];
+    if (id === undefined) return { drinkId: null, count: 0, selected: false };
+    const count = id === 'coffee' || id === 'tea' ? 1 : (kit.drinks[id] ?? 0);
+    return { drinkId: iconDrink(id), count, selected: i === 0 };
+  };
+  return [cell(0), cell(1), cell(2)];
 }
 
+const clamp01 = (n: number): number => (Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0);
+
 export function buildHudModel(source: UiStateSource): HudModel {
-  const health = source.health();
-  const buzz = source.buzz();
-  const heat = source.heat();
-  const slots = source.drinkSlots();
-  const selectedIndex = source.selectedDrink();
-  // The session only ever selects a usable special (unlocked, with what it requires), so nothing else is checked here.
-  const special = source.selectedSpecial();
+  const meter = source.meter();
+  const table = source.levelTable();
+  const kit = source.kit();
   const boss = source.boss();
   const calls = TUNING.myko.callsPerGame;
   const left = source.mykoCallsLeft();
-  const specialsUnlocked = TUNING.buzz.effects[buzz.state].specialsUnlocked;
-  const unlocked = source.unlockedAbilities();
-  const unlockedSpecials = SPECIAL_ABILITIES.filter((id) => unlocked.includes(id));
+  // One special cell stands in for the four slots until the HUD is redone: the highest lit slot with a move,
+  // else the lowest dark one (docs/overhaul-plan.md phase 3).
+  const slots = source.moveSlots().filter((s) => s.moveId !== null);
+  const lit = slots.filter((s) => s.lit);
+  const shownSlot = lit.length > 0 ? lit[lit.length - 1] : slots[0];
+  const moveId = shownSlot?.moveId ?? null;
   let reason: SpecialReason | null = null;
-  if (special !== null) {
-    const cost = TUNING.abilities[special].cost;
-    if (!specialsUnlocked) reason = 'sober';
-    else if (cost.kind === 'buzz' && buzz.value < cost.amount) reason = 'buzz';
-    else if (cost.kind === 'recharge' && (source.specialRecharge?.() ?? 0) > 0) reason = 'recharge';
+  if (shownSlot) {
+    if (!shownSlot.lit) reason = 'sober';
+    else if (shownSlot.cooldownLeftMs > 0) reason = 'recharge';
   }
-  const view = (i: 0 | 1 | 2): HudSlotView => {
-    const slot = slots[i];
-    return { drinkId: slot?.drinkId ?? null, count: slot?.count ?? 0, selected: selectedIndex === i };
-  };
-  const max = TUNING.buzz.max;
-  const t = TUNING.buzz.thresholds;
+  const cells = hudDrinkCells(kit);
+  const floor = Math.max(1, meter.floor);
   return {
-    pips: pipFills(health.current, health.max),
+    pips: [],
     buzz: {
-      fraction: clamp01(buzz.value / max),
-      notches: [t.grand / max, t.locked / max, t.banjaxed / max],
-      state: buzz.state,
-      stateTextId: `ui.buzz.${buzz.state}`,
-      flashing: buzz.banjaxedPhase === 'peak',
+      fraction: clamp01(meter.value / floor),
+      notches: [table.grand.min / floor, table.bitMuch.min / floor, table.fecked.min / floor],
+      state: meter.state,
+      stateTextId: `ui.buzz.${meter.state}`,
+      flashing: meter.spiritActive,
     },
-    heat: heat.active ? { fraction: clamp01(heat.value / TUNING.heat.max) } : null,
-    slots: [view(0), view(1), view(2)],
-    empties: source.empties(),
-    throwUnlocked: unlocked.includes('bottleThrow'),
-    melee: unlocked.includes('hurley') ? 'hurley' : unlocked.includes('punchCombo') ? 'punchCombo' : null,
-    dodgeUnlocked: unlocked.includes('stumble'),
+    heat: null,
+    slots: cells,
+    empties: kit.bottles,
+    throwUnlocked: true,
+    melee: source.weapon() === 'hurley' ? 'hurley' : 'punchCombo',
+    dodgeUnlocked: false,
     special: {
-      abilityId: special,
-      labelTextId: special === null ? 'ui.hud.noSpecial' : `ability.${special}.name`,
-      iconAbility: special,
-      locked: special === null || reason !== null,
-      shown: unlockedSpecials.length > 0 || special !== null,
-      cyclable: unlockedSpecials.length > 1,
+      abilityId: moveId === 'stoutSlam' || moveId === 'borrowedGlove' ? moveId : null,
+      labelTextId: moveId === null ? 'ui.hud.noSpecial' : `ability.${moveId}.name`,
+      iconAbility: moveId === null ? null : legacyAbilityOf(moveId) === 'punchCombo' ? 'stoutSlam' : legacyAbilityOf(moveId),
+      locked: moveId === null || reason !== null,
+      shown: slots.length > 0,
+      cyclable: false,
       reason,
     },
     calls: Array.from({ length: calls }, (_, i) => i < left),
@@ -140,7 +139,7 @@ export function buildHudModel(source: UiStateSource): HudModel {
             nameTextId: TUNING.bosses[boss.bossId].nameTextId,
             fraction: clamp01(boss.health.current / Math.max(1, boss.health.max)),
           },
-    hangover: source.hangover().active,
+    hangover: false,
   };
 }
 

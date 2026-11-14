@@ -37,11 +37,11 @@ export type {
 export { registerChapter, getChapter, registeredChapters } from '../core/chapter';
 
 // Systems a chapter may use or extend.
-export { Abilities, abilitiesForChapterStart, isSpecial } from './abilities';
-export type { AbilityAction, AbilityRefusal } from './abilities';
 export { BossRunner } from './boss';
 export type { BossBodyPlacement, BossHooks } from './boss';
-export { Buzz, buzzStateFor, buzzStateRank } from './buzz';
+export { createMeter, drink as drinkOnMeter, levelFor, restValue, snapshot as meterSnapshot, stepMeter } from './meter';
+export type { MeterState } from './meter';
+export { applyHit, hitDirection, meleeMultiplier } from './hits';
 export { canHear, canSee, stepDetection, actingNatural, Guard, Hazard, StealthRunner } from './stealth';
 export { Casebook, DeductionBoard, PuzzleBase, deductionCorrect } from './investigation';
 export { DialogueRunner } from './dialogue';
@@ -49,10 +49,10 @@ export type { DialogueLookup } from './dialogue';
 export { EnemyActor } from './enemies';
 export { FightRunner } from './fight';
 export type { FightHooks } from './fight';
-export { Hangover, Heat, TimedEffects, hangoverAtChapterStart, hangoverFromChapterEnd, maxHealthFor } from './conditions';
-export { Inventory, applyConsumable, wouldHaveEffect, isAlcoholic } from './inventory';
+export * as kit from './kit';
+export { takeItem, carriedFromDrinkId } from './pickups';
 export { Myko, evaluateCall } from './myko';
-export { Player, freshPlayerSnapshot } from './player';
+export { Player } from './player';
 export { PushPuzzle, cardinalOf } from './puzzles';
 export type { PushPuzzleLayout, PushPiece } from './puzzles';
 export { CompletableSection, ScriptedCompletable } from './sections';

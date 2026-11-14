@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { Kit } from '../../src/core/types';
 import { arriveAtBar, loadIntoBar, returnToBar, takeFreeHotDrink, topUpBottles } from '../../src/systems/barReturn';
 import type { BarProgress } from '../../src/systems/barReturn';
-import { snapshot } from '../../src/systems/meter';
+import { restValue, snapshot } from '../../src/systems/meter';
 
 const kit = (over: Partial<Kit> = {}): Kit => ({
   drinks: { stout: 2, whiskey: 1 },
@@ -29,7 +29,7 @@ const progress = (over: Partial<BarProgress> = {}): BarProgress & { extra: strin
 describe.each(['sober', 'floor'] as const)('return to the bar: %s', (reason) => {
   it('puts the meter at the bottom of Grand and reports the reason', () => {
     const a = returnToBar(progress(), reason);
-    expect(a.meter.value).toBe(35);
+    expect(a.meter.value).toBe(restValue(1));
     expect(snapshot(a.meter)).toMatchObject({ level: 2, state: 'grand', spiritActive: false, teaHoldActive: false });
     expect(a.meter.returnReason).toBeNull();
     expect(a.returned).toEqual({ reason });
@@ -57,7 +57,7 @@ describe.each(['sober', 'floor'] as const)('return to the bar: %s', (reason) => 
 
 describe('arrival details', () => {
   it('uses the chapter meter table', () => {
-    expect(returnToBar(progress({ chapter: 5 }), 'floor').meter.value).toBe(43);
+    expect(returnToBar(progress({ chapter: 5 }), 'floor').meter.value).toBe(restValue(5));
   });
 
   it('nothing under way means nothing to reset', () => {
@@ -71,7 +71,7 @@ describe('arrival details', () => {
   it('a plain arrival or loaded save is the same state with no return', () => {
     const a = loadIntoBar(progress());
     expect(a.returned).toBeNull();
-    expect(a.meter.value).toBe(35);
+    expect(a.meter.value).toBe(restValue(1));
     expect(arriveAtBar(progress(), null).hotDrinkOffer.available).toBe(true);
   });
 });

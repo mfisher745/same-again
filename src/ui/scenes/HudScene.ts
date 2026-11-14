@@ -61,9 +61,10 @@ const NOTICE_WIDTH_CHARS = 70;
 
 const BUZZ_COLOUR: Record<HudModel['buzz']['state'], ColourName> = {
   sober: 'fog',
+  buzzed: 'sand',
   grand: 'grass',
-  locked: 'amber',
-  banjaxed: 'alarm',
+  bitMuch: 'amber',
+  fecked: 'alarm',
 };
 
 interface Notice {
@@ -337,8 +338,11 @@ export class HudScene extends Phaser.Scene {
         this.queue.enqueue(sequenceId);
       }),
       bus.on(GameEvents.SaveWritten, () => this.flash(this.saved, NOTICE_MS.saved)),
-      bus.on(GameEvents.AbilityUnlocked, ({ abilityId }) => {
-        this.setNotice(this.ability, format('ability.unlocked', { name: text(`ability.${abilityId}.name`) }), NOTICE_MS.ability);
+      bus.on(GameEvents.MoveLearned, ({ moveId }) => {
+        this.setNotice(this.ability, format('ability.unlocked', { name: text(`ability.${moveId}.name`) }), NOTICE_MS.ability);
+      }),
+      bus.on(GameEvents.WeaponGained, ({ weaponId }) => {
+        this.setNotice(this.ability, format('ability.unlocked', { name: text(`weapon.${weaponId}.name`) }), NOTICE_MS.ability);
       }),
       bus.on(GameEvents.PickupCollected, ({ item }) => {
         const msg =
@@ -349,8 +353,8 @@ export class HudScene extends Phaser.Scene {
               : format('pickup.empties', { n: item.count });
         this.setNotice(this.pickup, msg, NOTICE_MS.pickup);
       }),
-      bus.on(GameEvents.PickupRefused, ({ reason }) => this.setNotice(this.pickup, text(`pickup.refused.${reason}`), NOTICE_MS.pickup)),
-      bus.on(GameEvents.PlayerDied, () => this.clearDialogueOnReset()),
+      bus.on(GameEvents.PickupRefused, ({ reason, max }) => this.setNotice(this.pickup, format(`pickup.refused.${reason}`, { max: String(max) }), NOTICE_MS.pickup)),
+      bus.on(GameEvents.BarReturned, () => this.clearDialogueOnReset()),
     );
     const onShow = (req: PromptRequest): void => this.showPrompt(req.textId);
     const onHide = (textId?: TextId): void => this.hidePrompt(textId);

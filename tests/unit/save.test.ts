@@ -1,30 +1,46 @@
-/** DESIGN.md 7.6: saving, death, chapter carry-over, Chapter Select, audio settings. */
+/** DESIGN.md 7.6: the version 2 save, return to the bar on load, chapter carry-over, Chapter Select, audio settings. */
 
 import { afterEach, describe, expect, it } from 'vitest';
 import { TUNING } from '../../src/content/tuning';
 import { clearChapterRegistry, registerChapter } from '../../src/core/chapter';
 import { createSandboxModule } from '../../src/core/sandbox';
 import { AUDIO_KEY, MemoryStorage, SAVE_KEY, SaveStore, isSaveState } from '../../src/core/save';
-import { SAVE_VERSION } from '../../src/core/types';
-import type { ChapterNumber, SaveState } from '../../src/core/types';
+import { SAVE_VERSION_OVERHAUL } from '../../src/core/types';
+import type { ChapterNumber, OverhaulSaveState } from '../../src/core/types';
+import { createKit, gainWeapon, learnMove, pickUpDrink } from '../../src/systems/kit';
+import { restValue } from '../../src/systems/meter';
 import { GameSession, carryOver, chapterOf, chapterSelectSave, emptyProgress, saveAtChapterStart } from '../../src/systems/session';
 import type { SceneDriver } from '../../src/systems/session';
 import { NO_INPUT, advance, record } from './helpers';
 
-const fresh = (chapter: ChapterNumber = 1): SaveState => saveAtChapterStart(createSandboxModule(chapter), emptyProgress());
+const BAD_KITS = [null, 5, 'x', {}, { drinks: {} }];
+
+const fresh = (chapter: ChapterNumber = 1): OverhaulSaveState => saveAtChapterStart(createSandboxModule(chapter), emptyProgress());
 
 describe('SaveStore', () => {
-  it('round-trips a save exactly', () => {
+  it('round-trips a save exactly, kit and all', () => {
     const store = new SaveStore(new MemoryStorage());
-    const s: SaveState = {
+    let kit = createKit();
+    kit = learnMove(kit, 'shoulder', { autoAssign: true }).kit;
+    kit = gainWeapon(kit, 'hurley').kit;
+    kit = pickUpDrink(pickUpDrink(kit, 'stout').kit, 'whiskey').kit;
+    kit = { ...kit, bottles: 3, hotDrink: 'tea' };
+    const s: OverhaulSaveState = {
       ...fresh(3),
+      kit,
       mykoCallsLeft: 1,
-      player: { ...fresh().player, buzz: 44, empties: 3, drinkSlots: [{ drinkId: 'stout', count: 2 }, null, null], hangover: { active: true } },
       casebook: [{ kind: 'evidence', evidenceId: 'c2.clue.ring', chapter: 2 }],
+      openedShortcuts: ['c2.gate'],
+      settings: { tabMode: 'hold' },
       flags: { 'c3.talked': true, 'c3.n': 4, 'c3.s': 'x' },
     };
     store.write(s);
     expect(store.load()).toEqual(s);
+  });
+
+  it('is version 2', () => {
+    expect(SAVE_VERSION_OVERHAUL).toBe(2);
+    expect(fresh().version).toBe(2);
   });
 
   it('no save yet is null', () => {
@@ -35,8 +51,8 @@ describe('SaveStore', () => {
     const storage = new MemoryStorage();
     const store = new SaveStore(storage);
     const s = fresh();
-    for (const raw of [
-      JSON.stringify({ ...s, version: SAVE_VERSION + 1 }),
+    const cases = [
+      JSON.stringify({ ...s, version: 3 }),
       JSON.stringify({ ...s, version: 0 }),
       '{not json',
       'null',
@@ -47,11 +63,35 @@ describe('SaveStore', () => {
       JSON.stringify({ ...s, chapter: 2.5 }),
       JSON.stringify({ ...s, casebook: 'nope' }),
       JSON.stringify({ ...s, mykoCallsLeft: '3' }),
-      JSON.stringify({ ...s, player: { ...s.player, drinkSlots: [null] } }),
-    ]) {
+      JSON.stringify({ ...s, settings: { tabMode: 'sideways' } }),
+      JSON.stringify({ ...s, settings: undefined }),
+      JSON.stringify({ ...s, kit: { ...s.kit, slots: { ...s.kit.slots, specials: [null] } } }),
+      ...BAD_KITS.map((kit) => JSON.stringify({ ...s, kit })),
+    ];
+    for (const raw of cases) {
       storage.setItem(SAVE_KEY, raw);
-      expect(store.load(), raw.slice(0, 40)).toBeNull();
+      expect(store.load(), raw.slice(0, 50)).toBeNull();
     }
+  });
+
+  it('an old version 1 save (health, buzz, drink slots) is discarded, never migrated', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      SAVE_KEY,
+      JSON.stringify({
+        version: 1,
+        chapter: 2,
+        player: { buzz: 40, health: 80, empties: 2, drinkSlots: [null, null, null], unlockedAbilities: ['punchCombo'], hangover: { active: false } },
+        respawn: { position: { x: 1, y: 1 } },
+        completedSectionIds: ['c1.fight.chipper'],
+        mykoCallsLeft: 2,
+        casebook: [],
+        flags: {},
+        finishedChapters: [1],
+      }),
+    );
+    const store = new SaveStore(storage);
+    expect(store.load()).toBeNull();
   });
 
   it('clear removes the save', () => {
@@ -61,8 +101,11 @@ describe('SaveStore', () => {
     expect(store.load()).toBeNull();
   });
 
-  it('isSaveState accepts a good save', () => {
+  it('isSaveState accepts a good save and rejects junk', () => {
     expect(isSaveState(fresh())).toBe(true);
+    expect(isSaveState({ ...fresh(), version: 1 })).toBe(false);
+    expect(isSaveState(undefined)).toBe(false);
+    expect(isSaveState({})).toBe(false);
   });
 
   it('stores the number of Myko calls left in the save', () => {
@@ -104,56 +147,34 @@ describe('audio settings', () => {
 });
 
 describe('chapter carry-over', () => {
-  const at = (chapter: 1 | 2 | 3 | 4 | 5, overrides: Partial<SaveState> = {}): SaveState => ({ ...fresh(), ...overrides, chapter });
+  const at = (chapter: 1 | 2 | 3 | 4 | 5, overrides: Partial<OverhaulSaveState> = {}): OverhaulSaveState => ({ ...fresh(), ...overrides, chapter });
   const next = (n: 2 | 3 | 4 | 5 | 6) => createSandboxModule(n);
 
-  it('ending chapter 3 at Locked starts chapter 4 hungover with 75 max health', () => {
-    const s = carryOver(at(3), 'locked', next(4));
-    expect(s.chapter).toBe(4);
-    expect(s.player.hangover.active).toBe(true);
-    expect(s.player.health).toBe(75);
+  it('positions the save at the next chapter and records the finished one once', () => {
+    const s = carryOver(at(2), 'grand', next(3));
+    expect(s.chapter).toBe(3);
+    expect(s.finishedChapters).toEqual([2]);
+    expect(carryOver(at(2, { finishedChapters: [2] }), 'sober', next(3)).finishedChapters).toEqual([2]);
   });
 
-  it('chapter 4 starts hungover even after a sober chapter 3', () => {
-    expect(carryOver(at(3), 'sober', next(4)).player.hangover.active).toBe(true);
+  it('the end state makes no difference: there is no hangover and no Buzz carried', () => {
+    for (const end of ['sober', 'buzzed', 'grand', 'bitMuch', 'fecked'] as const) {
+      const s = carryOver(at(3), end, next(4));
+      expect(JSON.stringify(s), end).toBe(JSON.stringify(carryOver(at(3), 'grand', next(4))));
+      expect('player' in s).toBe(false);
+    }
   });
 
-  it('ending chapters 1 or 2 at Banjaxed gives no hangover', () => {
-    expect(carryOver(at(1), 'banjaxed', next(2)).player.hangover.active).toBe(false);
-    expect(carryOver(at(2), 'banjaxed', next(3)).player.hangover.active).toBe(false);
-  });
-
-  it('ending chapter 4 Grand is clean, Locked or Banjaxed hungover', () => {
-    expect(carryOver(at(4), 'grand', next(5)).player.hangover.active).toBe(false);
-    expect(carryOver(at(4), 'locked', next(5)).player.hangover.active).toBe(true);
-    expect(carryOver(at(4), 'banjaxed', next(5)).player.hangover.active).toBe(true);
-  });
-
-  it('Buzz goes back to 0 at every chapter start (README carry-over rules)', () => {
-    const s = at(2, { player: { ...fresh().player, buzz: 85 } });
-    expect(carryOver(s, 'banjaxed', next(3)).player.buzz).toBe(0);
-    expect(carryOver(at(4, { player: { ...fresh().player, buzz: 65 } }), 'locked', next(5)).player.buzz).toBe(0);
-  });
-
-  it('abilities, empties, drinks, casebook and Myko calls carry', () => {
-    const base = fresh();
-    const s = at(4, {
-      mykoCallsLeft: 1,
-      casebook: [{ kind: 'evidence', evidenceId: 'c2.clue.ring', chapter: 2 }],
-      player: { ...base.player, empties: 5, unlockedAbilities: ['punchCombo', 'stumble'], drinkSlots: [{ drinkId: 'whiskey', count: 2 }, null, null] },
-    });
+  it('the kit, casebook, shortcuts and Myko calls carry', () => {
+    let kit = learnMove(createKit(), 'shoulder', { autoAssign: true }).kit;
+    kit = gainWeapon(kit, 'hurley').kit;
+    kit = { ...pickUpDrink(kit, 'whiskey').kit, bottles: 4 };
+    const s = at(4, { kit, mykoCallsLeft: 1, openedShortcuts: ['c3.gate'], casebook: [{ kind: 'evidence', evidenceId: 'c2.clue.ring', chapter: 2 }] });
     const n = carryOver(s, 'grand', next(5));
+    expect(n.kit).toEqual(kit);
     expect(n.mykoCallsLeft).toBe(1);
     expect(n.casebook).toEqual(s.casebook);
-    expect(n.player.empties).toBe(5);
-    expect(n.player.unlockedAbilities).toEqual(['punchCombo', 'stumble']);
-    expect(n.player.drinkSlots[0]).toEqual({ drinkId: 'whiskey', count: 2 });
-  });
-
-  it('records the finished chapter once', () => {
-    const s = carryOver(at(2, { finishedChapters: [2] }), 'sober', next(3));
-    expect(s.finishedChapters).toEqual([2]);
-    expect(carryOver(at(2), 'sober', next(3)).finishedChapters).toEqual([2]);
+    expect(n.openedShortcuts).toEqual(['c3.gate']);
   });
 
   it('the calls count never goes up', () => {
@@ -162,16 +183,32 @@ describe('chapter carry-over', () => {
 });
 
 describe('Chapter Select start state (README)', () => {
-  it('gives earlier abilities, three stout, no hangover, full health and keeps the save\'s calls', () => {
-    const existing: SaveState = { ...fresh(), mykoCallsLeft: 1, player: { ...fresh().player, health: 10, buzz: 80, hangover: { active: true } } };
+  it("gives earlier moves and weapons, three stout, the minimum bottles, and keeps the save's calls", () => {
+    const existing: OverhaulSaveState = { ...fresh(), mykoCallsLeft: 1 };
     const s = chapterSelectSave(createSandboxModule(5), existing, []);
     expect(s.chapter).toBe(5);
-    expect([...s.player.unlockedAbilities].sort()).toEqual(['bottleThrow', 'punchCombo', 'stoutSlam', 'stumble']);
-    expect(s.player.drinkSlots).toEqual([{ drinkId: 'stout', count: 3 }, null, null]);
-    expect(s.player.hangover.active).toBe(false);
-    expect(s.player.health).toBe(TUNING.player.maxHealth);
-    expect(s.player.buzz).toBe(0);
+    const o = TUNING.overhaul!;
+    const earlier = Object.values(o.moves).filter((m) => m.learnedInChapter < 5).map((m) => m.id);
+    expect([...s.kit.moves].sort()).toEqual([...earlier].sort());
+    const weapons = Object.values(o.weapons).filter((w) => w.gainedInChapter < 5).map((w) => w.id);
+    expect(s.kit.weapons).toEqual(expect.arrayContaining(['fists', ...weapons]));
+    expect(s.kit.drinks.stout).toBe(3);
+    expect(s.kit.hotDrink).toBeNull();
+    expect(s.kit.bottles).toBeGreaterThanOrEqual(o.carry.minBottlesOnLeavingBar);
     expect(s.mykoCallsLeft).toBe(1);
+  });
+
+  it('chapter 1 gives no starting drinks (Dympna hands over the first pint)', () => {
+    const s = chapterSelectSave(createSandboxModule(1), null, []);
+    expect(s.kit.drinks.stout ?? 0).toBe(0);
+  });
+
+  it('a move learned in its own chapter is not given by Chapter Select of that chapter', () => {
+    const o = TUNING.overhaul!;
+    const m = Object.values(o.moves).find((x) => x.learnedInChapter === 3);
+    if (!m) return;
+    expect(chapterSelectSave(createSandboxModule(3), null, []).kit.moves).not.toContain(m.id);
+    expect(chapterSelectSave(createSandboxModule(4), null, []).kit.moves).toContain(m.id);
   });
 
   it('starts with the evidence of earlier chapters', () => {
@@ -225,66 +262,79 @@ describe('GameSession flow', () => {
     expect(store.load()).not.toBeNull();
   });
 
-  it('Continue resumes a saved game with its calls and position', () => {
+  it('Continue resumes a saved game with its calls and kit, and puts Andrew in the bar at rest', () => {
     const { session, store } = setup();
     const s = fresh();
-    store.write({ ...s, mykoCallsLeft: 1, respawn: { ...s.respawn, position: { x: 200, y: 120 } } });
+    const kit = { ...pickUpDrink(s.kit, 'stout').kit, bottles: 4 };
+    store.write({ ...s, kit, mykoCallsLeft: 1 });
     session.continueGame();
     const run = session.createRun();
     expect(run?.callsRemaining()).toBe(1);
-    expect(run?.player.pos).toEqual({ x: 200, y: 120 });
+    expect(run?.player.kit.drinks.stout).toBe(1);
+    expect(run?.player.kit.bottles).toBe(4);
+    expect(run?.player.meter.value).toBe(restValue(1));
+    expect(run?.player.pos).toEqual(run?.screenLayout.playerStart);
   });
 
-  it('death restores the saved snapshot, not the state at the moment of death', () => {
-    const { session, store, started } = setup();
-    session.newGame();
-    const run1 = session.createRun();
-    if (!run1) throw new Error('no run');
-    run1.tick(16, NO_INPUT);
-    const saved = store.load();
-    expect(saved?.player.buzz).toBe(0);
-    // Change state after the save: drink, spend an empty, wander off, then die.
-    run1.player.inventory.take({ kind: 'drink', drinkId: 'stout', count: 1 });
-    run1.player.buzz.add(70);
-    run1.player.inventory.take({ kind: 'empties', count: 4 });
-    run1.setPlayerPosition({ x: 400, y: 100 });
-    run1.player.takeHit({ source: { kind: 'hazard', hazardId: 'x' }, targetInstanceId: 'andrew', amount: 1000, knockback: { x: 0, y: 0 }, stunMs: 0, holdMs: 0 });
-    const died = record(session.bus, 'player:died');
-    advance(run1, 2000);
-    expect(died).toHaveLength(1);
-    expect(started).toHaveLength(2);
-    const run2 = session.createRun();
-    if (!run2 || !saved) throw new Error('no run');
-    expect(run2).not.toBe(run1);
-    expect(run2.player.buzz.value).toBe(saved.player.buzz);
-    expect(run2.player.inventory.empties).toBe(saved.player.empties);
-    expect(run2.player.inventory.slots()).toEqual(saved.player.drinkSlots);
-    expect(run2.player.health.current).toBe(saved.player.health);
-    expect(run2.player.dead).toBe(false);
-    expect(run2.player.pos).toEqual(saved.respawn.position);
-  });
-
-  it('a Myko-call save acts as a checkpoint: dying afterwards returns him where he stood', () => {
+  it('the save does not remember where Andrew stood or what his meter was', () => {
     const { session, store } = setup();
     session.newGame();
     const run = session.createRun();
     if (!run) throw new Error('no run');
     run.tick(16, NO_INPUT);
+    run.setPlayerPosition({ x: 400, y: 100 });
+    run.completeSection('c1.puzzle.kegs');
+    const saved = store.load();
+    expect(saved).not.toBeNull();
+    expect(saved).not.toHaveProperty('respawn');
+    expect(saved).not.toHaveProperty('player');
+    expect(JSON.stringify(saved)).not.toContain('400');
+  });
+
+  it('saves when a section is finished, a Myko call is made and a chapter is completed', () => {
+    const { session, store } = setup();
+    session.newGame();
+    const run = session.createRun();
+    if (!run) throw new Error('no run');
+    run.tick(16, NO_INPUT);
+    expect(store.load()?.completedSectionIds).toEqual([]);
+    run.completeSection('c1.puzzle.kegs');
+    expect(store.load()?.completedSectionIds).toContain('c1.puzzle.kegs');
     run.setPlayerPosition({ x: 22 * 16 + 8, y: 13 * 16 + 8 });
     run.tick(16, NO_INPUT);
     for (let t = 100; t <= 1000; t += 100) run.tick(100, { ...NO_INPUT, held: new Set(['callMyko']), holdMs: { callMyko: t } });
-    const stood = { ...run.player.pos };
-    expect(store.load()?.mykoCallsLeft).toBe(2);
-    expect(store.load()?.respawn.position).toEqual(stood);
+    expect(store.load()?.mykoCallsLeft).toBe(TUNING.myko.callsPerGame - 1);
+  });
+
+  it('a return to the bar does not write a save, and the save still holds the earlier finished sections', () => {
+    const { session, store } = setup();
+    session.newGame();
+    const run = session.createRun();
+    if (!run) throw new Error('no run');
     run.tick(16, NO_INPUT);
-    run.dialogueFinished('myko.call.fight.blackout.1');
-    run.dialogue.finishAll();
-    expect(run.isComplete('c1.fight.chipper')).toBe(true);
-    run.player.takeHit({ source: { kind: 'hazard', hazardId: 'x' }, targetInstanceId: 'andrew', amount: 1000, knockback: { x: 0, y: 0 }, stunMs: 0, holdMs: 0 });
-    advance(run, 2000);
-    const again = session.createRun();
-    expect(again?.player.pos).toEqual(stood);
-    expect(again?.callsRemaining()).toBe(2);
+    run.completeSection('c1.puzzle.kegs');
+    const before = JSON.stringify(store.load());
+    run.setPlayerPosition({ x: 22 * 16 + 8, y: 13 * 16 + 8 });
+    run.tick(16, NO_INPUT);
+    const returns = record(session.bus, 'bar:returned');
+    run.setFlag('c1.later', true);
+    run.player.meter = { ...run.player.meter, value: 0.01 };
+    advance(run, 300);
+    expect(returns).toEqual([{ reason: 'sober' }]);
+    expect(JSON.stringify(store.load())).toBe(before);
+    expect(run.flag('c1.later')).toBeUndefined();
+  });
+
+  it('there is no game over: the session never restarts the scene after a return', () => {
+    const { session, started } = setup();
+    session.newGame();
+    const run = session.createRun();
+    if (!run) throw new Error('no run');
+    run.tick(16, NO_INPUT);
+    run.player.meter = { ...run.player.meter, value: 0.01 };
+    advance(run, 300);
+    expect(started).toHaveLength(1);
+    expect(session.run).toBe(run);
   });
 
   it('completing a chapter hands the carry-over to the next one (or the title after the last)', () => {
@@ -294,11 +344,15 @@ describe('GameSession flow', () => {
     const session = new GameSession({ store });
     let titles = 0;
     session.setDriver({ showTitle: () => void titles++, startGame: () => undefined, pauseGame: () => undefined, resumeGame: () => undefined });
+    const completed = record(session.bus, 'chapter:completed');
     session.newGame();
     const run = session.createRun();
     if (!run) throw new Error('no run');
     run.tick(16, NO_INPUT);
     run.walkChapter();
+    expect(completed).toHaveLength(1);
+    expect(completed[0]?.chapter).toBe(1);
+    expect(completed[0]?.endState).toBeDefined();
     const saved = store.load();
     expect(saved?.chapter).toBe(2);
     expect(saved?.finishedChapters).toEqual([1]);

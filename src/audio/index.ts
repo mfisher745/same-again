@@ -148,17 +148,12 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
 
   const G = GameEvents;
   const unsubs: Array<() => void> = [
-    bus.on(G.PlayerDamaged, () => play('hurt')),
-    bus.on(G.PlayerDied, () => {
+    bus.on(G.PlayerHit, () => play('hurt')),
+    bus.on(G.BarReturned, ({ reason }) => {
       stopAlarm();
       endCall();
       endBoss();
-      play('fallOver');
-    }),
-    bus.on(G.PlayerRespawned, () => {
-      stopAlarm();
-      endCall();
-      endBoss();
+      if (reason === 'floor') play('fallOver');
     }),
     bus.on(G.SectionStarted, ({ sectionId, kind }) => {
       if (kind !== 'boss' && kind !== 'setpiece') return;

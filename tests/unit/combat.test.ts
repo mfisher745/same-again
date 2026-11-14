@@ -9,7 +9,9 @@ import { knockbackVector, scaledDamage, shapeHits, shieldBlocks, decayVelocity }
 import { EnemyActor, statsFromDef } from '../../src/systems/enemies';
 import type { CombatWorld } from '../../src/systems/enemies';
 import { angleDiff, facingFromAngle } from '../../src/systems/geometry';
-import { Player, freshPlayerSnapshot } from '../../src/systems/player';
+import { Player } from '../../src/systems/player';
+import { createKit } from '../../src/systems/kit';
+import { createMeter, restValue } from '../../src/systems/meter';
 import { frame, openGrid, record } from './helpers';
 
 const O = { x: 0, y: 0 };
@@ -272,7 +274,7 @@ describe('enemies telegraph every attack', () => {
     }
     for (let i = 0; i < 10; i++) a.tick(16, w);
     expect(w.hits).toHaveLength(1);
-    expect(w.hits[0]?.hit.amount).toBe(swing?.damage);
+    expect(w.hits[0]?.hit.weight).toBe(swing?.weight ?? 'ordinary');
   });
 
   it('does not attack when Andrew is not targetable', () => {
@@ -319,141 +321,140 @@ describe('enemies telegraph every attack', () => {
   });
 });
 
-describe('Player in a drunk state', () => {
-  const at = (buzz: number, extra: Partial<ReturnType<typeof freshPlayerSnapshot>> = {}) => {
-    const p = new Player(new EventBus(), { ...freshPlayerSnapshot(), buzz, ...extra });
-    p.pos = { x: 100, y: 60 };
-    return p;
-  };
-  const run = (p: Player, ms: number, move: Vec2, held: ('sneak')[] = []) => {
-    const grid = openGrid();
-    const aims: number[] = [];
-    for (let t = 0; t < ms; t += 16) {
-      p.move(16, frame({ move, held, aim: { x: 300, y: p.pos.y } }), grid);
-      aims.push(p.aimDeg);
+/** A player in chapter 1 with the meter at `value` (ch 1: Buzzed 1-34, Grand 35-65, Bit much 66-90, Fecked 91-99). */
+const playerAt = (value: number): Player => {
+  const p = new Player(new EventBus(), createKit(), 1);
+  p.meter = createMeter(1, value);
+  p.pos = { x: 100, y: 60 };
+  return p;
+};
+const hazard = (over: Partial<HitInfo> = {}): HitInfo => ({
+  source: { kind: 'hazard', hazardId: 'x' },
+  targetInstanceId: 'andrew',
+  amount: 0,
+  knockback: O,
+  stunMs: 0,
+  holdMs: 0,
+  ...over,
+});
+const walkFor = (p: Player, ms: number, move: Vec2, held: 'sneak'[] = []): void => {
+  const grid = openGrid();
+  for (let t = 0; t < ms; t += 16) p.move(16, frame({ move, held, aim: { x: 300, y: p.pos.y } }), grid);
+};
+
+describe('Player movement and flinch (no health)', () => {
+  it('walks a straight line at every level: no drift, no sway', () => {
+    for (const v of [5, 40, 70, 95]) {
+      const p = playerAt(v);
+      walkFor(p, 1000, { x: 1, y: 0 });
+      expect(p.pos.y, `meter ${v}`).toBeCloseTo(60, 5);
+      expect(p.aimDeg).toBeCloseTo(0, 5);
     }
-    return aims;
-  };
-
-  it('Sober and Grand move on a straight line with steady aim', () => {
-    for (const buzz of [0, 40]) {
-      const p = at(buzz);
-      const aims = run(p, 1000, { x: 1, y: 0 });
-      expect(p.pos.y).toBeCloseTo(60, 5);
-      expect(Math.max(...aims.map((a) => Math.abs(a)))).toBeLessThan(1e-9);
-    }
   });
 
-  it('Locked drifts off the line and the aim sways within its amplitude', () => {
-    const p = at(70);
-    const aims = run(p, 3000, { x: 1, y: 0 });
-    expect(Math.abs(p.pos.y - 60)).toBeGreaterThan(0.5);
-    const max = Math.max(...aims.map((a) => Math.abs(a)));
-    expect(max).toBeGreaterThan(1);
-    expect(max).toBeLessThanOrEqual(TUNING.buzz.effects.locked.aimSwayDeg + 0.5);
-  });
-
-  it('Banjaxed sways more than Locked', () => {
-    const maxAim = (buzz: number) => Math.max(...run(at(buzz), 3000, { x: 1, y: 0 }).map((a) => Math.abs(a)));
-    expect(maxAim(95)).toBeGreaterThan(maxAim(70));
-  });
-
-  it('tea steadies the aim, tequila sways more', () => {
-    const steady = at(70);
-    steady.timed.add('steadyAim', 20_000, 1);
-    expect(Math.max(...run(steady, 2000, O).map((a) => Math.abs(a)))).toBeLessThan(1e-9);
-    const base = Math.max(...run(at(70), 2000, O).map((a) => Math.abs(a)));
-    const tequila = at(70);
-    tequila.timed.add('extraSway', 10_000, 1.6);
-    expect(Math.max(...run(tequila, 2000, O).map((a) => Math.abs(a)))).toBeGreaterThan(base);
-  });
-
-  it('bourbon makes Andrew faster, sneaking makes him slower', () => {
-    const dist = (setup: (p: Player) => void, held: 'sneak'[] = []): number => {
-      const p = at(0);
-      setup(p);
-      run(p, 500, { x: 1, y: 0 }, held);
-      return p.pos.x - 100;
-    };
-    const base = dist(() => undefined);
-    expect(base).toBeCloseTo(TUNING.player.runSpeed * 0.512, 0);
-    expect(dist((p) => p.timed.add('speedBoost', 6000, 1.35))).toBeGreaterThan(base);
-    expect(dist(() => undefined, ['sneak'])).toBeCloseTo(base * TUNING.player.sneakSpeedMultiplier, 0);
-  });
-
-  it('cannot move while on the floor after Banjaxed', () => {
-    const p = at(0);
-    p.buzz.add(100);
-    p.buzz.tick(TUNING.buzz.banjaxedPeakMs);
-    expect(p.incapacitated).toBe(true);
-    expect(p.canAct).toBe(false);
-    run(p, 500, { x: 1, y: 0 });
-    expect(p.pos.x).toBe(100);
-  });
-
-  it('Locked knockback resistance shortens the shove from a hit', () => {
-    const shove = (buzz: number): number => {
-      const p = at(buzz);
-      p.takeHit({ source: { kind: 'hazard', hazardId: 'x' }, targetInstanceId: 'andrew', amount: 1, knockback: { x: 150, y: 0 }, stunMs: 0, holdMs: 0 });
-      run(p, 1000, O);
-      return p.pos.x - 100;
-    };
-    expect(shove(70)).toBeLessThan(shove(0));
+  it('runs at runSpeed and sneaks slower', () => {
+    const run = playerAt(40);
+    walkFor(run, 500, { x: 1, y: 0 });
+    const sneak = playerAt(40);
+    walkFor(sneak, 500, { x: 1, y: 0 }, ['sneak']);
+    expect(run.pos.x - 100).toBeCloseTo(TUNING.player.runSpeed * 0.512, 0);
+    expect(sneak.pos.x - 100).toBeCloseTo((run.pos.x - 100) * TUNING.player.sneakSpeedMultiplier, 0);
   });
 
   it('a hit holds him in place when it carries holdMs', () => {
-    const p = at(0);
-    p.takeHit({ source: { kind: 'hazard', hazardId: 'x' }, targetInstanceId: 'andrew', amount: 1, knockback: O, stunMs: 0, holdMs: 1000 });
+    const p = playerAt(40);
+    expect(p.takeHit(hazard({ holdMs: 1000 }))).toBe(true);
     expect(p.held).toBe(true);
-    run(p, 500, { x: 1, y: 0 });
+    walkFor(p, 500, { x: 1, y: 0 });
     expect(p.pos.x).toBe(100);
   });
 
-  it('death: health 0 sets dead and further hits are ignored', () => {
-    const p = at(0);
-    const hit = { source: { kind: 'hazard', hazardId: 'x' }, targetInstanceId: 'andrew', amount: 1000, knockback: O, stunMs: 0, holdMs: 0 } as const;
-    expect(p.takeHit(hit)).toBe(true);
-    expect(p.dead).toBe(true);
-    expect(p.health.current).toBe(0);
-    expect(p.takeHit(hit)).toBe(false);
+  it('a hit with stun stops him walking until it wears off', () => {
+    const p = playerAt(40);
+    p.takeHit(hazard({ stunMs: 300 }));
+    expect(p.incapacitated).toBe(true);
+    walkFor(p, 200, { x: 1, y: 0 });
+    expect(p.pos.x).toBe(100);
+    walkFor(p, 400, { x: 1, y: 0 });
+    expect(p.pos.x).toBeGreaterThan(100);
+  });
+
+  it('knockback shoves him along its vector', () => {
+    const p = playerAt(40);
+    p.takeHit(hazard({ knockback: { x: 150, y: 0 } }));
+    walkFor(p, 1000, O);
+    expect(p.pos.x).toBeGreaterThan(105);
   });
 
   it('after being hit he is briefly invulnerable so one swing cannot hit twice', () => {
-    const p = at(0);
-    const hit = { source: { kind: 'hazard', hazardId: 'x' }, targetInstanceId: 'andrew', amount: 5, knockback: O, stunMs: 0, holdMs: 0 } as const;
-    expect(p.takeHit(hit)).toBe(true);
-    expect(p.takeHit(hit)).toBe(false);
-    expect(p.health.current).toBe(95);
+    const p = playerAt(40);
+    expect(p.takeHit(hazard())).toBe(true);
+    const after = p.meter.value;
+    expect(p.takeHit(hazard())).toBe(false);
+    expect(p.meter.value).toBe(after);
+  });
+
+  it('nothing hurts him while returning to the bar or while Myko works', () => {
+    const p = playerAt(40);
+    p.returning = true;
+    expect(p.takeHit(hazard())).toBe(false);
+    p.returning = false;
+    p.protected_ = true;
+    expect(p.takeHit(hazard())).toBe(false);
+  });
+
+  it('there is no health on Andrew', () => {
+    const p = playerAt(40) as unknown as Record<string, unknown>;
+    for (const key of ['health', 'dead', 'timed', 'buzz']) expect(p[key], key).toBeUndefined();
+  });
+
+  it('a hit that takes him to the floor sets the return reason, and later hits are ignored', () => {
+    const p = playerAt(99);
+    expect(p.takeHit(hazard({ weight: 'worst' }))).toBe(true);
+    expect(p.meter.returnReason).toBe('floor');
+    const v = p.meter.value;
+    expect(p.takeHit(hazard({ weight: 'worst' }))).toBe(false);
+    expect(p.meter.value).toBe(v);
+  });
+
+  it('resetForBar puts the meter at rest and clears the flinch', () => {
+    const p = playerAt(40);
+    p.takeHit(hazard({ holdMs: 1000, stunMs: 500, knockback: { x: 100, y: 0 } }));
+    p.resetForBar();
+    expect(p.meter.value).toBe(restValue(1));
+    expect(p.canAct).toBe(true);
+    expect(p.invulnerable).toBe(false);
   });
 });
 
-describe('footstep noise (DESIGN 7.3)', () => {
-  const walk = (buzz: number, sneak: boolean): number => {
-    const p = new Player(new EventBus(), { ...freshPlayerSnapshot(), buzz });
-    p.pos = { x: 100, y: 60 };
+describe('footstep noise (DESIGN 7.3 and 7.1 by level)', () => {
+  const walk = (value: number, sneak: boolean): number => {
+    const p = playerAt(value);
     p.move(16, frame({ move: { x: 1, y: 0 }, held: sneak ? ['sneak'] : [] }), openGrid());
     return p.footstepNoiseRadius();
   };
+  const O_ = TUNING.overhaul;
 
   it('standing still is silent', () => {
-    const p = new Player(new EventBus(), freshPlayerSnapshot());
+    const p = playerAt(40);
     p.move(16, frame(), openGrid());
     expect(p.footstepNoiseRadius()).toBe(0);
   });
 
-  it('walking makes noise, sneaking is silent below Locked', () => {
-    expect(walk(0, false)).toBeGreaterThan(0);
-    expect(walk(0, true)).toBe(0);
+  it('walking makes noise, sneaking is silent until Fecked', () => {
+    expect(walk(40, false)).toBeGreaterThan(0);
     expect(walk(40, true)).toBe(0);
+    expect(walk(70, true)).toBe(0);
   });
 
-  it('Locked and above makes even sneaking audible at short range', () => {
-    expect(walk(70, true)).toBeGreaterThan(0);
-    expect(walk(70, true)).toBeLessThan(walk(70, false));
-    expect(walk(95, true)).toBeGreaterThanOrEqual(walk(70, true));
+  it('Fecked makes even sneaking audible at short range', () => {
+    expect(walk(95, true)).toBe(O_?.sneakNoiseRadiusByLevel?.[4]);
+    expect(walk(95, true)).toBeGreaterThan(0);
+    expect(walk(95, true)).toBeLessThan(walk(95, false));
   });
 
-  it('footsteps are louder at Locked than at Grand', () => {
+  it('footsteps are louder at Bit much than at Grand, and at Fecked than at Bit much', () => {
     expect(walk(70, false)).toBeGreaterThan(walk(40, false));
+    expect(walk(95, false)).toBeGreaterThan(walk(70, false));
   });
 });

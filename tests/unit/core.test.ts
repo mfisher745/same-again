@@ -99,19 +99,18 @@ describe('InputTracker', () => {
 
   it('maps every DESIGN control', () => {
     const cases: [string, string][] = [
-      ['Space', 'dodge'],
       ['KeyQ', 'drink'],
-      ['Digit1', 'selectDrink1'],
-      ['Digit2', 'selectDrink2'],
-      ['Digit3', 'selectDrink3'],
-      ['KeyF', 'special'],
-      ['KeyR', 'cycleSpecial'],
+      ['Digit1', 'special1'],
+      ['Digit2', 'special2'],
+      ['Digit3', 'special3'],
+      ['Digit4', 'special4'],
+      ['KeyR', 'cycleWeapon'],
       ['ShiftLeft', 'sneak'],
       ['ShiftRight', 'sneak'],
       ['KeyE', 'interact'],
       ['KeyH', 'hint'],
       ['KeyM', 'callMyko'],
-      ['Tab', 'casebook'],
+      ['Tab', 'openTab'],
       ['Escape', 'pause'],
     ];
     for (const [code, action] of cases) {
@@ -121,17 +120,41 @@ describe('InputTracker', () => {
     }
     const m = new InputTracker();
     m.mouseDown('right');
-    expect(m.frame(16).pressed.has('ranged')).toBe(true);
+    expect(m.frame(16).pressed.has('aimHold')).toBe(true);
   });
 
-  it('the wheel steps the selected drink once per notch tick', () => {
+  it('the removed actions are not bound to anything', () => {
+    for (const code of ['Space', 'KeyF']) {
+      const t = new InputTracker();
+      t.keyDown(code);
+      expect(t.frame(16).pressed.size, code).toBe(0);
+    }
+  });
+
+  it('right mouse holds and releases for the throw', () => {
+    const t = new InputTracker();
+    t.mouseDown('right');
+    expect(t.frame(16).held.has('aimHold')).toBe(true);
+    t.mouseUp('right');
+    const f = t.frame(16);
+    expect(f.released.has('aimHold')).toBe(true);
+    expect(f.held.has('aimHold')).toBe(false);
+  });
+
+  it('the wheel cycles the drink once per tick, down is next and up is previous', () => {
     const t = new InputTracker();
     t.wheel('down');
     t.wheel('down');
-    expect(t.frame(16).pressed.has('selectDrinkNext')).toBe(true);
-    expect(t.frame(16).pressed.has('selectDrinkNext')).toBe(false);
+    let f = t.frame(16);
+    expect(f.pressed.has('cycleDrink')).toBe(true);
+    expect(f.wheelDir).toBe(1);
+    f = t.frame(16);
+    expect(f.pressed.has('cycleDrink')).toBe(false);
+    expect(f.wheelDir).toBeUndefined();
     t.wheel('up');
-    expect(t.frame(16).pressed.has('selectDrinkPrev')).toBe(true);
+    f = t.frame(16);
+    expect(f.pressed.has('cycleDrink')).toBe(true);
+    expect(f.wheelDir).toBe(-1);
   });
 
   it('window blur: releaseAll lets go of every key, with release edges and no stuck movement', () => {

@@ -3,7 +3,6 @@
  * deterministic: seeded random, explicit time deltas, in-memory storage.
  */
 
-import { TUNING } from '../../src/content/tuning';
 import { hasSequence, pool as dialoguePool, sequence } from '../../src/content/dialogue';
 import { EventBus } from '../../src/core/events';
 import { NO_INPUT } from '../../src/core/input';
@@ -11,18 +10,16 @@ import { seededRandom } from '../../src/core/random';
 import { createSandboxModule } from '../../src/core/sandbox';
 import type { ChapterModule } from '../../src/core/chapter';
 import type {
-  AbilityId,
   GameEventBus,
   GameEventName,
   GameEventPayloads,
   InputAction,
   InputFrame,
+  BarReturnReason,
   SaveReason,
-  SaveState,
+  OverhaulSaveState,
   Vec2,
 } from '../../src/core/types';
-import { Abilities } from '../../src/systems/abilities';
-import type { AbilityContext } from '../../src/systems/abilities';
 import { gridFromAscii } from '../../src/systems/grid';
 import { ChapterRun } from '../../src/systems/run';
 import type { RunEffect } from '../../src/systems/run';
@@ -61,44 +58,6 @@ export function frame(
   };
 }
 
-/** Mutable resources for `Abilities.update`. */
-export interface TestAbilityContext extends AbilityContext {
-  buzz: number;
-  empties: number;
-  effects: AbilityContext['effects'];
-  canAct: boolean;
-  held: boolean;
-}
-
-export function abilityContext(
-  state: 'sober' | 'grand' | 'locked' | 'banjaxed' = 'grand',
-  buzz = 50,
-  empties = 3,
-): TestAbilityContext {
-  const ctx: TestAbilityContext = {
-    effects: TUNING.buzz.effects[state],
-    buzz,
-    empties,
-    canAct: true,
-    held: false,
-    spendBuzz: (n: number) => {
-      if (ctx.buzz < n) return false;
-      ctx.buzz -= n;
-      return true;
-    },
-    spendEmpties: (n: number) => {
-      if (ctx.empties < n) return false;
-      ctx.empties -= n;
-      return true;
-    },
-  };
-  return ctx;
-}
-
-export function abilities(ids: readonly AbilityId[]): Abilities {
-  return new Abilities(new EventBus(), ids);
-}
-
 /** Wide-open grid, 20 x 12 tiles. */
 export const openGrid = () =>
   gridFromAscii(Array.from({ length: 12 }, (_, r) => (r === 0 || r === 11 ? '#'.repeat(20) : `#${'.'.repeat(18)}#`)));
@@ -106,22 +65,23 @@ export const openGrid = () =>
 export interface RunHarness {
   readonly run: ChapterRun;
   readonly bus: EventBus;
-  readonly saves: { state: SaveState; reason: SaveReason }[];
-  readonly deaths: number[];
-  readonly completions: { endState: string; snapshot: SaveState }[];
+  readonly saves: { state: OverhaulSaveState; reason: SaveReason }[];
+  readonly returns: BarReturnReason[];
+  readonly completions: { endState: string; snapshot: OverhaulSaveState }[];
   readonly module: ChapterModule;
 }
 
 /** A headless chapter run on the dev sandbox, capturing every save the run writes. */
 export function makeRun(
-  opts: { chapter?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10; save?: (base: SaveState) => SaveState; seed?: number; module?: ChapterModule; playEffect?: (id: RunEffect) => void } = {},
+  opts: { chapter?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10; save?: (base: OverhaulSaveState) => OverhaulSaveState; seed?: number; module?: ChapterModule; playEffect?: (id: RunEffect) => void } = {},
 ): RunHarness {
   const module = opts.module ?? createSandboxModule(opts.chapter ?? 1);
   const base = saveAtChapterStart(module, emptyProgress());
   const save = opts.save ? opts.save(base) : base;
   const bus = new EventBus();
   const saves: RunHarness['saves'] = [];
-  const deaths: number[] = [];
+  const returns: BarReturnReason[] = [];
+  bus.on('bar:returned', ({ reason }) => void returns.push(reason));
   const completions: RunHarness['completions'] = [];
   const run = new ChapterRun({
     module,
@@ -137,20 +97,16 @@ export function makeRun(
       }
     },
     resumed: false,
-    afterDeath: false,
     ...(opts.playEffect ? { playEffect: opts.playEffect } : {}),
     writeSave: (state, reason) => {
       saves.push({ state, reason });
-    },
-    onDeath: () => {
-      deaths.push(1);
     },
     onChapterComplete: (endState, snapshot) => {
       completions.push({ endState, snapshot });
     },
   });
   run.tick(16, NO_INPUT);
-  return { run, bus, saves, deaths, completions, module };
+  return { run, bus, saves, returns, completions, module };
 }
 
 /** Ticks `ms` of game time in `step` ms slices with no input. */

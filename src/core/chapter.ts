@@ -29,16 +29,17 @@
  *   light sources cut out of it.
  * - `triggers`: named areas; walking in calls `script.onTrigger(id)`. A
  *   spawn or respawn inside a trigger fires it on the next tick.
- * - Checkpoints are `def.checkpoints`; walking near one reaches it (save).
- *   Stealth and boss placements reach their checkpoint when they start, if
- *   it was not reached already.
+ * - There are no checkpoints. The chapter's bar is `def.bar` (or, while a
+ *   chapter has none, its start screen's `playerStart`); Andrew starts there
+ *   and comes back there when the meter reaches 0 or the floor. A save is
+ *   written when a section finishes.
  *
  * Script (`createScript(ctx)` returns a `ChapterScript`): small event hooks.
  * Everything a script does goes through `ChapterContext`: dialogue by ID
  * (`say` resolves when the line is finished; box lines never block play,
  * scene lines pause it), objectives, flags (saved), starting and finishing
- * sections, scripted completables, boss hooks, abilities, items, evidence,
- * exits, heat, props, NPCs and ambience (`setProp*`, `setNpc*`,
+ * sections, scripted completables, boss hooks, moves, weapons, items, evidence,
+ * exits, the bar's hot drink, props, NPCs and ambience (`setProp*`, `setNpc*`,
  * `setAmbient`: run-time only, restore from flags), melee hits on world
  * objects (`onMeleeHit`), and `completeChapter()` at the end.
  *
@@ -50,15 +51,17 @@
  * subclass from `src/systems`). Either way `completeNow()` works for the
  * Myko call and for QA.
  *
- * State after death or Continue: the chapter is rebuilt from the save.
+ * State after Continue: the chapter is rebuilt from the save, in the bar.
  * Completed sections stay complete, collected pickups stay collected, and
- * `onStart({ checkpointId, resumed })` tells the script where it is; the
- * script restores anything else from `ctx.flag()`.
+ * `onStart({ resumed })` tells the script where it is; the script restores
+ * anything else from `ctx.flag()`. After a return to the bar the run keeps
+ * going: flags go back to the last save, the unfinished section starts over,
+ * and `onBarReturn` tells the script.
  *
  * QA: `window.__game.completeCurrent()` calls `completeNow('debug')` on the
  * current section; `window.__game.walkChapter()` completes every section in
  * `def.sections` order (stealth and explore are marked done, evidence and
- * new abilities are granted, `script.debugWalk?.()` runs) and then completes
+ * the chapter's moves and weapons are granted, `script.debugWalk?.()` runs) and then completes
  * the chapter.
  */
 
@@ -75,7 +78,10 @@ import type {
   ChapterDef,
   ChapterFlagValue,
   ChapterNumber,
-  CheckpointId,
+  BarReturnReason,
+  HotDrinkId,
+  MoveId,
+  WeaponId,
   CompletableKind,
   CompletableSectionId,
   CompletionSource,
@@ -234,11 +240,14 @@ export interface ScreenLayout {
 
 /** What a melee swing that touched an `onMeleeHit` area was. */
 export interface MeleeHitInfo {
+  /** The weapon that swung. */
+  readonly weaponId: WeaponId;
+  /** The legacy ability id of the weapon (fists are `punchCombo`). */
   readonly abilityId: AbilityId;
   /** 0-based index in the combo. */
   readonly comboIndex: number;
   readonly comboLength: number;
-  /** The last hit of a combo of two or more (the punch combo's third swing). */
+  /** The last hit of a combo of two or more (the fists' third swing). */
   readonly haymaker: boolean;
 }
 
@@ -318,14 +327,22 @@ export interface ChapterModule {
 }
 
 export interface ChapterStartInfo {
-  readonly checkpointId: CheckpointId;
-  /** True after a death or Continue; false on a fresh chapter start. */
+  /** True after Continue; false on a fresh chapter start. */
   readonly resumed: boolean;
+}
+
+/** Andrew went back to the bar. The chapter puts its own run-time state right. DESIGN.md 7.1. */
+export interface BarReturnInfo {
+  readonly reason: BarReturnReason;
+  /** The section that started over, or null if none was under way. Finished sections are not reset. */
+  readonly resetSectionId: SectionId | null;
 }
 
 /** Hooks a chapter script may implement. All optional. */
 export interface ChapterScript {
   onStart?(info: ChapterStartInfo): void;
+  /** After a return to the bar: flags are back to the last save and the unfinished section starts over. */
+  onBarReturn?(info: BarReturnInfo): void;
   onScreenEntered?(screenId: ScreenId): void;
   onTrigger?(triggerId: string): void;
   /** Return true to replace the default examine behaviour. */
@@ -375,7 +392,7 @@ export interface ChapterContext {
   setObjective(id: ObjectiveId | null): void;
   objective(): ObjectiveId | null;
 
-  // Flags (saved at each checkpoint)
+  // Flags (saved when a section is finished; a return to the bar puts them back)
   flag(key: string): ChapterFlagValue | undefined;
   setFlag(key: string, value: ChapterFlagValue): void;
 
@@ -397,10 +414,23 @@ export interface ChapterContext {
   openDeduction(): void;
 
   // Player and world
+  /** Learn a move: it goes into its slot if that slot is empty. Emits `move:learned`. */
+  learnMove(id: MoveId): void;
+  /** Gain a weapon (not equipped yet). Emits `weapon:gained`. */
+  gainWeapon(id: WeaponId): void;
+  /**
+   * @deprecated Old scripts name abilities: `hurley` gains the hurley; `stumble`, `stoutSlam`,
+   * `actNatural` and `borrowedGlove` learn the move of that name; the rest do nothing.
+   */
   unlockAbility(id: AbilityId): void;
   give(item: PickupItem): void;
   addEvidence(id: EvidenceId): void;
-  reachCheckpoint(id: CheckpointId): void;
+  /** Take the bar's free hot drink into the kit. False if one is already carried or it was taken. */
+  takeHotDrink(id: HotDrinkId): boolean;
+  /** The bar is offering a free hot drink and Andrew carries none. */
+  hotDrinkOffered(): boolean;
+  /** A shortcut Andrew opened from the far side (a clean-run reward) is open. */
+  shortcutOpened(id: string): boolean;
   goToScreen(screenId: ScreenId, spawn: Vec2): void;
   currentScreen(): ScreenId;
   setExitLocked(exitId: string, locked: boolean): void;

@@ -143,36 +143,23 @@ export type CompletableSectionId = FightSectionId | AlarmFightId | BossId | Puzz
  */
 export type InputAction =
   | 'melee'
-  | 'ranged'
-  /** @deprecated overhaul phase 2/5 removes this. */
-  | 'dodge'
   | 'drink'
-  /** @deprecated overhaul phase 2/5 removes this. */
-  | 'selectDrink1'
-  /** @deprecated overhaul phase 2/5 removes this. */
-  | 'selectDrink2'
-  /** @deprecated overhaul phase 2/5 removes this. */
-  | 'selectDrink3'
-  | 'selectDrinkNext'
-  | 'selectDrinkPrev'
-  /** @deprecated overhaul phase 2/5 removes this. */
-  | 'special'
-  /** @deprecated overhaul phase 2/5 removes this. */
-  | 'cycleSpecial'
   | 'sneak'
   | 'interact'
   | 'hint'
   | 'callMyko'
-  | 'casebook'
   | 'pause'
-  // --- Overhaul actions (DESIGN.md section 6) ---
+  /** Special slots 1 to 4 (keys 1 to 4). Slot n belongs to drunk level n. */
   | 'special1'
   | 'special2'
   | 'special3'
   | 'special4'
   | 'cycleWeapon'
+  /** The mouse wheel; the direction is `InputFrame.wheelDir`. */
   | 'cycleDrink'
+  /** Tab: the kit and casebook screen. Toggle or hold is the UI's (`GameSettings.tabMode`). */
   | 'openTab'
+  /** Right mouse button: hold to aim the throw, release to throw. */
   | 'aimHold';
 
 /** Physical input a binding refers to. Key names follow `KeyboardEvent.code`. DESIGN.md section 6. */
@@ -188,22 +175,7 @@ export const DEFAULT_BINDINGS = {
   moveDown: [{ device: 'keyboard', code: 'KeyS' }],
   moveRight: [{ device: 'keyboard', code: 'KeyD' }],
   melee: [{ device: 'mouse', button: 'left' }],
-  ranged: [{ device: 'mouse', button: 'right' }],
-  /** @deprecated overhaul phase 2/5 removes this. */
-  dodge: [{ device: 'keyboard', code: 'Space' }],
   drink: [{ device: 'keyboard', code: 'KeyQ' }],
-  /** @deprecated overhaul phase 2/5 removes this. */
-  selectDrink1: [{ device: 'keyboard', code: 'Digit1' }],
-  /** @deprecated overhaul phase 2/5 removes this. */
-  selectDrink2: [{ device: 'keyboard', code: 'Digit2' }],
-  /** @deprecated overhaul phase 2/5 removes this. */
-  selectDrink3: [{ device: 'keyboard', code: 'Digit3' }],
-  selectDrinkNext: [{ device: 'wheel', direction: 'down' }],
-  selectDrinkPrev: [{ device: 'wheel', direction: 'up' }],
-  /** @deprecated overhaul phase 2/5 removes this. */
-  special: [{ device: 'keyboard', code: 'KeyF' }],
-  /** @deprecated overhaul phase 2/5 removes this. */
-  cycleSpecial: [{ device: 'keyboard', code: 'KeyR' }],
   sneak: [
     { device: 'keyboard', code: 'ShiftLeft' },
     { device: 'keyboard', code: 'ShiftRight' },
@@ -211,24 +183,18 @@ export const DEFAULT_BINDINGS = {
   interact: [{ device: 'keyboard', code: 'KeyE' }],
   hint: [{ device: 'keyboard', code: 'KeyH' }],
   callMyko: [{ device: 'keyboard', code: 'KeyM' }],
-  casebook: [{ device: 'keyboard', code: 'Tab' }],
   pause: [{ device: 'keyboard', code: 'Escape' }],
-  // --- Overhaul actions (DESIGN.md section 6) ---
-  // Most collide with a binding that still does something, so they stay
-  // unbound until phase 2 removes the old action:
-  //  - special1..3 collide with selectDrink1..3 (Digit1..3).
-  //  - cycleWeapon is KeyR, which is cycleSpecial.
-  //  - cycleDrink is the wheel, which is selectDrinkNext/Prev.
-  //  - openTab is Tab, which is casebook.
-  //  - aimHold is right click, which is ranged (hold = `held`, release = `released`).
-  special1: [],
-  special2: [],
-  special3: [],
+  special1: [{ device: 'keyboard', code: 'Digit1' }],
+  special2: [{ device: 'keyboard', code: 'Digit2' }],
+  special3: [{ device: 'keyboard', code: 'Digit3' }],
   special4: [{ device: 'keyboard', code: 'Digit4' }],
-  cycleWeapon: [],
-  cycleDrink: [],
-  openTab: [],
-  aimHold: [],
+  cycleWeapon: [{ device: 'keyboard', code: 'KeyR' }],
+  cycleDrink: [
+    { device: 'wheel', direction: 'up' },
+    { device: 'wheel', direction: 'down' },
+  ],
+  openTab: [{ device: 'keyboard', code: 'Tab' }],
+  aimHold: [{ device: 'mouse', button: 'right' }],
 } as const satisfies Readonly<
   Record<InputAction | 'moveUp' | 'moveLeft' | 'moveDown' | 'moveRight', readonly InputBinding[]>
 >;
@@ -248,6 +214,8 @@ export interface InputFrame {
   readonly pressed: ReadonlySet<InputAction>;
   readonly released: ReadonlySet<InputAction>;
   readonly holdMs: Readonly<Partial<Record<InputAction, number>>>;
+  /** With `cycleDrink` pressed: 1 for the wheel rolled down (next), -1 for up (previous). Absent otherwise. */
+  readonly wheelDir?: 1 | -1;
 }
 
 // ---------------------------------------------------------------------------
@@ -448,12 +416,15 @@ export type DrinkSlotIndex = 0 | 1 | 2;
 
 /** Something Andrew can pick up or be given. DESIGN.md section 7.1. */
 export type PickupItem =
-  | { readonly kind: 'drink'; readonly drinkId: DrinkId; readonly count: number }
+  | { readonly kind: 'drink'; readonly drinkId: DrinkId | CarriedDrinkId; readonly count: number }
   | { readonly kind: 'food'; readonly foodId: FoodId }
   | { readonly kind: 'empties'; readonly count: number };
 
-/** Why a pickup stayed on the ground. DESIGN.md section 7.1. */
-export type PickupRefusal = 'noFreeSlot' | 'slotFull' | 'emptiesFull' | 'noEffect';
+/**
+ * Why a pickup stayed on the ground. DESIGN.md section 7.1 "The kit". The text
+ * is `pickup.refused.<reason>`; `kitFull` takes `{max}`.
+ */
+export type PickupRefusal = 'kitFull' | 'hotDrinkHeld';
 
 /** A pickup placed in a level. DESIGN.md section 7.1. */
 export interface PickupDef {
@@ -613,6 +584,8 @@ export interface HitInfo {
   readonly stunMs: number;
   /** Hold the target in place (the brawler's grab), 0 for none. */
   readonly holdMs: number;
+  /** On a hit against Andrew: how far it moves the meter. DESIGN.md 7.1 "Being hit". Absent = ordinary. */
+  readonly weight?: HitWeight;
 }
 
 /** Status conditions an enemy can be in. DESIGN.md sections 7.2 and 7.3. */
@@ -1006,6 +979,10 @@ export interface Reward {
   readonly pickups?: readonly PickupItem[];
   readonly evidenceIds?: readonly EvidenceId[];
   readonly abilityIds?: readonly AbilityId[];
+  /** Moves learned (DESIGN.md 7.2). */
+  readonly moveIds?: readonly MoveId[];
+  /** Weapons gained (DESIGN.md 7.2). */
+  readonly weaponIds?: readonly WeaponId[];
 }
 
 /** Static definition of a section. docs/chapters/README.md. */
@@ -1213,83 +1190,11 @@ export interface ChapterDef {
 // Save state (DESIGN.md sections 7.1, 7.5, 7.6)
 // ---------------------------------------------------------------------------
 
-/** Bumped whenever `SaveState` changes shape. DESIGN.md section 7.6. */
-export const SAVE_VERSION = 1 as const;
-
-/**
- * Player state captured at each save. Death restores exactly this.
- * DESIGN.md sections 7.1 and 7.6.
- *
- * @deprecated overhaul phase 2/5 removes this.
- */
-export interface PlayerSnapshot {
-  readonly health: number;
-  readonly buzz: number;
-  readonly empties: number;
-  readonly drinkSlots: DrinkSlots;
-  readonly selectedDrink: DrinkSlotIndex;
-  readonly selectedSpecial: SpecialAbilityId | null;
-  readonly unlockedAbilities: readonly AbilityId[];
-  readonly hangover: HangoverState;
-}
-
-/**
- * Where Andrew reappears after death. DESIGN.md sections 7.2 and 7.6.
- *
- * @deprecated overhaul phase 2/5 removes this.
- */
-export interface RespawnPoint {
-  readonly screenId: ScreenId;
-  readonly position: Vec2;
-}
-
-/**
- * Everything persisted for a game in local storage. Written at each
- * checkpoint and immediately whenever a Myko call is used (that save acts as
- * a checkpoint). Death reloads it. DESIGN.md sections 7.5 and 7.6.
- *
- * @deprecated overhaul phase 2/5 removes this.
- */
-export interface SaveState {
-  readonly version: typeof SAVE_VERSION;
-  readonly chapter: ChapterNumber;
-  /** Last checkpoint reached. */
-  readonly checkpointId: CheckpointId;
-  readonly respawn: RespawnPoint;
-  readonly player: PlayerSnapshot;
-  /** Calls left for the whole game. Starts at `tuning.myko.callsPerGame`, never refills. */
-  readonly mykoCallsLeft: number;
-  readonly mykoCalls: readonly MykoCallRecord[];
-  /** Chapters finished, for Chapter Select. */
-  readonly finishedChapters: readonly ChapterNumber[];
-  readonly completedSectionIds: readonly SectionId[];
-  readonly cleanStealthRunIds: readonly StealthSectionId[];
-  readonly collectedPickupIds: readonly PickupId[];
-  readonly casebook: readonly CasebookEntry[];
-  /** Hints already given, per objective (0, 1 or 2). */
-  readonly hintsGiven: Readonly<Record<ObjectiveId, number>>;
-  /**
-   * Chapter script flags (talked to Dympna, lesson shown and so on), so a
-   * script can rebuild its state after death or Continue. Keys are prefixed
-   * with the chapter, e.g. `c1.dympnaTalked`.
-   */
-  readonly flags: Readonly<Record<string, ChapterFlagValue>>;
-  /**
-   * Dialogue sequences already played in this save (DESIGN.md 7.5 "Nothing
-   * is said twice"). Absent in older saves (treated as empty).
-   */
-  readonly playedDialogue?: readonly DialogueId[];
-  /** Breakable props already broken, by prop key (`PropPlacement.id` or `<screen>#prop<i>`). */
-  readonly brokenProps?: readonly string[];
-  /** Seed for breakable loot, fixed for the life of the save. Absent = 0. */
-  readonly lootSeed?: number;
-}
-
 /** Value of a chapter script flag stored in the save. */
 export type ChapterFlagValue = boolean | number | string;
 
 /**
- * Audio settings, stored under their own key, separate from `SaveState`.
+ * Audio settings, stored under their own key, separate from the save.
  * New Game keeps them. DESIGN.md section 9.
  */
 export interface AudioSettings {
@@ -1558,7 +1463,7 @@ export interface Tuning {
 // ---------------------------------------------------------------------------
 
 /** Why a save was written. DESIGN.md section 7.6. */
-export type SaveReason = 'checkpoint' | 'mykoCall' | 'chapterComplete';
+export type SaveReason = 'sectionDone' | 'mykoCall' | 'chapterComplete';
 
 /**
  * Payload for every game event, keyed by event name. Systems, UI, audio and
@@ -1581,20 +1486,18 @@ export interface GameEventPayloads {
   'player:healed': { readonly amount: number; readonly health: Health };
   /** @deprecated overhaul phase 2/5 removes this. */
   'player:died': { readonly checkpointId: CheckpointId };
-  /** @deprecated overhaul phase 2/5 removes this. */
-  'player:respawned': { readonly respawn: RespawnPoint };
   'enemy:damaged': { readonly hit: HitInfo; readonly health: Health };
   'enemy:defeated': { readonly instanceId: string; readonly enemyId: EnemyId; readonly by: CompletionSource };
   'enemy:telegraph': { readonly instanceId: string; readonly attackId: string; readonly durationMs: number };
   'enemy:revealed': { readonly instanceId: string; readonly enemyId: EnemyId };
   'boss:phaseChanged': { readonly bossId: BossId; readonly phaseId: string };
-  'drink:consumed': { readonly drinkId: DrinkId };
+  'drink:consumed': { readonly drinkId: OverhaulDrinkId };
   /** @deprecated overhaul phase 2/5 removes this. */
   'drink:selected': { readonly index: DrinkSlotIndex; readonly drinkId: DrinkId | null };
   /** @deprecated overhaul phase 2/5 removes this. */
   'food:consumed': { readonly foodId: FoodId };
   'pickup:collected': { readonly pickupId: PickupId; readonly item: PickupItem };
-  'pickup:refused': { readonly pickupId: PickupId; readonly reason: PickupRefusal };
+  'pickup:refused': { readonly pickupId: PickupId; readonly reason: PickupRefusal; /** The carry limit, for `{max}`. */ readonly max: number };
   'empties:changed': { readonly count: number };
   'ability:used': { readonly abilityId: AbilityId };
   'ability:unlocked': { readonly abilityId: AbilityId };
@@ -1624,7 +1527,7 @@ export interface GameEventPayloads {
   'checkpoint:reached': { readonly checkpointId: CheckpointId };
   'save:written': { readonly reason: SaveReason };
   'chapter:started': { readonly chapter: ChapterNumber };
-  'chapter:completed': { readonly chapter: ChapterNumber; readonly endBuzzState: BuzzState };
+  'chapter:completed': { readonly chapter: ChapterNumber; readonly endState: DrunkState };
   'game:paused': Record<string, never>;
   'game:resumed': Record<string, never>;
   /** Andrew arrived on a screen; audio switches the regional theme. */
@@ -1684,8 +1587,6 @@ export const GameEvents = {
   PlayerHealed: 'player:healed',
   /** @deprecated overhaul phase 2/5 removes this. */
   PlayerDied: 'player:died',
-  /** @deprecated overhaul phase 2/5 removes this. */
-  PlayerRespawned: 'player:respawned',
   EnemyDamaged: 'enemy:damaged',
   EnemyDefeated: 'enemy:defeated',
   EnemyTelegraph: 'enemy:telegraph',
@@ -1931,7 +1832,7 @@ export type MoveEffect =
   /** Act Natural: unseen beside a prop until moving; useless once seen. */
   | { readonly kind: 'hideBesideProp'; readonly propRadius: number }
   /** Stout Slam: everyone within `radius` is knocked down. */
-  | { readonly kind: 'knockdownAround'; readonly radius: number }
+  | { readonly kind: 'knockdownAround'; readonly radius: number; /** Shove that knocks them down (160). First guess. */ readonly knockback: number }
   /** Same Again: the next `hits` melee hits each land `times` times. */
   | { readonly kind: 'repeatHits'; readonly hits: number; readonly times: number }
   /** Bedside Manner: everyone within `radius` stops to listen. */
@@ -1954,7 +1855,13 @@ export type MoveEffect =
       readonly bossFraction: number;
     }
   /** Barred: lift one enemy and throw him out; a boss cannot be lifted and takes damage. */
-  | { readonly kind: 'throwOut'; readonly landingDamage: number; readonly bossDamage: number };
+  | {
+      readonly kind: 'throwOut';
+      readonly landingDamage: number;
+      /** Every enemy within this of the landing point takes `landingDamage` (40). First guess. */
+      readonly landingRadius: number;
+      readonly bossDamage: number;
+    };
 
 /** A special move. Defined in `src/content/tuning.ts`. DESIGN.md 7.2. */
 export interface MoveDef {
@@ -2042,6 +1949,19 @@ export interface Kit {
   readonly weapons: readonly WeaponId[];
   readonly moves: readonly MoveId[];
   readonly slots: KitSlots;
+}
+
+/** One special slot as the HUD and the Tab screen show it. DESIGN.md 7.2, 7.7. */
+export interface MoveSlotView {
+  readonly slot: SpecialSlotIndex;
+  /** The move in the slot, or null for an empty slot. */
+  readonly moveId: MoveId | null;
+  /** Andrew is at this slot's level or above. A dark slot (false) still runs its cooldown. */
+  readonly lit: boolean;
+  /** Milliseconds left on the cooldown. */
+  readonly cooldownLeftMs: number;
+  /** The full cooldown of the move in the slot; 0 when empty. */
+  readonly cooldownMs: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -2138,6 +2058,8 @@ export interface DropTuning {
 export interface ThrowTuning {
   /** Longest throw, world pixels. */
   readonly range: number;
+  /** Flight speed, pixels per second (150). First guess. */
+  readonly speed: number;
   /** Fixed damage; the drunk level does not change it. */
   readonly damage: number;
   readonly knockback: number;
@@ -2156,6 +2078,12 @@ export interface OverhaulTuning {
   readonly sun: SunTuning;
   /** The level Andrew starts and restarts at; hot drinks aim at its bottom (2, Grand). */
   readonly restLevel: SpecialLevel;
+  /** Points above the bottom of the rest level that Andrew starts and restarts at, so a reset gives about 9 s of Grand (3). First guess. */
+  readonly restMargin: number;
+  /** Range of single-target moves, world pixels (220). First guess. */
+  readonly moveRange: number;
+  /** Width of a melee swing's arc, degrees (100). First guess. */
+  readonly meleeArcDeg: number;
   /** Points a hit moves the meter, by weight (5, 10, 15). */
   readonly hitWeights: Readonly<Record<HitWeight, number>>;
   /** Melee damage multiplier by level (1, 1.5, 2, 3). */

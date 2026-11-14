@@ -5,7 +5,7 @@
  * double. Flinch and knockback are the caller's. Pure logic, not wired in yet.
  */
 
-import type { DrunkLevel, HitWeight, MeterDirection, OverhaulTuning, SpecialLevel } from '../core/types';
+import type { DrunkLevel, HitWeight, MeterDirection, OverhaulTuning } from '../core/types';
 import { adjustMeter, levelFor, levelTable, overhaulTuning } from './meter';
 import type { MeterResult, MeterState } from './meter';
 
@@ -34,7 +34,5 @@ export function applyHit(s: MeterState, weight: HitWeight, t: OverhaulTuning = o
   return { ...r, direction, amount };
 }
 
-/** Melee damage multiplier at this level. Sober cannot fight; it reads as ×1. DESIGN.md 7.1. */
-export function meleeMultiplier(level: DrunkLevel, t: OverhaulTuning = overhaulTuning()): number {
-  return level === 0 ? 1 : t.meleeMultiplierByLevel[level as SpecialLevel];
-}
+/** The melee multiplier lives in `weapons.ts`; re-exported here for callers that read it with hits. */
+export { meleeMultiplier } from './weapons';

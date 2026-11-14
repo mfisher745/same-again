@@ -166,6 +166,14 @@ export class EnemyActor {
     this.statusMs = Math.max(this.statusMs, ms);
   }
 
+  /** Cancels whatever it was about to do (the clipboard): a telegraphed or running attack is dropped. */
+  interrupt(): void {
+    if (this.status !== 'telegraphing' && this.status !== 'attacking') return;
+    this.current = null;
+    this.burstLeft = 0;
+    this.status = 'normal';
+  }
+
   /** Puts the actor down without damage numbers (Myko, completeNow). */
   knockDown(): void {
     this.health = 0;
@@ -341,6 +349,7 @@ export class EnemyActor {
         damage: a.damage,
         knockback: a.knockback,
         holdMs: a.holdMs ?? 0,
+        weight: a.weight ?? 'ordinary',
         frame: projectileFrame(a.id),
       });
     } else if (world.playerTargetable() && shapeHits(a.shape, this.pos, this.attackDir, world.playerPosition(), TUNING.combat.characterHitRadius)) {
@@ -381,6 +390,7 @@ export class EnemyActor {
         knockback: knockbackVector(from, player, a.knockback, 0),
         stunMs: 0,
         holdMs: a.holdMs ?? 0,
+        weight: a.weight ?? 'ordinary',
       },
       from,
     );

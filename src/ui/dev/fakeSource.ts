@@ -1,30 +1,29 @@
 /** A fake `UiStateSource` for the dev harness. All state is public and mutable. */
 
 import type {
-  AbilityId,
   AudioSettings,
   BossId,
-  BuzzSnapshot,
-  BuzzState,
   CasebookEntry,
   ChapterNumber,
   DeductionBoardDef,
   DeductionSectionId,
   DialogueId,
-  DrinkSlotIndex,
-  DrinkSlots,
   EvidenceId,
   GameEventBus,
   GameEventName,
   GameEventPayloads,
-  HangoverState,
+  DrunkLevelTable,
   Health,
-  HeatSnapshot,
+  MeterSnapshot,
+  MoveSlotView,
+  TextId,
+  ThrowAim,
+  WeaponId,
   ObjectiveId,
-  SaveState,
-  SpecialAbilityId,
+  Kit,
+  OverhaulSaveState,
 } from '../../core/types';
-import { TUNING } from '../../content/tuning';
+import { levelFor, overhaulTuning, stateFor } from '../../systems/meter';
 import type { UiStateSource } from '../contract';
 
 export class FakeBus implements GameEventBus {
@@ -45,42 +44,60 @@ export class FakeBus implements GameEventBus {
   }
 }
 
-export const stateForBuzz = (v: number): BuzzState => {
-  const t = TUNING.buzz.thresholds;
-  return v >= t.banjaxed ? 'banjaxed' : v >= t.locked ? 'locked' : v >= t.grand ? 'grand' : 'sober';
-};
 
 export class FakeSource implements UiStateSource {
   readonly bus = new FakeBus();
-  healthState: Health = { current: 70, max: 100 };
+  /** The meter value; the level, state and floor follow from the chapter 1 table. */
   buzzValue = 45;
-  banjaxedPhase: BuzzSnapshot['banjaxedPhase'] = 'none';
-  heatState: HeatSnapshot = { active: false, value: 40 };
-  hangoverState: HangoverState = { active: false };
-  emptiesCount = 4;
-  slots: DrinkSlots = [{ drinkId: 'stout', count: 3 }, { drinkId: 'whiskey', count: 1 }, null];
-  selected: DrinkSlotIndex = 0;
-  special: SpecialAbilityId | null = 'stoutSlam';
-  abilities: AbilityId[] = ['punchCombo', 'bottleThrow'];
+  spiritActive = false;
+  teaHoldActive = false;
+  inSun = false;
+  kitState: Kit = {
+    drinks: { stout: 3, whiskey: 1 },
+    carryLimit: 6,
+    hotDrink: null,
+    bottles: 4,
+    weapons: ['fists'],
+    moves: [],
+    slots: { drink: 'stout', specials: [null, null, null, null], melee: 'fists' },
+  };
+  slots: MoveSlotView[] = [
+    { slot: 1, moveId: 'shoulder', lit: true, cooldownLeftMs: 0, cooldownMs: 5000 },
+    { slot: 2, moveId: 'stoutSlam', lit: true, cooldownLeftMs: 3000, cooldownMs: 12000 },
+    { slot: 3, moveId: null, lit: false, cooldownLeftMs: 0, cooldownMs: 0 },
+    { slot: 4, moveId: null, lit: false, cooldownLeftMs: 0, cooldownMs: 0 },
+  ];
+  weaponId: WeaponId = 'fists';
+  lastRefusal: { textId: TextId; seq: number } | null = null;
   callsLeft = 2;
   holdProgress = 0;
   entries: CasebookEntry[] = [];
   bossState: { bossId: BossId; health: Health } | null = null;
   board: DeductionBoardDef | null = null;
-  saveState: SaveState | null = null;
+  saveState: OverhaulSaveState | null = null;
   settings: AudioSettings = { musicVolume: 0.7, effectsVolume: 0.8 };
   paused = false;
   log: string[] = [];
 
-  health = (): Health => this.healthState;
-  buzz = (): BuzzSnapshot => ({ value: this.buzzValue, state: stateForBuzz(this.buzzValue), banjaxedPhase: this.banjaxedPhase, banjaxedPhaseMsLeft: 0 });
-  heat = (): HeatSnapshot => this.heatState;
-  hangover = (): HangoverState => this.hangoverState;
-  empties = (): number => this.emptiesCount;
-  drinkSlots = (): DrinkSlots => this.slots;
-  selectedDrink = (): DrinkSlotIndex => this.selected;
-  selectedSpecial = (): SpecialAbilityId | null => this.special;
-  unlockedAbilities = (): readonly AbilityId[] => this.abilities;
+  levelTable = (): DrunkLevelTable => overhaulTuning().levels[1];
+  meter = (): MeterSnapshot => {
+    const table = this.levelTable();
+    const level = levelFor(this.buzzValue, table);
+    return {
+      value: this.buzzValue,
+      level,
+      state: stateFor(level),
+      floor: table.floor,
+      spiritActive: this.spiritActive,
+      teaHoldActive: this.teaHoldActive,
+      inSun: this.inSun,
+    };
+  };
+  kit = (): Kit => this.kitState;
+  moveSlots = (): readonly MoveSlotView[] => this.slots;
+  weapon = (): WeaponId => this.weaponId;
+  throwPreview = (): ThrowAim | null => null;
+  refusal = (): { textId: TextId; seq: number } | null => this.lastRefusal;
   mykoCallsLeft = (): number => this.callsLeft;
   mykoCallHoldProgress = (): number => this.holdProgress;
   casebook = (): readonly CasebookEntry[] => this.entries;
@@ -98,7 +115,7 @@ export class FakeSource implements UiStateSource {
     this.log.push(`finished ${id}`);
     this.bus.emit('dialogue:finished', { sequenceId: id });
   }
-  save = (): SaveState | null => this.saveState;
+  save = (): OverhaulSaveState | null => this.saveState;
   audioSettings = (): AudioSettings => this.settings;
   setAudioSettings(s: AudioSettings): void {
     this.settings = s;

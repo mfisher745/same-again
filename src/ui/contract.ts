@@ -4,40 +4,43 @@
  */
 
 import type {
-  AbilityId,
   AudioSettings,
   BossId,
-  BuzzSnapshot,
   CasebookEntry,
   ChapterNumber,
   DeductionBoardDef,
   DeductionSectionId,
   DialogueId,
-  DrinkSlotIndex,
-  DrinkSlots,
   EvidenceId,
   GameEventBus,
-  HangoverState,
+  Kit,
+  DrunkLevelTable,
   Health,
-  HeatSnapshot,
+  MeterSnapshot,
   ObjectiveId,
-  SaveState,
-  SpecialAbilityId,
+  OverhaulSaveState,
+  MoveSlotView,
+  ThrowAim,
+  TextId,
+  WeaponId,
 } from '../core/types';
 
 export interface UiStateSource {
   readonly bus: GameEventBus;
-  health(): Health;
-  buzz(): BuzzSnapshot;
-  heat(): HeatSnapshot;
-  hangover(): HangoverState;
-  empties(): number;
-  drinkSlots(): DrinkSlots;
-  selectedDrink(): DrinkSlotIndex;
-  selectedSpecial(): SpecialAbilityId | null;
-  unlockedAbilities(): readonly AbilityId[];
-  /** 0..1 how much of the Borrowed Glove's recharge is left (1 = just used). Optional: the HUD shows no recharge without it. */
-  specialRecharge?(): number;
+  /** The one Buzz meter: value, level, floor, spirit window, tea hold, sun. There is no health. */
+  meter(): MeterSnapshot;
+  /** Where each level sits on the meter in this chapter (grows by chapter). */
+  levelTable(): DrunkLevelTable;
+  /** What he carries: drinks, hot drink, bottles, weapons, moves and the six slots. */
+  kit(): Kit;
+  /** The four special slots: the move in each, whether Andrew is at its level (lit) or it is dark, and its cooldown. */
+  moveSlots(): readonly MoveSlotView[];
+  /** The melee weapon in use. */
+  weapon(): WeaponId;
+  /** The dotted path of the throw while the button is held (hold right mouse), or null. */
+  throwPreview(): ThrowAim | null;
+  /** The latest refusal of a move (`ui.move.*`); `seq` rises with each. Null before the first. */
+  refusal(): { readonly textId: TextId; readonly seq: number } | null;
   mykoCallsLeft(): number;
   /** 0..1 progress of the M hold; 0 when not held. */
   mykoCallHoldProgress(): number;
@@ -52,7 +55,7 @@ export interface UiStateSource {
   /** The UI calls this when it has finished showing a sequence. */
   dialogueFinished(sequenceId: DialogueId): void;
   /** Stored save, for Continue and Chapter Select; null if none. */
-  save(): SaveState | null;
+  save(): OverhaulSaveState | null;
   audioSettings(): AudioSettings;
   setAudioSettings(settings: AudioSettings): void;
   newGame(): void;
