@@ -566,6 +566,18 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (!reason) return;
     // Myko says his piece once Andrew is back in the bar (silent at 0, and the meter is reset by now).
     this.mykoVoice.trigger({ kind: 'barReturn', reason }, this.player.meter.value);
+    for (const fn of [...this.returnSettledListeners]) fn();
+  }
+
+  private readonly returnSettledListeners = new Set<() => void>();
+
+  /**
+   * Called at the end of `completeBarReturn`, after the bar script's `onBarReturn` has run, so the world is final.
+   * The scene draws it at once (it may be paused). Returns an unsubscribe function.
+   */
+  onBarReturnSettled(fn: () => void): () => void {
+    this.returnSettledListeners.add(fn);
+    return () => this.returnSettledListeners.delete(fn);
   }
 
   /** The latest return to the bar, for the scene that plays the fade or the fall. Null before the first. */
