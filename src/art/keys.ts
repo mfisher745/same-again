@@ -14,7 +14,17 @@
  * - Tilesets are 16 x 16 tiles on a 16-column grid, one texture per region.
  */
 
-import type { AbilityId, DrinkId, Facing, FoodId, RegionId, SpeakerId } from '../core/types';
+import type {
+  AbilityId,
+  DrinkId,
+  Facing,
+  FoodId,
+  MoveId,
+  OverhaulDrinkId,
+  RegionId,
+  SpeakerId,
+  WeaponId,
+} from '../core/types';
 
 /** Bitmap font key for `scene.add.bitmapText`. Glyph cell is 6 x 9. */
 export const FONT_KEY = 'font.main';
@@ -51,10 +61,19 @@ export type AndrewAnim =
   | 'stumble'
   | 'fall'
   | 'getUp'
-  | 'actNatural';
+  | 'actNatural'
+  /** Overhaul: one swing per melee weapon (fists keep punch1-3). */
+  | 'swing.hurley'
+  | 'swing.clipboard'
+  | 'swing.shillelagh'
+  | 'swing.umbrella'
+  | 'swing.inflatable'
+  | 'swing.wand'
+  /** Overhaul: holding a bottle back while the throw preview is up. */
+  | 'aim';
 
 /** Myko's extra animations. He has no run cycle. */
-export type MykoAnim = CommonAnim | 'blink' | 'smoke' | 'swat';
+export type MykoAnim = CommonAnim | 'blink' | 'smoke' | 'swat' | 'hurry';
 
 /** Animations every enemy has. `telegraph` is held for the attack's telegraphMs. */
 export type EnemyAnim = CommonAnim | 'telegraph' | 'attack' | 'hurt' | 'down';
@@ -77,7 +96,14 @@ export const icon = {
   interact: 'interact',
   mouseLeft: 'mouse.left',
   mouseRight: 'mouse.right',
-  drink: (id: DrinkId): string => `drink.${id}`,
+  /** Overhaul: every drink in the kit, plus the empty bottle. */
+  drink: (id: DrinkId | OverhaulDrinkId | 'bottle'): string => `drink.${id}`,
+  /** Overhaul: the thirteen special moves. */
+  move: (id: MoveId): string => `move.${id}`,
+  /** Overhaul: the seven melee weapons. */
+  weapon: (id: WeaponId): string => `weapon.${id}`,
+  /** Overhaul: shown on the HUD while Andrew is out in the sun (chapter 8). */
+  sun: 'sun',
   food: (id: FoodId): string => `food.${id}`,
   ability: (id: AbilityId): string => `ability.${id}`,
 } as const;
@@ -101,6 +127,10 @@ export const fx = {
   shadow: 'shadow',
   groundMarker: 'marker',
   pickupGlint: ['glint.0', 'glint.1'],
+  /** Overhaul: one dot of the throw preview, 2 x 2 in the middle of its cell. */
+  throwDot: 'throw.dot',
+  /** Overhaul: a billowing smoke cloud filling its 16 x 16 cell; scale it up to fill the screen on a floor return. */
+  smokeCloud: ['cloud.0', 'cloud.1', 'cloud.2'],
 } as const;
 
 /** Texture key for a named or generic NPC (see `NpcId` in cast.ts). NPCs have `idle` and `walk`. */

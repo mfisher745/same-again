@@ -200,6 +200,20 @@ export function fxSheet(): Sheet {
       if (i === 1) b.set(8, 6, 'white').set(8, 10, 'white').set(6, 8, 'white').set(10, 8, 'white');
     }),
   );
+  // Throw preview: one small dot, drawn many times along the path.
+  sheet.cell(fx.throwDot, (b) => void b.rect(7, 7, 2, 2, 'white'));
+  // Floor return: Myko's smoke, billowing until the cell is full. Scaled up, it fills the screen.
+  fx.smokeCloud.forEach((name, i) =>
+    sheet.cell(name, (b) => {
+      if (i === 0) {
+        b.ellipse(3, 6, 10, 8, 'fog').ellipse(5, 3, 7, 6, 'fog').ellipse(6, 8, 5, 4, 'steel');
+      } else if (i === 1) {
+        b.ellipse(0, 4, 12, 11, 'fog').ellipse(5, 1, 11, 10, 'fog').ellipse(3, 8, 9, 7, 'steel').ellipse(8, 6, 6, 5, 'steel');
+      } else {
+        b.rect(0, 0, 16, 16, 'fog').ellipse(1, 2, 9, 8, 'steel').ellipse(8, 7, 8, 8, 'steel').ellipse(3, 10, 6, 5, 'steel');
+      }
+    }),
+  );
   return sheet.build();
 }
 
