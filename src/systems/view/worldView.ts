@@ -134,6 +134,13 @@ export class WorldView {
     const body = this.playerBody;
     const c = this.run.combat;
     if (body instanceof Phaser.GameObjects.Sprite) {
+      // A floor return waiting for its scene: Andrew falls where he was and stays down.
+      if (this.run.barReturning?.reason === 'floor') {
+        const fall = animKey(TEX.andrew, 'fall', p.facing);
+        if (body.anims.currentAnim?.key !== fall && this.scene.anims.exists(fall)) body.play(fall);
+        body.setPosition(Math.round(p.pos.x), Math.round(p.pos.y + FEET_OFFSET)).setDepth(p.pos.y);
+        return;
+      }
       const sw = c.lastSwing;
       if (sw && sw.seq !== this.seenSwing) {
         this.seenSwing = sw.seq;

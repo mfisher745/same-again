@@ -24,6 +24,8 @@ import { seededRandom } from '../core/random';
 import { MemoryStorage, SaveStore } from '../core/save';
 import { GameEvents, SAVE_VERSION_OVERHAUL } from '../core/types';
 import type {
+  BarReturnReason,
+  Vec2,
   AudioSettings,
   CasebookEntry,
   ChapterNumber,
@@ -436,6 +438,12 @@ export function createUiState(session: GameSession) {
     },
     setTabMode(mode: TabMode): void {
       session.setTabMode(mode);
+    },
+    completeBarReturn(): void {
+      run()?.completeBarReturn();
+    },
+    barReturning(): { readonly reason: BarReturnReason; readonly andrew: Vec2 } | null {
+      return run()?.barReturning ?? null;
     },
     mykoCallsLeft(): number {
       return run()?.callsRemaining() ?? session.store.load()?.mykoCallsLeft ?? TUNING.myko.callsPerGame;
