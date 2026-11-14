@@ -11,7 +11,7 @@ import type { Sheet } from '../../src/art/pixels';
 import { allSheets } from '../../src/art/sheets';
 import { TILE, regionTiles, tileFlags, tileIndex } from '../../src/art/tiles';
 import { REGIONS } from '../../src/core/types';
-import type { AbilityId, DrinkId, FoodId, SpeakerId } from '../../src/core/types';
+import type { AbilityId, DrinkId, FoodId, MoveId, OverhaulDrinkId, SpeakerId, WeaponId } from '../../src/core/types';
 
 const sheets = allSheets();
 const byKey = (k: string): Sheet => {
@@ -184,6 +184,32 @@ describe('keys.ts is fully drawn', () => {
     const abilities: AbilityId[] = ['punchCombo', 'bottleThrow', 'stumble', 'stoutSlam', 'actNatural', 'hurley', 'sliotarStrike', 'poitinBreath', 'borrowedGlove'];
     const wanted = [icon.pintFull, icon.pintHalf, icon.pintEmpty, icon.empty, icon.rollie, icon.rollieSpent, icon.detection, icon.interact, ...drinks.map(icon.drink), ...foods.map(icon.food), ...abilities.map(icon.ability)];
     expect(wanted.filter((n) => !names.has(n))).toEqual([]);
+  });
+
+  it('every overhaul drink, move and weapon icon and the sun mark exist in the icon sheet', () => {
+    const names = new Set(byKey(TEX.icons).frames.map((f) => f.name));
+    const drinks: (OverhaulDrinkId | 'bottle')[] = ['stout', 'lager', 'lightBeer', 'craftIpa', 'whiskey', 'tequila', 'coffee', 'tea', 'bottle'];
+    const moves: MoveId[] = ['shoulder', 'reflexTest', 'actNatural', 'stoutSlam', 'sameAgain', 'bedsideManner', 'stumble', 'lockIn', 'secondOpinion', 'borrowedGlove', 'oneForTheRoad', 'lastOrders', 'barred'];
+    const weapons: WeaponId[] = ['fists', 'hurley', 'clipboard', 'shillelagh', 'umbrella', 'inflatableAlien', 'securityWand'];
+    const wanted = [...drinks.map(icon.drink), ...moves.map(icon.move), ...weapons.map(icon.weapon), icon.sun];
+    expect(wanted.filter((n) => !names.has(n))).toEqual([]);
+  });
+
+  it('the thirteen move icons are all different pictures, and so are the seven weapon icons', () => {
+    const s = byKey(TEX.icons);
+    const picture = (name: string): string => {
+      const f = s.frames.find((x) => x.name === name);
+      if (!f) throw new Error(`no frame ${name}`);
+      const px: string[] = [];
+      for (let y = 0; y < f.height; y++) for (let x = 0; x < f.width; x++) px.push(String(s.buffer.get(f.x + x, f.y + y)));
+      return px.join(',');
+    };
+    const moves = s.frames.filter((f) => f.name.startsWith('move.')).map((f) => picture(f.name));
+    const weapons = s.frames.filter((f) => f.name.startsWith('weapon.')).map((f) => picture(f.name));
+    expect(moves).toHaveLength(13);
+    expect(new Set(moves).size).toBe(13);
+    expect(weapons).toHaveLength(7);
+    expect(new Set(weapons).size).toBe(7);
   });
 
   it('every fx.* frame exists in the fx sheet', () => {
