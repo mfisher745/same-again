@@ -5,12 +5,12 @@
 
 import type Phaser from 'phaser';
 import type { TextId } from '../core/types';
-import { CasebookScene } from './scenes/CasebookScene';
 import { DeductionScene } from './scenes/DeductionScene';
 import { HudScene } from './scenes/HudScene';
 import type { PromptRequest } from './scenes/HudScene';
 import { PauseScene } from './scenes/PauseScene';
 import { SettingsScene } from './scenes/SettingsScene';
+import { TabScene } from './scenes/TabScene';
 import { TitleScene } from './scenes/TitleScene';
 import { PROMPT_EVENTS, UiSceneKeys, createShared } from './shared';
 import type { UiHooks } from './shared';
@@ -27,7 +27,7 @@ export function createUiScenes(source: UiStateSource, hooks: UiHooks = {}): Phas
     new TitleScene(shared),
     new HudScene(shared),
     new PauseScene(shared),
-    new CasebookScene(shared),
+    new TabScene(shared),
     new DeductionScene(shared),
     new SettingsScene(shared),
   ];

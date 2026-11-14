@@ -3,7 +3,7 @@
  * hangover overlay. docs/style-guide.md sections 4 and 5. Systems start this
  * scene when a chapter begins and stop it on quit to title.
  *
- * Keys handled here: Esc (pause), Tab (casebook), E and left click (advance
+ * Keys handled here: Esc (pause), Tab (the casebook and kit screen), E and left click (advance
  * scene dialogue). The deduction board opens by itself when
  * `source.activeDeduction()` becomes non-null.
  */
@@ -213,24 +213,31 @@ export class HudScene extends Phaser.Scene {
     if (kb !== null) {
       const onEsc = (e: KeyboardEvent): void => {
         if (e.repeat || this.scene.isActive(UiSceneKeys.Settings) || this.scene.isActive(UiSceneKeys.Deduction)) return;
-        if (this.shared.overlays.isOpen('casebook')) this.closeCasebook();
+        if (this.shared.overlays.isOpen('tab')) this.closeTab();
         else if (this.shared.overlays.isOpen('pause')) this.closePause();
         else this.openPause();
       };
       const onTab = (e: KeyboardEvent): void => {
         e.preventDefault();
         if (e.repeat || this.shared.overlays.isOpen('pause') || this.scene.isActive(UiSceneKeys.Deduction)) return;
-        if (this.shared.overlays.isOpen('casebook')) this.closeCasebook();
-        else if (!this.queue.blocking) this.openCasebook();
+        if (this.shared.overlays.isOpen('tab')) {
+          if (this.shared.source.tabMode() === 'toggle') this.closeTab();
+        } else if (!this.queue.blocking) this.openTab();
+      };
+      // Held mode: the screen is open only while Tab is down.
+      const onTabUp = (): void => {
+        if (this.shared.source.tabMode() === 'hold' && this.shared.overlays.isOpen('tab')) this.closeTab();
       };
       const onE = (): void => this.queue.advance();
       kb.on('keydown-ESC', onEsc);
       kb.on('keydown-TAB', onTab);
+      kb.on('keyup-TAB', onTabUp);
       kb.on('keydown-E', onE);
       kb.addCapture('TAB');
       this.unsubs.push(
         () => kb.off('keydown-ESC', onEsc),
         () => kb.off('keydown-TAB', onTab),
+        () => kb.off('keyup-TAB', onTabUp),
         () => kb.off('keydown-E', onE),
         () => kb.removeCapture('TAB'),
       );
@@ -255,25 +262,25 @@ export class HudScene extends Phaser.Scene {
     this.scene.stop(UiSceneKeys.Pause);
   }
 
-  openCasebook(): void {
-    this.shared.overlays.show('casebook');
-    this.scene.launch(UiSceneKeys.Casebook);
-    this.scene.bringToTop(UiSceneKeys.Casebook);
+  openTab(): void {
+    this.shared.overlays.show('tab');
+    this.scene.launch(UiSceneKeys.Tab);
+    this.scene.bringToTop(UiSceneKeys.Tab);
     this.shared.hooks.play?.('uiSelect');
   }
 
-  closeCasebook(): void {
-    this.shared.overlays.hide('casebook');
-    this.scene.stop(UiSceneKeys.Casebook);
+  closeTab(): void {
+    this.shared.overlays.hide('tab');
+    this.scene.stop(UiSceneKeys.Tab);
     this.shared.hooks.play?.('uiMove');
   }
 
   private teardown(): void {
     for (const u of this.unsubs) u();
     this.unsubs = [];
-    for (const key of [UiSceneKeys.Pause, UiSceneKeys.Settings, UiSceneKeys.Casebook, UiSceneKeys.Deduction]) this.scene.stop(key);
+    for (const key of [UiSceneKeys.Pause, UiSceneKeys.Settings, UiSceneKeys.Tab, UiSceneKeys.Deduction]) this.scene.stop(key);
     this.shared.overlays.hide('pause');
-    this.shared.overlays.hide('casebook');
+    this.shared.overlays.hide('tab');
   }
 
   // ----------------------------------------------------------------- notices
@@ -336,7 +343,7 @@ export class HudScene extends Phaser.Scene {
     this.drawBoss(m);
     this.showRefusal(m);
 
-    if (!this.shared.overlays.isOpen('pause') && !this.shared.overlays.isOpen('casebook')) this.queue.update(delta);
+    if (!this.shared.overlays.isOpen('pause') && !this.shared.overlays.isOpen('tab')) this.queue.update(delta);
     this.drawDialogue(this.queue.view());
 
     const now = this.time.now;

@@ -10,6 +10,7 @@ import { DialogueQueue } from '../../src/ui/model/dialogue';
 import { FakeSource } from '../../src/ui/dev/fakeSource';
 import { buildHudModel, flatness, meterWidth, perimeterSegments } from '../../src/ui/model/hud';
 import { levelTable } from '../../src/systems/meter';
+import { KIT_SLOTS, assignItem, buildKitView, clearSlot, itemKey, slotContent, slotFor } from '../../src/ui/model/kit';
 import { OverlayTracker } from '../../src/ui/model/overlay';
 import { paginate, wrapText } from '../../src/ui/model/wrap';
 
@@ -477,5 +478,87 @@ describe('OverlayTracker', () => {
 describe('real content in the UI model', () => {
   it('speaker display names exist for all named characters', () => {
     for (const id of ['name.dympna', 'name.bigTom']) expect(text(id).length).toBeGreaterThan(0);
+  });
+});
+
+describe('Kit tab model', () => {
+  const richKit = (): FakeSource => {
+    const s = new FakeSource();
+    s.kitState = kitWith({ drinks: { stout: 2, whiskey: 1 }, hotDrink: 'tea', bottles: 3, weapons: ['fists', 'hurley'], moves: ['stoutSlam', 'shoulder'] });
+    return s;
+  };
+
+  it('lists drinks against the carry limit, the hot drink, weapons in order and moves by level', () => {
+    const v = buildKitView(richKit().kit());
+    expect(v.drinks.map((d) => [d.id, d.count])).toEqual([['stout', 2], ['whiskey', 1]]);
+    expect(v.places).toEqual({ n: 3, max: 6 });
+    expect(v.hot).toBe('tea');
+    expect(v.bottles).toBe(3);
+    expect(v.weapons.map((w) => w.id)).toEqual(['fists', 'hurley']);
+    expect(v.moves.map((m) => m.id)).toEqual(['shoulder', 'stoutSlam']);
+    expect(v.items.map(itemKey)).toEqual(['drink:stout', 'drink:whiskey', 'hot:tea', 'weapon:fists', 'weapon:hurley', 'move:shoulder', 'move:stoutSlam']);
+    expect(hasText('ui.kit.places')).toBe(true);
+  });
+
+  it('every kit tab text ID exists', () => {
+    for (const id of ['ui.tab.casebook', 'ui.tab.kit', 'ui.kit.drinks', 'ui.kit.hotDrink', 'ui.kit.bottles', 'ui.kit.weapons', 'ui.kit.moves', 'ui.kit.slots', 'ui.kit.slot.drink', 'ui.kit.slot.melee', 'ui.kit.slot.special', 'ui.kit.slot.level', 'ui.kit.slot.empty', 'ui.kit.assign', 'ui.kit.drinkNow', 'ui.kit.none', 'ui.kit.hotDrink.none', 'ui.kit.wrongLevel', 'ui.settings.tab', 'ui.settings.tab.toggle', 'ui.settings.tab.hold']) {
+      expect(hasText(id), id).toBe(true);
+    }
+  });
+
+  it('six slots: drink, melee, then specials 1 to 4', () => {
+    expect(KIT_SLOTS).toHaveLength(6);
+    expect(KIT_SLOTS.map((s) => (s.kind === 'special' ? s.slot : s.kind))).toEqual(['drink', 'melee', 1, 2, 3, 4]);
+  });
+
+  it('an item goes in the slot of its kind; a move in its level', () => {
+    const v = buildKitView(richKit().kit());
+    expect(slotFor(v.items[0]!)).toEqual({ kind: 'drink' });
+    expect(slotFor(v.items[4]!)).toEqual({ kind: 'melee' });
+    expect(slotFor(v.items[6]!)).toEqual({ kind: 'special', slot: 2 });
+  });
+
+  it('a special slot only takes a move of its own level, with the wrong-level line', () => {
+    const s = richKit();
+    const slam = buildKitView(s.kit()).moves.find((m) => m.id === 'stoutSlam')!;
+    const bad = assignItem(s, slam, { kind: 'special', slot: 1 });
+    expect(bad.ok).toBe(false);
+    expect(bad.refusal).toEqual({ textId: 'ui.kit.wrongLevel', n: 2 });
+    expect(s.kit().slots.specials[0]).toBeNull();
+    expect(assignItem(s, slam, { kind: 'special', slot: 2 }).ok).toBe(true);
+    expect(s.kit().slots.specials[1]).toBe('stoutSlam');
+    expect(slotContent(s.kit(), { kind: 'special', slot: 2 })).toEqual({ kind: 'move', id: 'stoutSlam' });
+    expect(clearSlot(s, { kind: 'special', slot: 2 })).toBe(true);
+    expect(s.kit().slots.specials[1]).toBeNull();
+  });
+
+  it('assigning a weapon and a drink changes the melee and drink slots', () => {
+    const s = richKit();
+    const v = buildKitView(s.kit());
+    expect(assignItem(s, v.weapons[1]!, { kind: 'melee' }).ok).toBe(true);
+    expect(s.weapon()).toBe('fists'); // the fake keeps its own weapon id; the kit is what the Tab screen changes
+    expect(s.kit().slots.melee).toBe('hurley');
+    expect(assignItem(s, v.drinks[1]!, { kind: 'drink' }).ok).toBe(true);
+    expect(s.kit().slots.drink).toBe('whiskey');
+    expect(assignItem(s, v.drinks[0]!, { kind: 'melee' }).ok).toBe(false);
+  });
+
+  it('drink straight from the inventory, and the hot drink is taken once per visit', () => {
+    const s = richKit();
+    expect(s.drinkFromInventory('stout')).toBe(true);
+    expect(s.kit().drinks.stout).toBe(1);
+    expect(s.drinkFromInventory('tequila')).toBe(false);
+    const t = new FakeSource();
+    expect(t.hotDrinkOffered()).toBe(true);
+    expect(t.takeHotDrink('coffee')).toBe(true);
+    expect(t.hotDrinkOffered()).toBe(false);
+    expect(t.takeHotDrink('tea')).toBe(false);
+  });
+
+  it('Tab mode toggles and is remembered by the source', () => {
+    const s = new FakeSource();
+    expect(s.tabMode()).toBe('toggle');
+    s.setTabMode('hold');
+    expect(s.tabMode()).toBe('hold');
   });
 });

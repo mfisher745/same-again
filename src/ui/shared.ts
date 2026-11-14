@@ -20,7 +20,7 @@ export const UiSceneKeys = {
   Title: 'UiTitle',
   Hud: 'UiHud',
   Pause: 'UiPause',
-  Casebook: 'UiCasebook',
+  Tab: 'UiTab',
   Deduction: 'UiDeduction',
   Settings: 'UiSettings',
 } as const;
