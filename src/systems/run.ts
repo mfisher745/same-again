@@ -497,8 +497,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     for (const { runner, placement } of this.stealthHere()) {
       if (!placement) continue;
       if (!runner.isFinished && !runner.alarmRaised && rectContains(placement.startArea, p.pos)) this.startStealth(runner);
-      // Thermal masts (chapter 8) lost their heat meter with the old systems; chapter 8 decides what they read.
-      runner.tick(dtMs, { pos: p.pos, hidden, running: p.moving && !p.sneaking, thermalVisible: false });
+      // Thermal masts (chapter 8) see him at Bit much or worse while he is out in the sun.
+      runner.tick(dtMs, { pos: p.pos, hidden, running: p.moving && !p.sneaking, thermalVisible: p.level >= 3 && p.meter.inSun });
       if (runner.active && rectContains(placement.exitArea, p.pos)) runner.finish();
     }
 

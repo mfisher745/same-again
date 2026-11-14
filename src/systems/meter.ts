@@ -88,8 +88,8 @@ export function levelFor(value: number, table: DrunkLevelTable): DrunkLevel {
 
 export const stateFor = (level: DrunkLevel): DrunkState => DRUNK_STATES[level];
 
-/** Bottom of Grand: where every chapter and every return to the bar starts. */
-export const restValue = (chapter: ChapterNumber, t: OverhaulTuning = overhaulTuning()): number => levelBottom(levelTable(chapter, t), t.restLevel);
+/** A little above the bottom of Grand (`restMargin`): where every chapter and every return to the bar starts. */
+export const restValue = (chapter: ChapterNumber, t: OverhaulTuning = overhaulTuning()): number => levelBottom(levelTable(chapter, t), t.restLevel) + t.restMargin;
 
 /** Lowest value of a level (level 0 is 0). */
 export function levelBottom(table: DrunkLevelTable, level: DrunkLevel): number {
