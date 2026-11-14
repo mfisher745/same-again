@@ -11,7 +11,7 @@ import { createKit, gainWeapon, learnMove, pickUpDrink } from '../../src/systems
 import { restValue } from '../../src/systems/meter';
 import { GameSession, carryOver, chapterOf, chapterSelectSave, emptyProgress, saveAtChapterStart } from '../../src/systems/session';
 import type { SceneDriver } from '../../src/systems/session';
-import { NO_INPUT, advance, advanceWithScene, record } from './helpers';
+import { NO_INPUT, advanceWithScene, record } from './helpers';
 
 const BAD_KITS = [null, 5, 'x', {}, { drinks: {} }];
 
