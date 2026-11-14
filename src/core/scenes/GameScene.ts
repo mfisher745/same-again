@@ -35,6 +35,8 @@ export class GameScene extends Phaser.Scene {
     for (const key of this.hudKeys) {
       if (this.scene.get(key)) this.scene.launch(key);
     }
+    // A bar return completes at black, possibly with this scene paused: draw the bar and snap the camera now.
+    const offReturn = this.run.onBarReturnSettled(() => this.view?.snap());
     const onResume = (): void => {
       this.suppressPresses = true;
       this.input_?.tracker.releaseAll();
@@ -42,6 +44,7 @@ export class GameScene extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.RESUME, onResume);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.RESUME, onResume);
+      offReturn();
       this.cleanup();
     });
   }

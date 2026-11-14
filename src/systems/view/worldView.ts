@@ -83,6 +83,17 @@ export class WorldView {
     this.buildScreen();
   }
 
+  /**
+   * Draw the world as it is now and put the camera on Andrew with no slide. For a jump (the return to the bar)
+   * that happens while the Game scene is paused, so `update()` and the camera follow are not running.
+   */
+  snap(): void {
+    this.sync();
+    const cam = this.scene.cameras.main;
+    const b = this.playerBody;
+    cam.centerOn(b.x, b.y);
+  }
+
   /** Call once per frame after the simulation ticks. */
   sync(): void {
     if (this.run.screenId !== this.screenId) this.buildScreen();
