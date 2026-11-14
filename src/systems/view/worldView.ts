@@ -179,7 +179,7 @@ export class WorldView {
         return;
       }
     }
-    this.place(body, m.pos, TEX.myko, m.moving ? 'walk' : 'idle', m.facing);
+    this.place(body, m.pos, TEX.myko, m.moving ? (m.hurrying ? 'hurry' : 'walk') : 'idle', m.facing);
   }
 
   destroy(): void {
