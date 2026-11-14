@@ -65,12 +65,12 @@ export interface UiStateSource {
   setTabMode(mode: TabMode): void;
   /**
    * A return to the bar is waiting for the scene: the world is frozen where Andrew was (`bar:returning`).
-   * Call at black; it moves him, resets, and emits `bar:returned`. Optional only until the dev harness
-   * implements it; the game session always does.
+   * Call once, when the screen is black; it moves him to the bar, resets, and emits `bar:returned`.
+   * The run also completes it by itself after a failsafe delay if the UI never does.
    */
-  completeBarReturn?(): void;
-  /** The waiting return (reason and where Andrew fell), or null. */
-  barReturning?(): { readonly reason: BarReturnReason; readonly andrew: Vec2 } | null;
+  completeBarReturn(): void;
+  /** The waiting return (reason and where Andrew fell), or null when none is waiting. */
+  barReturning(): { readonly reason: BarReturnReason; readonly andrew: Vec2 } | null;
   mykoCallsLeft(): number;
   /** 0..1 progress of the M hold; 0 when not held. */
   mykoCallHoldProgress(): number;

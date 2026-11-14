@@ -130,16 +130,25 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
 
   // Sober return: silence until the fade has run, then the bar's music.
   let soberTimer: ReturnType<typeof setTimeout> | null = null;
+  let soberCut = false;
   const uncutMusic = (): void => {
     if (soberTimer !== null) clearTimeout(soberTimer);
     soberTimer = null;
+    soberCut = false;
     music.setSilent(callSection !== null);
   };
   const cutMusicForSober = (): void => {
+    if (soberTimer !== null) clearTimeout(soberTimer);
+    soberTimer = null;
+    soberCut = true;
+    music.setSilent(true);
+  };
+  /** The return is complete and the screen is black: the bar's music comes back as the black ends. */
+  const restoreMusicAfterBlack = (): void => {
     const u = TUNING.ui?.soberReturn;
     if (soberTimer !== null) clearTimeout(soberTimer);
-    music.setSilent(true);
-    soberTimer = setTimeout(uncutMusic, u ? u.flattenMs + u.fadeMs + u.blackMs : 2500);
+    if (!soberCut) cutMusicForSober();
+    soberTimer = setTimeout(uncutMusic, u ? u.blackMs : 1000);
   };
   let lastMelee: string | null = null;
 
@@ -164,13 +173,17 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
   const G = GameEvents;
   const unsubs: Array<() => void> = [
     bus.on(G.PlayerHit, () => play('hurt')),
-    bus.on(G.BarReturned, ({ reason }) => {
+    // The return starts when the world freezes where Andrew stands (`bar:returning`); `bar:returned` comes at black.
+    bus.on(G.BarReturning, ({ reason }) => {
       stopAlarm();
       endCall(reason === 'sober');
       endBoss();
       if (reason === 'floor') play('fallOver');
-      // At 0 Buzz the music is cut; it comes back once the fade to the bar is over.
+      // At 0 Buzz the music is cut at once; it comes back once the black is over (below).
       else cutMusicForSober();
+    }),
+    bus.on(G.BarReturned, ({ reason }) => {
+      if (reason === 'sober') restoreMusicAfterBlack();
     }),
     bus.on(G.MoveUsed, () => play('moveUsed')),
     bus.on(G.SpiritStarted, () => play('spiritStart')),

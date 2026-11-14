@@ -95,14 +95,17 @@ describe('audio wiring', () => {
     vi.useFakeTimers();
     try {
       const bus = wire();
+      bus.emit('bar:returning', { reason: 'floor', andrew: { x: 0, y: 0 } });
       bus.emit('bar:returned', { reason: 'floor' });
       expect(played).toEqual(['fallOver']);
       expect(silenced).not.toContain(true);
       silenced.length = 0;
+      bus.emit('bar:returning', { reason: 'sober', andrew: { x: 0, y: 0 } });
+      expect(silenced).toEqual([true]);
       bus.emit('bar:returned', { reason: 'sober' });
       expect(silenced).toEqual([true]);
       const u = TUNING.ui?.soberReturn;
-      vi.advanceTimersByTime((u ? u.flattenMs + u.fadeMs + u.blackMs : 0) + 50);
+      vi.advanceTimersByTime((u ? u.blackMs : 0) + 50);
       expect(silenced).toEqual([true, false]);
     } finally {
       vi.useRealTimers();
