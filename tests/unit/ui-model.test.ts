@@ -2,15 +2,14 @@
 
 import { describe, expect, it } from 'vitest';
 import { hasText, sequence, text } from '../../src/content/dialogue';
-import { TUNING } from '../../src/content/tuning';
-import type { BuzzSnapshot, DialogueId, DialogueLine, DialogueSequence } from '../../src/core/types';
-import { EventBus } from '../../src/core/events';
+import type { DialogueId, DialogueLine, DialogueSequence, Kit, MoveSlotView } from '../../src/core/types';
 import { DIALOGUE_TEXT, DIALOGUE_TIMING } from '../../src/ui/layout';
-import type { UiStateSource } from '../../src/ui/contract';
 import { CASEBOOK_TABS, groupCasebook, tabTextId, toItem } from '../../src/ui/model/casebook';
 import { LINKS_REQUIRED, LinkSelection } from '../../src/ui/model/deduction';
 import { DialogueQueue } from '../../src/ui/model/dialogue';
-import { buildHudModel, perimeterSegments, pipFills } from '../../src/ui/model/hud';
+import { FakeSource } from '../../src/ui/dev/fakeSource';
+import { buildHudModel, hudDrinkCells, perimeterSegments } from '../../src/ui/model/hud';
+import { levelTable } from '../../src/systems/meter';
 import { OverlayTracker } from '../../src/ui/model/overlay';
 import { paginate, wrapText } from '../../src/ui/model/wrap';
 
@@ -327,109 +326,98 @@ describe('casebook model', () => {
 
 // ---------------------------------------------------------------------------
 
-function source(over: Partial<UiStateSource> = {}): UiStateSource {
-  const buzz = (value: number): BuzzSnapshot => ({ value, state: value >= 90 ? 'banjaxed' : value >= 60 ? 'locked' : value >= 20 ? 'grand' : 'sober', banjaxedPhase: 'none', banjaxedPhaseMsLeft: 0 });
-  const base = {
-    bus: new EventBus(),
-    health: () => ({ current: 100, max: 100 }),
-    buzz: () => buzz(0),
-    heat: () => ({ active: false, value: 0 }),
-    hangover: () => ({ active: false }),
-    empties: () => 0,
-    drinkSlots: () => [null, null, null] as const,
-    selectedDrink: () => 0 as const,
-    selectedSpecial: () => null,
-    unlockedAbilities: () => [],
-    mykoCallsLeft: () => 3,
-    mykoCallHoldProgress: () => 0,
-    casebook: () => [],
-    currentObjective: () => null,
-    boss: () => null,
-    activeDeduction: () => null,
-    submitDeduction: () => false,
-    dialogueFinished: () => undefined,
-    save: () => null,
-    audioSettings: () => ({ musicVolume: 1, effectsVolume: 1 }),
-    setAudioSettings: () => undefined,
-    newGame: () => undefined,
-    continueGame: () => undefined,
-    startChapter: () => undefined,
-    pause: () => undefined,
-    resume: () => undefined,
-    quitToTitle: () => undefined,
-  };
-  return { ...base, ...over } as unknown as UiStateSource;
+/** A FakeSource with some of its state or methods replaced. Chapter 1 table: Buzzed 1-34, Grand 35-65, Bit much 66-90, Fecked 91-99, floor 100. */
+function source(over: Partial<Record<keyof FakeSource, unknown>> = {}): FakeSource {
+  return Object.assign(new FakeSource(), over);
 }
 
+const slotView = (slot: 1 | 2 | 3 | 4, moveId: MoveSlotView['moveId'], lit: boolean, cooldownLeftMs = 0): MoveSlotView => ({ slot, moveId, lit, cooldownLeftMs, cooldownMs: moveId ? 12000 : 0 });
+const kitWith = (over: Partial<Kit>): Kit => ({ ...new FakeSource().kitState, ...over });
+
 describe('HUD model', () => {
-  it('health pips: five at full, half pips, fewer under a hangover', () => {
-    expect(pipFills(100, 100)).toEqual(['full', 'full', 'full', 'full', 'full']);
-    expect(pipFills(50, 100)).toEqual(['full', 'full', 'half', 'empty', 'empty']);
-    expect(pipFills(0, 100)).toEqual(['empty', 'empty', 'empty', 'empty', 'empty']);
-    expect(pipFills(75, 75)).toHaveLength(4);
+  it('there is no health: no pips, no hangover, no heat', () => {
+    const m = buildHudModel(source());
+    expect(m.pips).toEqual([]);
+    expect(m.hangover).toBe(false);
+    expect(m.heat).toBeNull();
   });
 
-it('a hungover Andrew at full health shows only full pips', () => {
-    expect(pipFills(75, 75).every((p) => p === 'full')).toBe(true);
-  });
-
-  it('the Buzz meter has notches at 20, 60 and 90 and a fraction', () => {
-    const m = buildHudModel(source({ buzz: () => ({ value: 45, state: 'grand', banjaxedPhase: 'none', banjaxedPhaseMsLeft: 0 }) }));
-    expect(m.buzz.notches).toEqual([0.2, 0.6, 0.9]);
-    expect(m.buzz.fraction).toBeCloseTo(0.45, 5);
+  it('the meter fraction and notches come from the chapter table, not constants', () => {
+    const t = levelTable(1);
+    const m = buildHudModel(source({ buzzValue: 45 }));
+    expect(m.buzz.notches).toEqual([t.grand.min / t.floor, t.bitMuch.min / t.floor, t.fecked.min / t.floor]);
+    expect(m.buzz.fraction).toBeCloseTo(45 / t.floor, 5);
     expect(m.buzz.state).toBe('grand');
     expect(hasText(m.buzz.stateTextId)).toBe(true);
     expect(m.buzz.flashing).toBe(false);
   });
 
-  it('every Buzz state has HUD text and the meter flashes during the Banjaxed peak', () => {
-    for (const state of ['sober', 'grand', 'locked', 'banjaxed'] as const) {
-      const m = buildHudModel(source({ buzz: () => ({ value: 95, state, banjaxedPhase: state === 'banjaxed' ? 'peak' : 'none', banjaxedPhaseMsLeft: 0 }) }));
-      expect(hasText(m.buzz.stateTextId)).toBe(true);
-      expect(m.buzz.flashing).toBe(state === 'banjaxed');
+  it('every level has HUD text and the meter flashes only during a spirit window', () => {
+    const values: [number, string][] = [[0, 'sober'], [20, 'buzzed'], [50, 'grand'], [75, 'bitMuch'], [95, 'fecked']];
+    for (const [value, state] of values) {
+      const m = buildHudModel(source({ buzzValue: value }));
+      expect(m.buzz.state).toBe(state);
+      expect(hasText(m.buzz.stateTextId), state).toBe(true);
+      expect(m.buzz.flashing).toBe(false);
+      expect(buildHudModel(source({ buzzValue: value, spiritActive: true })).buzz.flashing).toBe(true);
     }
   });
 
-  it('clamps a nonsense Buzz value', () => {
-    const m = buildHudModel(source({ buzz: () => ({ value: 250, state: 'banjaxed', banjaxedPhase: 'none', banjaxedPhaseMsLeft: 0 }) }));
-    expect(m.buzz.fraction).toBe(1);
+  it('clamps a nonsense meter value', () => {
+    expect(buildHudModel(source({ buzzValue: 250 })).buzz.fraction).toBe(1);
+    expect(buildHudModel(source({ buzzValue: -5 })).buzz.fraction).toBe(0);
+    expect(buildHudModel(source({ buzzValue: Number.NaN })).buzz.fraction).toBe(0);
   });
 
-  it('three rollie flags for Myko calls, spent ones false', () => {
-    expect(buildHudModel(source()).calls).toEqual([true, true, true]);
-    expect(buildHudModel(source({ mykoCallsLeft: () => 1 })).calls).toEqual([true, false, false]);
-    expect(buildHudModel(source({ mykoCallsLeft: () => 0 })).calls).toEqual([false, false, false]);
+  it('three leaf flags for Myko calls, spent ones false', () => {
+    expect(buildHudModel(source({ callsLeft: 3 })).calls).toEqual([true, true, true]);
+    expect(buildHudModel(source({ callsLeft: 1 })).calls).toEqual([true, false, false]);
+    expect(buildHudModel(source({ callsLeft: 0 })).calls).toEqual([false, false, false]);
   });
 
-  it('heat only shows when active', () => {
-    expect(buildHudModel(source()).heat).toBeNull();
-    expect(buildHudModel(source({ heat: () => ({ active: true, value: 50 }) })).heat).toEqual({ fraction: 0.5 });
+  it('the special cell is dark when the slot is dark, recharging when lit with a cooldown, ready otherwise', () => {
+    const none = buildHudModel(source({ slots: [slotView(1, null, true), slotView(2, null, false), slotView(3, null, false), slotView(4, null, false)] }));
+    expect(none.special.shown).toBe(false);
+    expect(none.special.locked).toBe(true);
+    expect(none.special.labelTextId).toBe('ui.hud.noSpecial');
+    const dark = buildHudModel(source({ slots: [slotView(1, null, true), slotView(2, 'stoutSlam', false), slotView(3, null, false), slotView(4, null, false)] }));
+    expect(dark.special.locked).toBe(true);
+    expect(dark.special.reason).toBe('sober');
+    const recharging = buildHudModel(source({ slots: [slotView(1, null, true), slotView(2, 'stoutSlam', true, 3000), slotView(3, null, false), slotView(4, null, false)] }));
+    expect(recharging.special.reason).toBe('recharge');
+    expect(recharging.special.locked).toBe(true);
+    const ready = buildHudModel(source({ slots: [slotView(1, null, true), slotView(2, 'stoutSlam', true, 0), slotView(3, null, false), slotView(4, null, false)] }));
+    expect(ready.special.reason).toBeNull();
+    expect(ready.special.locked).toBe(false);
+    expect(hasText(ready.special.labelTextId)).toBe(true);
   });
 
-  it('specials are dimmed when Sober or when none is selected', () => {
-    expect(buildHudModel(source()).special.locked).toBe(true);
-    const grand = buildHudModel(source({ selectedSpecial: () => 'stoutSlam', buzz: () => ({ value: 40, state: 'grand', banjaxedPhase: 'none', banjaxedPhaseMsLeft: 0 }) }));
-    expect(grand.special.locked).toBe(false);
-    expect(hasText(grand.special.labelTextId)).toBe(true);
-    const sober = buildHudModel(source({ selectedSpecial: () => 'stoutSlam' }));
-    expect(sober.special.locked).toBe(true);
-  });
-
-  it('slots show drink, count and selection', () => {
-    const m = buildHudModel(source({ drinkSlots: () => [{ drinkId: 'stout', count: 2 }, null, { drinkId: 'whiskey', count: 1 }] as const, selectedDrink: () => 2 as const, empties: () => 4 }));
-    expect(m.slots.map((s) => [s.drinkId, s.count, s.selected])).toEqual([['stout', 2, false], [null, 0, false], ['whiskey', 1, true]]);
+  it('drink cells show the selected drink first, then the others, with counts; bottles are the throw count', () => {
+    const kit = kitWith({ drinks: { stout: 2, whiskey: 1, lager: 3 }, bottles: 4, slots: { drink: 'whiskey', specials: [null, null, null, null], melee: 'fists' } });
+    const m = buildHudModel(source({ kitState: kit }));
+    expect(m.slots[0]).toMatchObject({ selected: true, count: 1 });
+    expect(m.slots[1]?.selected).toBe(false);
+    expect(m.slots.filter((c) => c.drinkId !== null).length).toBe(3);
     expect(m.empties).toBe(4);
+    expect(hudDrinkCells(kitWith({ drinks: {}, slots: { drink: null, specials: [null, null, null, null], melee: 'fists' } })).every((c) => c.drinkId === null)).toBe(true);
+  });
+
+  it('a held hot drink is a cell of its own', () => {
+    const cells = hudDrinkCells(kitWith({ drinks: { stout: 1 }, hotDrink: 'tea', slots: { drink: 'stout', specials: [null, null, null, null], melee: 'fists' } }));
+    expect(cells[0]?.drinkId).toBe('stout');
+    expect(cells[1]?.count).toBe(1);
+  });
+
+  it('the melee icon follows the weapon', () => {
+    expect(buildHudModel(source({ weaponId: 'hurley' })).melee).toBe('hurley');
+    expect(buildHudModel(source({ weaponId: 'fists' })).melee).toBe('punchCombo');
   });
 
   it('boss bar fraction and name', () => {
-    const m = buildHudModel(source({ boss: () => ({ bossId: 'c1.boss.bigtom', health: { current: 110, max: 220 } }) }));
+    const m = buildHudModel(source({ bossState: { bossId: 'c1.boss.bigtom', health: { current: 110, max: 220 } } }));
     expect(m.boss).toMatchObject({ bossId: 'c1.boss.bigtom', fraction: 0.5 });
     expect(hasText(m.boss?.nameTextId ?? '')).toBe(true);
     expect(buildHudModel(source()).boss).toBeNull();
-  });
-
-  it('hangover flag', () => {
-    expect(buildHudModel(source({ hangover: () => ({ active: true }) })).hangover).toBe(true);
   });
 
   it('the Myko call ring covers a quarter of the perimeter at 0.25', () => {
@@ -441,8 +429,13 @@ it('a hungover Andrew at full health shows only full pips', () => {
     expect(perimeterSegments(0.1, 10, 10)[0]?.slice(0, 2)).toEqual([0, 0]);
   });
 
-  it('uses the DESIGN buzz thresholds from tuning for notches', () => {
-    expect(TUNING.buzz.thresholds.grand / TUNING.buzz.max).toBe(0.2);
+  it('FakeSource implements the whole source and the throw preview and refusal are null to start', () => {
+    const f = new FakeSource();
+    expect(f.throwPreview()).toBeNull();
+    expect(f.refusal()).toBeNull();
+    f.lastRefusal = { textId: 'ui.throw.noBottle', seq: 1 };
+    expect(f.refusal()?.textId).toBe('ui.throw.noBottle');
+    expect(hasText('ui.throw.noBottle')).toBe(true);
   });
 });
 
