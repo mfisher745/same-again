@@ -16,7 +16,7 @@ import type { DialogueContext } from '../../src/systems/dialogue';
 import { GameSession } from '../../src/systems/session';
 import type { SceneDriver } from '../../src/systems/session';
 import { createMeter } from '../../src/systems/meter';
-import { NO_INPUT, advance, frame, makeRun, record, teleport } from './helpers';
+import { NO_INPUT, advance, advanceWithScene, frame, makeRun, record, teleport } from './helpers';
 
 const T = (col: number, row: number): Vec2 => ({ x: col * 16 + 8, y: row * 16 + 8 });
 
@@ -224,7 +224,7 @@ describe('Nothing is said twice across a return to the bar and reload (session)'
   /** The meter runs out: back to the bar. The same run carries on (no scene restart). */
   const sober = (run: NonNullable<ReturnType<GameSession['createRun']>>): void => {
     run.player.meter = createMeter(run.chapter, 0.01);
-    advance(run, 300);
+    advanceWithScene(run, 300);
   };
 
   it('a played line is written to the save as it is shown, before any checkpoint', () => {
@@ -473,7 +473,7 @@ describe('Breakables', () => {
       expect(store.load()?.brokenProps).toContain(CRATE);
       expect(run1.pickups().some((p) => p.def.id === lootId(CRATE))).toBe(true);
       run1.player.meter = createMeter(1, 0.01);
-      advance(run1, 300);
+      advanceWithScene(run1, 300);
       const run2 = run1;
       run2.tick(16, NO_INPUT);
       expect(propOf(run2, CRATE)?.broken).toBe(true);

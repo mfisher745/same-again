@@ -111,11 +111,18 @@ export function makeRun(
   return { run, bus, saves, returns, completions, module };
 }
 
-/** Ticks `ms` of game time in `step` ms slices with no input. */
+/**
+ * Ticks `ms` of game time in `step` ms slices with no input. Never completes a waiting bar return: a run from
+ * `makeRun` does it itself (unless `manualReturn`), and a `GameSession` run needs `advanceWithScene`.
+ */
 export function advance(run: ChapterRun, ms: number, step = 16): void {
+  for (let t = 0; t < ms; t += step) run.tick(step, NO_INPUT);
+}
+
+/** Like `advance`, but plays the part of an instant scene: completes any waiting bar return after each tick. */
+export function advanceWithScene(run: ChapterRun, ms: number, step = 16): void {
   for (let t = 0; t < ms; t += step) {
     run.tick(step, NO_INPUT);
-    // Runs not built by `makeRun` (a `GameSession`'s) have no instant scene: complete the waiting return.
     run.completeBarReturn();
   }
 }
