@@ -169,6 +169,9 @@ interface SectionEntry {
   setSuspended?(on: boolean): void;
 }
 
+/** How far past where a blocked lurch ends it still touches (px): the blocker itself, not what lies behind it. */
+const HOOK_TOUCH = 4;
+
 export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   readonly bus: GameEventBus;
   readonly rng: Random;
@@ -1585,12 +1588,17 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private moveWorldHits(moveId: MoveId, lane: AttackShape, breakAll: boolean): void {
     const p = this.player;
     let thud = false;
+    // Only what he could reach: the lane stops where a wall or puzzle piece (not a breakable) stops him, plus a
+    // fingertip (HOOK_TOUCH) so the thing that stops him, or what he stands against, still counts.
+    const reach = this.reachableLane(lane);
+    const hookLane: AttackShape =
+      reach.kind === 'charge' && lane.kind === 'charge' && reach.distance < lane.distance
+        ? { ...reach, distance: reach.distance + HOOK_TOUCH }
+        : reach;
     for (const h of [...this.moveHooks]) {
-      if (h.screenId === this.screen.id && shapeHitsRect(lane, p.pos, p.aimDeg, h.area)) h.callback({ moveId });
+      if (h.screenId === this.screen.id && shapeHitsRect(hookLane, p.pos, p.aimDeg, h.area)) h.callback({ moveId });
     }
     if (breakAll) {
-      // Only what he actually passes through: the lane stops where a wall or puzzle piece (not a breakable) stops the lurch.
-      const reach = this.reachableLane(lane);
       for (const prop of this.dressing.breakablesOn(this.screen.id)) {
         if (!shapeHitsRect(reach, p.pos, p.aimDeg, propHitRect(prop))) continue;
         thud = true;
