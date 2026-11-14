@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=$(ls -d \"$HOME\"/.nvm/versions/node/*/bin 2>/dev/null | sort -V | tail -n 1); if [ -n \"$d\" ] && [ -n \"$CLAUDE_ENV_FILE\" ]; then echo \"export PATH=\\\"$d:\\$PATH\\\"\" >> \"$CLAUDE_ENV_FILE\"; fi; true"
+          }
+        ]
+      }
+    ]
+  }
+}
