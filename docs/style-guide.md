@@ -6,7 +6,7 @@ Owner: `creative-director`. This document says how the game looks, reads and sou
 
 - Internal resolution is 480 × 270. One view is 30 × 16.875 tiles of 16 × 16, so design screens as 30 × 17 with the bottom row partly under the HUD.
 - Scale by whole numbers only, with no smoothing and no sub-pixel camera positions. Round the camera to whole pixels.
-- Every colour comes from `src/art/palette.ts`. A region's own colours dominate its screens; other palette colours may appear in small amounts. No gradients, no alpha blending except for three cases: vision cones (40% alpha), the hangover brightness overlay and screen fades.
+- Every colour comes from `src/art/palette.ts`. A region's own colours dominate its screens; other palette colours may appear in small amounts. No gradients, no alpha blending except for three cases: vision cones (40% alpha), the flattened colours when Buzz is nearly gone and screen fades.
 - Light comes from the top left. Shade is one palette step darker on the bottom and right. Nothing has more than three tones: light, base, shade.
 - Characters and interactable objects have a 1-pixel `ink` outline. Scenery tiles do not. This is how the player tells what can be used from what cannot.
 - No dithering on characters. Dithering is allowed on ground tiles (bog, sand, corn) in a 2 × 2 checker only.
@@ -40,7 +40,7 @@ Every enemy attack has a telegraph frame held for at least 400 ms. If the player
 
 ## 4. HUD and text boxes
 
-- HUD sits in the bottom 16 px and the top-left corner. Top left: health as pint-glass pips, the Buzz meter under it (64 × 6 px, with three notches at 20, 60 and 90). Bottom left: selected drink and empties count. Bottom right: current special ability and three cannabis-leaf icons for Myko calls (`grass` with a `moss` stem). A spent call is the same leaf in `slate`.
+- HUD sits in the bottom 16 px. There is no health. Bottom centre: the Buzz meter, 96 × 6 px in chapter 1 and growing to 128 × 6 px by chapter 10, with a notch at each level boundary and a taller one at the bottom of Grand. Bottom left: the drink slot with its count, then the four special slots. Bottom right: the melee weapon, the bottle count and three cannabis-leaf icons for Myko calls (`grass` with a `moss` stem). A spent call is the same leaf in `slate`. A special slot below Andrew's level is drawn in `slate`.
 - The commentary box is 480 × 40 at the bottom, above the HUD strip, and never pauses play. It holds a 32 × 32 portrait at the left and up to 3 lines of text.
 - The scripted-scene dialogue box has the same layout, pauses play and advances with E or left click.
 - Holding M draws a ring that fills clockwise around Myko's leaf icons over 1 second. Releasing early cancels with no cost.
@@ -56,13 +56,15 @@ Every enemy attack has a telegraph frame held for at least 400 ms. If the player
 DESIGN.md section 2 is the rule. These are the mechanics of applying it.
 
 - Casebook text IDs: evidence is `<evidenceId>.title`, `.body`, `.margin`; a solved board is `<deductionId>.lead.title`, `.lead.body`, `.lead.margin`, with `<deductionId>.prompt` and `.answer` for the board itself; a Myko call is `c<chapter>.call.<fight|puzzle>.casebook` and `.margin`.
-- All text lives in `src/content/dialogue/`, one file per chapter plus `common.ts` (pickups, HUD, menus, death lines, hints, idle lines) and `callins.ts`.
+- All text lives in `src/content/dialogue/`, one file per chapter plus `common.ts` (pickups, HUD, menus, back-at-the-bar lines, hints, idle lines) and `callins.ts`.
 - Every line has a stable ID: `c3.halloran.intro.02`. Code refers to IDs and never to strings.
 - Andrew's lines are short. If Andrew has more than two sentences, Myko should have had one of them.
 - Myko insults the plan, the evidence and the outfit. He never insults Andrew's intelligence in a way that would hurt, and never his drinking.
 - Stage directions go in round brackets and italics in the source and render in `fog`: *(quietly)*.
 - No exclamation marks for Andrew or Myko. Americans get as many as they like.
 - Pickup text follows the sample: name in bold, the effect, then one dry sentence.
+- Irish words follow the three rows of the table in DESIGN.md section 2. Read each line as someone who has never been to Ireland: if a word stops them, change the word; if the joke needs the word, change the joke.
+- Nobody but Andrew speaks to Myko, answers him or mentions him (DESIGN.md section 3). Check every scene with a third character in it.
 - Ohio lines are sincere. If an Ohio line could be read as sarcasm, rewrite it until it cannot.
 - Call-in lines: each chapter has one for a fight and one for a puzzle, plus Andrew's casebook entry and Myko's margin note. Myko's angle is always that Andrew nearly had it.
 - Casebook entries are in Andrew's first person, clipped, with the confidence of a man writing a report nobody asked for. Margin notes are Myko's, in `beanie`, and are shorter than the entry.

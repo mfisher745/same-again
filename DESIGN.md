@@ -14,7 +14,7 @@ A comedic top-down action-adventure for PC browsers, played with mouse and keybo
 
 ## 2. Tone
 
-The comedy is dry and deadpan. The jokes come from people reacting calmly to absurd things, and from Andrew treating small things as serious and serious things as small.
+The comedy is dry and deadpan. The jokes come from people reacting calmly to absurd things, and from Andrew treating small things as serious and serious things as small. It is Irish wit of the familiar kind: quick, dry and fond, and aimed at anyone getting above themselves, the speaker included.
 
 Rules for every line of text:
 
@@ -22,18 +22,19 @@ Rules for every line of text:
 - Andrew is pathetic but lovable. The player laughs at his situation and is on his side. He is never cruel, and he is never the butt of a joke about being Irish.
 - No cartoon Irishness. No leprechauns, no "top o' the morning", no "begorrah", no lucky charms, no stage accent spelled out phonetically.
 - Americans may say those things *to* Andrew. His tired reaction is the joke.
-- Irish slang and references are used the way people use them, without explanation. The context has to carry the meaning for players who don't know the word.
+- It sounds Irish through rhythm and wit more than vocabulary. The shape of the sentence does the work: the understatement, the comeback that arrives a beat late, agreeing in order to refuse ("I will, yeah"), a question answered with a question, great patience with small things.
+- A player who has never been to Ireland must be able to follow every line and get every joke. Irish words are seasoning. Use the ones most English speakers half-know already, about one to an exchange, and never hang a joke on a word the player might not have. If a line only works for someone who knows the word, rewrite the line.
+- No glossary, and nobody explains a word.
 - No real people, real brands, real song lyrics or real company names. The one exception is that a famous fictional character may be named in passing as a comparison, never shown and never quoted.
 - Text only. There is no voice acting.
 
-Slang and references the writing can draw on:
+Words and references the writing can draw on:
 
-| Kind | Examples |
+| How much | Examples |
 |---|---|
-| Everyday words | grand, sound, deadly, eejit, gobshite, yer man, yer one, the craic, notions, giving out, slagging, banjaxed, knackered, scarlet, the messages, the press, the jacks, a naggin, a lock-in |
-| Phrases | "I will, yeah" (meaning no), "c'mere to me", "go 'way", "fair play", "now we're sucking diesel", "sure look", "it's a soft day", saying "bye" six times to end a phone call |
-| Home life | leaving the immersion on, the good room, hang sandwiches, a chicken fillet roll, a spice bag, a 99, turf, a breakfast roll, tea as the answer to everything |
-| Culture | the GAA and the county team's bad year, the parish lotto, the Angelus bells on the telly, a removal, the dole, the mart, NCT failure, a mammy's guilt |
+| Freely | grand, sound, eejit, the craic, fair play, lads, "sure look", "I will, yeah" (meaning no), "c'mere to me", "go 'way", a pint, tea as the answer to everything, a mammy's guilt, the county team's bad year, saying "bye" six times to end a phone call |
+| Now and then, where the line makes the meaning obvious | gobshite, yer man, yer one, giving out, slagging, notions, knackered, the dole, the parish lotto, the mart, a lock-in, turf, a chicken fillet roll, a spice bag |
+| Leave out | banjaxed, scarlet, deadly (it reads as its opposite), the messages, the press, the jacks, a naggin, "now we're sucking diesel", "it's a soft day", the immersion, hang sandwiches, a 99, the Angelus, a removal, the NCT |
 
 Voice samples. These set the register; they are not required lines.
 
@@ -119,7 +120,7 @@ The scene plays the same whichever way the player has read Myko, and it does not
 
 ## 5. Chapters
 
-Each chapter starts in a bar, with Buzz at 35. A bar is wherever there is drink, somewhere to sit and a way to get a hot drink; it does not have to be a pub. Andrew comes back to it every time he ends up sober or on the floor (7.1).
+Each chapter starts in a bar, with Buzz at the bottom of Grand. A bar is wherever there is drink, somewhere to sit and a way to get a hot drink; it does not have to be a pub. Andrew comes back to it every time he ends up sober or on the floor (7.1).
 
 Each chapter has an investigation beat, a puzzle or deduction, a stealth section and a combat section, in whatever order suits it. Each ends with a boss or set piece and a short scene with Myko. Some bosses leave a melee weapon behind (7.2).
 
@@ -134,7 +135,7 @@ The number after a special move is the drunk level whose slot it goes in.
 | 5 | The Paper Trail | Washington DC: a federal records office | The bar of the hotel across the street, at ten in the morning | The stealth chapter. A redacted-file puzzle. Agents appear in numbers. | Agents, **Act Natural** (1), **Lock-in** (3) | Agent Pruitt, round one, in the archive stacks | Pruitt's umbrella |
 | 6 | Flyover Country | Ohio: a bus station, a motel, cornfields | The motel lounge | Crop circles as a maze puzzle. Surveillance drones. Myko is having the best week of his life and says so throughout. | Drones, **Second Opinion** (3) | The combine harvester | None |
 | 7 | Gift Shop | Roswell, New Mexico | A themed bar beside the gift shop. The drinks are green. | Everyone is dressed as an alien. Some of them are aliens. Work out which. | Aliens in disguise, tequila, **Last Orders** (4) | Three "mascots" who are not mascots | An inflatable alien |
-| 8 | The Long Road | Nevada desert, the perimeter | A roadhouse at the last junction before the fence | Sensors, patrol trucks and heat. Out in the sun the meter drains twice as fast. | Heat and sensor stealth, **Barred** (4) | Agent Pruitt, round two. He lets Andrew through and retires. | None |
+| 8 | The Long Road | Nevada desert, the perimeter | A roadhouse at the last junction before the fence | Sensors, patrol trucks and heat. Out in the sun the meter drains twice as fast and drink goes half as far again. | Heat and sensor stealth, **Barred** (4) | Agent Pruitt, round two. He lets Andrew through and retires. | None |
 | 9 | Level Minus Four | Inside the base | The staff social area. It is very like the one in the Meridian depot. | Alien technology, gravity-switch puzzles and the last five pieces of proof. | Alien enemies, **The Borrowed Glove** (3) | The containment hall lockdown | A security wand |
 | 10 | Disclosure | Base control room, then Feeney's | The drinks cabinet in the Administrator's outer office | The final fight, the broadcast, the world's reaction and home. | Everything | The Administrator, then the epilogue | None |
 
@@ -163,33 +164,37 @@ Locations are small. Each chapter uses two or three connected screens, and no ch
 
 ### 7.1 Buzz
 
-There is no health. The one thing the player manages is how drunk Andrew is. The Buzz meter runs from 0 to 100. Drinking raises it, time lowers it, and being hit pushes it the wrong way. At either end Andrew is back at the bar.
+There is no health. The one thing the player manages is how drunk Andrew is. Drinking raises the Buzz meter, time lowers it, and being hit pushes it the wrong way. At either end Andrew is back at the bar.
 
-| Level | State | Buzz | Melee damage | Special slots | What it is like |
-|---|---|---|---|---|---|
-| | Sober | 0 | | | Back to the bar. |
-| 1 | Buzzed | 1 to 34 | ×1 | 1 | Steady. Below 10 the colours start to flatten, and Andrew remarks on how clear everything is and how little he likes it. |
-| 2 | Grand | 35 to 65 | ×1.5 | 1, 2 | Steady. |
-| 3 | Bit much | 66 to 90 | ×2 | 1, 2, 3 | Aim sways, movement drifts, footsteps are louder in stealth and the screen wobbles slightly. |
-| 4 | Fecked | 91 to 99 | ×3 | 1, 2, 3, 4 | All of that, worse. Even sneaking can be heard at short range. |
-| | On the floor | 100 | | | Back to the bar. |
+| Level | State | Buzz in chapter 1 | Buzz by chapter 10 | Melee damage | Special slots | What it is like |
+|---|---|---|---|---|---|---|
+| | Sober | 0 | 0 | | | Back to the bar. |
+| 1 | Buzzed | 1 to 34 | 1 to 51 | ×1 | 1 | Steady. Below 10 the colours start to flatten, and Andrew remarks on how clear everything is and how little he likes it. |
+| 2 | Grand | 35 to 65 | 52 to 98 | ×1.5 | 1, 2 | Steady. |
+| 3 | Bit much | 66 to 90 | 99 to 123 | ×2 | 1, 2, 3 | Aim sways, movement drifts, footsteps are louder in stealth and the screen wobbles slightly. |
+| 4 | Fecked | 91 to 99 | 124 to 132 | ×3 | 1, 2, 3, 4 | All of that, worse. Even sneaking can be heard at short range. |
+| | On the floor | 100 | 133 | | | Back to the bar. |
 
-- **Start.** Every chapter, and every return to the bar, starts at 35: just into Grand.
-- **Drain.** Buzz falls at one constant rate, about 1 point every 3 seconds, from the moment the chapter starts. There is no pause after a drink. From 35 it reaches 0 in under two minutes if Andrew drinks nothing.
+- **The meter grows.** Andrew gets used to it. Over the game the meter gets about a third longer, from 100 to about 133. All of the growth goes to Buzzed and Grand, in roughly equal shares; Bit much and Fecked stay as wide as they started. It grows a little at the start of each chapter after the first (the steps are in `tuning.ts`), and the bar on the HUD gets longer with it. The player gains room in the safe middle and keeps the same thin margin at the top.
+- Anything below that is given as a place on the meter (the start, coffee, whiskey, tequila) moves with the levels. Drain, hits and the strength of a beer are fixed numbers of points and do not grow.
+- **Start.** Every chapter, and every return to the bar, starts at the bottom of Grand: 35 in chapter 1.
+- **Drain.** Buzz falls at one constant rate, about 1 point every 3 seconds, from the moment the chapter starts. There is no pause after a drink. In chapter 1 it goes from the start to 0 in under two minutes if Andrew drinks nothing.
 - **Being hit.** Enemies do not damage Andrew. A hit moves the meter away from the middle: at levels 1 and 2 it lowers Buzz, and at levels 3 and 4 it raises it. An ordinary hit moves it about 5, a heavy one about 10 and a boss's worst about 15. Andrew still flinches and is knocked back.
 - **The trade.** Grand is the safe middle. Above it Andrew hits harder and has stronger moves, but his aim goes and every hit shoves him towards the floor. Below it nothing is wrong with him except that he is running out. The player chooses how much to risk.
 
 **Back to the bar**
 
 - **Sober.** At 0 the music stops and the colours go flat. Andrew stands still and looks at where he is and what he is doing. Myko says nothing. The screen fades and they are at the bar.
-- **On the floor.** At 100 Andrew falls over. Myko runs over, which he does nowhere else, and blows out a cloud of smoke that fills the screen. The screen goes to black and they are at the bar.
-- Either way Buzz is 35, a hot drink is on offer again and Andrew has at least two bottles. Myko has a line about it, drawn from a pool: one pool for sober, one for the floor.
+- **On the floor.** At the top of the meter Andrew falls over. Myko runs over, which he does nowhere else, and blows out a cloud of smoke that fills the screen. The screen goes to black and they are at the bar.
+- Either way Buzz is at the bottom of Grand, a hot drink is on offer again and Andrew has at least two bottles. Myko has a line about it, drawn from a pool: one pool for sober, one for the floor.
 - **Progress is kept.** Clues, solved puzzles, stealth sections already passed, opened doors and beaten encounters all stay as they were. Guards from a section Andrew has passed are gone. A fight or boss he was in the middle of starts again from its beginning. The punishment is the walk back.
 - This replaces death and checkpoints. Nothing else sends Andrew back.
 
 **The kit**
 
-Drinks are not drunk when they are picked up. They go into Andrew's kit (7.7), and he drinks from the drink slot with Q or straight from the kit screen. There is no limit on what he carries. The kit carries over from chapter to chapter; Buzz does not.
+Drinks are not drunk when they are picked up. They go into Andrew's kit (7.7), and he drinks from the drink slot with Q or straight from the kit screen. The kit carries over from chapter to chapter; Buzz does not.
+
+Andrew carries six drinks at most, in any mix. The hot drink and his bottles do not count towards the six. When he is full, a drink stays where it is on the ground. Six is a starting number, to be settled by playing chapter 1.
 
 | Drink | Found | Effect |
 |---|---|---|
@@ -197,17 +202,18 @@ Drinks are not drunk when they are picked up. They go into Andrew's kit (7.7), a
 | Can of lager | Ireland | Buzz +10 |
 | American light beer | USA, very common | Buzz +2. Worth more as a bottle. |
 | Craft IPA | USA cities | Buzz +20. Myko has an opinion about each one. |
-| Whiskey | Everywhere, rare | Buzz jumps to the top of the next level up: from Buzzed to 65, from Grand to 90, from Bit much or Fecked to 99. For the next 8 seconds the meter does not drain, and every hit moves it twice as far. |
-| Tequila | Chapter 7 onwards, rarer than whiskey | Buzz goes to 95 from anywhere. For 12 seconds the meter does not drain and every hit moves it three times as far. Then it wears off all at once and Buzz drops by 40. |
-| Coffee | The bar only | Sets Buzz to 35 at once, from above or below. |
-| Tea | The bar only | Brings Buzz to 35 over about 10 seconds, then holds it there with no drain for 20 more. |
+| Whiskey | Everywhere, rare | Buzz jumps to the top of the next level up. From Bit much or Fecked that is the top of Fecked, one short of the floor. For the next 8 seconds the meter does not drain, and every hit lowers Buzz, whatever his level, by twice the usual amount. |
+| Tequila | Chapter 7 onwards, rarer than whiskey | Buzz goes to the middle of Fecked from anywhere. For the next 8 seconds it behaves as whiskey does: no drain, and every hit lowers Buzz by twice the usual amount. Then it wears off all at once and Buzz drops by 30. |
+| Coffee | The bar only | Sets Buzz to the bottom of Grand at once, from above or below. |
+| Tea | The bar only | Brings Buzz to the bottom of Grand over about 10 seconds, then holds it there with no drain for 20 more. |
 
 - **Beer** is anything in the first four rows. More kinds can be added by region, each with its own strength. Every beer does the same thing apart from the number.
 - **The hot drink.** Each visit to the bar, at the start of a chapter and after every return, Andrew is offered one free coffee or tea and takes it with him. He carries one at a time. Coffee and tea are not found anywhere else: not in breakables, not on enemies, not as a reward.
-- **Bottles.** Every beer Andrew drinks adds one bottle to his count, whatever the beer was. Bottles are the only thing he throws, there is no limit on how many he carries, and every thrown bottle looks the same. He leaves the bar with at least two. Whiskey and tequila do not leave a bottle.
+- **Bottles.** A beer has to be drunk before it can be thrown. Every beer Andrew drinks adds one bottle to his count, whatever the beer was. Bottles are the only thing he throws, there is no limit on how many he carries, and every thrown bottle looks the same. He leaves the bar with at least two. Whiskey and tequila do not leave a bottle.
 - **Breakables.** Most loose objects in the world can be broken with a melee hit or a thrown bottle: crates, barrels, bins, boxes, flowerpots, vending machines and their like. If Andrew can walk up to it and it is not part of a puzzle or the plot, he should be able to break it. A broken object holds a drink or nothing: usually the beer of the region, now and then a whiskey. Never food, never a hot drink.
 - **Enemies** drop drink the same way when they go down: usually the regional beer, rarely a whiskey, and from chapter 7 very rarely a tequila.
-- There is no food, no hangover and no second meter. In chapter 8 the heat is the sun doubling the drain, and shade stops it.
+- There is no food, no hangover and no second meter.
+- **Heat (chapter 8).** While Andrew is out in the sun the meter drains twice as fast, and drink goes half as far again: a beer adds one and a half times its number, and a whiskey or tequila lasts one and a half times as long. In the shade both are normal.
 
 ### 7.2 Combat and abilities
 
@@ -263,7 +269,11 @@ When Andrew ends up sober or on the floor he goes back to the bar (7.1). There i
 - Guards have visible vision cones and react to noise.
 - Sneaking (hold Shift) is quiet and slow. At Bit much footsteps are louder, and at Fecked even sneaking can be heard at short range.
 - A guard who sees Andrew fills a detection marker over about one second. If it fills, the stealth section becomes a fight: an alarm sounds and reinforcements arrive.
-- **Getting caught is never a restart.** A clean run is rewarded, not required. The reward is an extra clue or a rare drink: a whiskey, or later a tequila.
+- **Getting caught is never a restart.** A clean run is rewarded, not required. Each stealth section has one reward, chosen in its chapter spec from these:
+  - an extra clue, one the casebook does not need but Myko has a note on;
+  - a rare drink: a whiskey, or later a tequila;
+  - a way back: a door or gate that opens from the far side and shortens the walk from the bar for the rest of the chapter;
+  - a drink from home: in America, a stout that somebody brought over.
 
 ### 7.4 Investigation and puzzles
 
@@ -294,7 +304,7 @@ When Andrew ends up sober or on the floor he goes back to the bar (7.1). There i
 
 ### 7.6 Saving
 
-Progress saves automatically to the browser's local storage whenever something is finished: a clue found, a puzzle solved, a stealth section passed, an encounter or boss beaten, a move or weapon gained, a Myko call used. The kit is saved with it. Loading a save puts Andrew in the chapter's bar at Buzz 35 with everything finished still finished, exactly as a return to the bar does. The title screen offers Continue, New Game and Chapter Select for finished chapters.
+Progress saves automatically to the browser's local storage whenever something is finished: a clue found, a puzzle solved, a stealth section passed, an encounter or boss beaten, a move or weapon gained, a Myko call used. The kit is saved with it. Loading a save puts Andrew in the chapter's bar with Buzz at the bottom of Grand and everything finished still finished, exactly as a return to the bar does. The title screen offers Continue, New Game and Chapter Select for finished chapters.
 
 ### 7.7 The Tab screen
 
@@ -302,7 +312,7 @@ Tab opens one screen with two parts, the casebook and the kit. The game is pause
 
 **Kit**
 
-- **Inventory.** Every drink Andrew is carrying with its count, the hot drink if he has one, his bottle count, the weapons he owns and the moves he has learned, grouped by level.
+- **Inventory.** Every drink Andrew is carrying with its count and how many of the six places are used, the hot drink if he has one, his bottle count, the weapons he owns and the moves he has learned, grouped by level.
 - **Slots.** One drink slot, four special slots (1 to 4) and one melee slot. The player assigns to a slot by picking it and then picking something that fits: a drink, a move of that slot's level, or a weapon.
 - **Using things.** Any drink, including the hot drink, can be drunk straight from the inventory. It takes effect at once and the meter on the screen shows it.
 
@@ -327,7 +337,7 @@ Tab opens one screen with two parts, the casebook and the kit. The game is pause
 
 - The aliens are small, grey and neatly dressed. They look like people who work in an office, because they do.
 - Andrew's sprite is short and slight, not round. Myko's is tall and thin, bare-headed, with brown hair.
-- HUD: there is no health bar. The Buzz meter is the largest thing on it, bottom centre, with the four levels marked along it, the state name beside it and a notch at 35. Every slot shows its icon and the key or mouse button that uses it: the drink slot with Q and a count, the four special slots with 1 to 4, the melee weapon with the left mouse button, the bottle count with the right mouse button, and Myko calls left (three small cannabis-leaf icons, M). A special slot is dark while Andrew is below its level and shows its cooldown as it refills. Things Andrew can pick up or examine are drawn as themselves with a small glint, never as abstract markers. Dialogue box with a 32 × 32 portrait.
+- HUD: there is no health bar. The Buzz meter is the largest thing on it, bottom centre, with the four levels marked along it, the state name beside it and a notch at the bottom of Grand. The bar itself gets longer as the meter grows (7.1), about a third longer by chapter 10. Every slot shows its icon and the key or mouse button that uses it: the drink slot with Q and a count, the four special slots with 1 to 4, the melee weapon with the left mouse button, the bottle count with the right mouse button, and Myko calls left (three small cannabis-leaf icons, M). A special slot is dark while Andrew is below its level and shows its cooldown as it refills. Things Andrew can pick up or examine are drawn as themselves with a small glint, never as abstract markers. Dialogue box with a 32 × 32 portrait.
 - A pixel bitmap font, generated in code.
 
 ## 9. Audio
