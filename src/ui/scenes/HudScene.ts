@@ -337,6 +337,7 @@ export class HudScene extends Phaser.Scene {
   }
 
   openTab(): void {
+    this.game.events.emit(PROMPT_EVENTS.tabOpened);
     this.shared.overlays.show('tab');
     this.scene.launch(UiSceneKeys.Tab);
     this.scene.bringToTop(UiSceneKeys.Tab);

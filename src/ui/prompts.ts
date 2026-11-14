@@ -46,3 +46,11 @@ export function openHotDrinkChoice(): void {
 export function showSlotPrompt(slot: SpecialSlotIndex): () => void {
   return showPrompt('ui.prompt.slot', { key: keyText(KEY_IDS.slot(slot)) });
 }
+
+/** Calls `fn` each time the Tab screen opens (the kit step of chapter 1's list). Returns a function that stops listening. */
+export function onTabOpened(fn: () => void): () => void {
+  const game = host;
+  if (!game) return () => undefined;
+  game.events.on(PROMPT_EVENTS.tabOpened, fn);
+  return () => game.events.off(PROMPT_EVENTS.tabOpened, fn);
+}
