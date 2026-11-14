@@ -830,6 +830,13 @@ const overhaul: OverhaulTuning = {
   },
   // Same gap as the old `myko.commentCooldownMs`. For creative-director review.
   mykoLineCooldownMs: 12000,
+  // The old fists combo window.
+  weaponComboWindowMs: 450,
+  // Carried over from the old bottle throw (range 220, damage 10, noise 90). First guesses.
+  throw: { range: 220, damage: 10, knockback: 30, noiseRadius: 90, previewPoints: 12, swayPeriodMs: 1700 },
+  // Walking: the old 56, x1.75 at Bit much, x2 at Fecked. Sneaking is silent until Fecked.
+  footstepNoiseRadiusByLevel: { 0: 56, 1: 56, 2: 56, 3: 98, 4: 112 },
+  sneakNoiseRadiusByLevel: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 28 },
 };
 
 export const TUNING: Tuning = {
