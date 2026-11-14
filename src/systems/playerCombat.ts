@@ -51,6 +51,8 @@ export interface PlayerCombatHost {
   readonly player: Player;
   screenId(): ScreenId;
   grid(): TileGrid;
+  /** Cells that stop walking but are not in `grid()` (push-puzzle pieces, closed gates). */
+  extraBlocked(col: number, row: number): boolean;
   actors(): readonly EnemyActor[];
   guardsHere(): readonly Guard[];
   hidingPropsHere(): readonly HidingPropDef[];
@@ -358,7 +360,7 @@ export class PlayerCombat {
       case 'charge': {
         const who = byId(selectTargets(effect, p.pos, p.aimDeg, candidates));
         h.moveWorldHits(id, { kind: 'charge', distance: effect.distance, width: TUNING.combat.characterHitRadius * 2 }, false);
-        p.lurch(effect.distance, p.aimDeg, h.grid());
+        p.lurch(effect.distance, p.aimDeg, h.grid(), (c, r) => h.extraBlocked(c, r));
         for (const a of who) hit(a, 0, effect.knockback);
         break;
       }
@@ -386,7 +388,7 @@ export class PlayerCombat {
         const damage = this.weaponDamage();
         const kb = this.tuning.weapons[p.kit.slots.melee].knockback;
         h.moveWorldHits(id, { kind: 'charge', distance: effect.distance, width: effect.width }, true);
-        p.lurch(effect.distance, p.aimDeg, h.grid());
+        p.lurch(effect.distance, p.aimDeg, h.grid(), (c, r) => h.extraBlocked(c, r));
         for (const a of who) hit(a, damage, kb);
         break;
       }

@@ -209,7 +209,7 @@ export class Player {
     return moved;
   }
 
-  /** A short lurch along `angleDeg` (the Shoulder, the Stumble): up to `distance`, stopping at walls. */
+  /** A short lurch along `angleDeg` (the Shoulder, the Stumble): up to `distance`, stopping at walls and anything `extraBlocked` (checked along the whole path, in `moveBox` steps). */
   lurch(distance: number, angleDeg: number, grid: TileGrid, extraBlocked?: (c: number, r: number) => boolean): void {
     const d = fromAngle(angleDeg, distance);
     this.pos = moveBox(grid, this.pos, TUNING.player.bodyWidth, TUNING.player.bodyHeight, d, extraBlocked).position;

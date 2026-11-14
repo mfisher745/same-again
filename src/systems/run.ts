@@ -1589,7 +1589,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       if (h.screenId === this.screen.id && shapeHitsRect(lane, p.pos, p.aimDeg, h.area)) h.callback({ moveId });
     }
     if (breakAll) {
-      // Only what he actually passes through: the lane stops where a wall (not a breakable) stops the lurch.
+      // Only what he actually passes through: the lane stops where a wall or puzzle piece (not a breakable) stops the lurch.
       const reach = this.reachableLane(lane);
       for (const prop of this.dressing.breakablesOn(this.screen.id)) {
         if (!shapeHitsRect(reach, p.pos, p.aimDeg, propHitRect(prop))) continue;
@@ -1606,7 +1606,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (lane.kind !== 'charge') return lane;
     const p = this.player;
     const grid = this.dressing.gridWithoutBreakables(this.screen);
-    const end = moveBox(grid, p.pos, TUNING.player.bodyWidth, TUNING.player.bodyHeight, fromAngle(p.aimDeg, lane.distance)).position;
+    const end = moveBox(grid, p.pos, TUNING.player.bodyWidth, TUNING.player.bodyHeight, fromAngle(p.aimDeg, lane.distance), (c, r) => this.extraBlocked(c, r)).position;
     return { ...lane, distance: Math.min(lane.distance, distance(p.pos, end)) };
   }
 
@@ -1617,6 +1617,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       player: this.player,
       screenId: () => this.screen.id,
       grid: () => this.grid,
+      extraBlocked: (c, r) => this.extraBlocked(c, r),
       actors: () => this.actorList,
       guardsHere: () => this.guardsHere(),
       hidingPropsHere: () => this.hidingPropsHere(),
