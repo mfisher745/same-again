@@ -238,9 +238,6 @@ export const COMMON: DialogueFile = {
     'ui.kit.slot.special': 'Special {n}',
     'ui.kit.slot.level': '{state} and up',
     'ui.kit.slot.empty': 'Empty',
-    // Retired by playtest 4 (no buttons in the kit). Kept until level-builder removes the buttons, then delete.
-    'ui.kit.assign': 'Put it here',
-    'ui.kit.drinkNow': 'Drink it',
     // Playtest 4 kit: two halves. Items sit beside the slot that takes them; moves sit beside the special slots.
     'ui.kit.section.items': 'Items',
     'ui.kit.section.moves': 'Moves',
@@ -252,8 +249,8 @@ export const COMMON: DialogueFile = {
     'ui.kit.slot.spirit': 'Spirit',
     'ui.kit.slot.hot': 'Hot drink',
     'ui.kit.slot.drink.takes': 'Beer only. {key} drinks it.',
-    'ui.kit.slot.spirit.takes': 'Whiskey or tequila. {key} and it is gone.',
-    'ui.kit.slot.hot.takes': 'The tea or the coffee. Pick it, then {key}.',
+    'ui.kit.slot.spirit.takes': 'A spirit. {key} sinks it.',
+    'ui.kit.slot.hot.takes': 'Tea or coffee. Pick, {key}.',
     'ui.kit.slot.melee.takes': 'A weapon. {key} swaps.',
     'ui.kit.slot.special.takes': 'A {state} move. Key {n}.',
     'ui.kit.none': 'Nothing. Give it time.',
