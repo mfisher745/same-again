@@ -60,6 +60,9 @@ export interface PromptRequest {
   readonly values?: PromptValues;
 }
 
+/** How long the key prompt stays up after a carried-over lesson (as chapter 2 shows it). */
+const FALLBACK_PROMPT_MS = 7000;
+
 export class HudScene extends Phaser.Scene {
   private queue!: DialogueQueue;
   private unsubs: Array<() => void> = [];
@@ -204,6 +207,12 @@ export class HudScene extends Phaser.Scene {
       bus.on(GameEvents.SaveWritten, () => this.flash(this.saved, NOTICE_MS.saved)),
       bus.on(GameEvents.MoveLearned, ({ moveId }) => {
         this.setNotice(this.ability, format('ability.unlocked', { name: text(`ability.${moveId}.name`) }), NOTICE_MS.ability);
+      }),
+      bus.on(GameEvents.MoveTaughtByFallback, ({ moveId, slot }) => {
+        // A lesson carried over by a call: only the Stumble has a key prompt, and only if it landed in a slot.
+        if (slot === null || moveId !== 'stumble') return;
+        this.prompts.show('ui.prompt.stumble');
+        this.time.delayedCall(FALLBACK_PROMPT_MS, () => this.prompts.hide('ui.prompt.stumble'));
       }),
       bus.on(GameEvents.WeaponGained, ({ weaponId }) => {
         this.setNotice(this.ability, format('ability.unlocked', { name: text(`weapon.${weaponId}.name`) }), NOTICE_MS.ability);

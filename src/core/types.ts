@@ -1619,6 +1619,14 @@ export interface GameEventPayloads {
   'bar:returned': { readonly reason: BarReturnReason };
   'move:used': { readonly moveId: MoveId; readonly slot: SpecialSlotIndex };
   'move:learned': { readonly moveId: MoveId };
+  /**
+   * The carried-over lesson fallback (`ChapterContext.oweMove`) taught a move: its scene has played and the move is
+   * in the kit. `slot` is the special slot it was put in (1 to 4), or null if that slot already held another move.
+   * The UI shows the move's key prompt. Follows `move:learned` for the same move.
+   */
+  'move:taughtByFallback': { readonly moveId: MoveId; readonly slot: SpecialSlotIndex | null };
+  /** A boss battered through a prop that `PropPlacement.bossBreaksAfterMs` named (the ram at the lane gate). The prop is now hidden. */
+  'prop:brokenByBoss': { readonly propId: string; readonly bossId: BossId; readonly screenId: ScreenId };
   'weapon:gained': { readonly weaponId: WeaponId };
   'kit:changed': { readonly kit: Kit };
   /** The chapter script hid or showed the meter (`ChapterContext.setMeterHidden`). Also in `MeterSnapshot.hidden`. */
@@ -1696,6 +1704,8 @@ export const GameEvents = {
   BarReturned: 'bar:returned',
   MoveUsed: 'move:used',
   MoveLearned: 'move:learned',
+  MoveTaughtByFallback: 'move:taughtByFallback',
+  PropBrokenByBoss: 'prop:brokenByBoss',
   SheepFlockSettled: 'sheep:flockSettled',
   WeaponGained: 'weapon:gained',
   KitChanged: 'kit:changed',
@@ -2183,6 +2193,10 @@ export interface OverhaulTuning {
   readonly weaponComboWindowMs?: number;
   /** If `completeBarReturn()` is not called within this many ms of `bar:returning`, the run completes it (headless runs, tests). The longest UI return plus 2 s. */
   readonly barReturnFailsafeMs?: number;
+  /** How long the ram stands at a closed gate before it batters through (`PropPlacement.bossBreaksAfterMs`), ms. Chapter 2. */
+  readonly ramGatePauseMs?: number;
+  /** How long a scripted involuntary lurch (`ChapterContext.forceLurch`) takes, ms. Chapter 2. */
+  readonly forcedLurchMs?: number;
   /** The thrown bottle. Optional until phase 2 switches the systems over. */
   readonly throw?: ThrowTuning;
   /** Footstep noise radius by level while walking. DESIGN.md 7.3: louder from Bit much. */
