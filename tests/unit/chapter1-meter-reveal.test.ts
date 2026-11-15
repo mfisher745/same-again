@@ -9,7 +9,7 @@ import { T } from '../../src/chapters/01/maps';
 import { MykoMeterVoice } from '../../src/systems/mykoMeter';
 import { buildHudModel } from '../../src/ui/model/hud';
 import { FakeSource } from '../../src/ui/dev/fakeSource';
-import { NO_INPUT, advance, record, settleDialogue, startChapterGame } from './helpers';
+import { NO_INPUT, advance, record, settleDialogue, startChapterGame, drinkItem } from './helpers';
 
 /** A fresh New Game on chapter 1, past its first tick (so the script's onStart has run). */
 function freshGame() {
@@ -22,7 +22,7 @@ function freshGame() {
 function drinkFirstPint(run: ReturnType<typeof freshGame>['run']): void {
   run.setFlag('pub.step', 2);
   run.give({ kind: 'drink', drinkId: 'stout', count: 1 });
-  expect(run.drinkFromInventory('stout')).toBe(true);
+  expect(drinkItem(run, 'stout')).toBe(true);
 }
 
 describe('chapter 1 meter reveal', () => {

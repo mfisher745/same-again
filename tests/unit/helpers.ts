@@ -25,6 +25,8 @@ import type {
 import { gridFromAscii } from '../../src/systems/grid';
 import { ChapterRun } from '../../src/systems/run';
 import type { RunEffect } from '../../src/systems/run';
+import { holds } from '../../src/systems/kit';
+import type { OverhaulDrinkId } from '../../src/core/types';
 import { GameSession, emptyProgress, saveAtChapterStart } from '../../src/systems/session';
 
 export { NO_INPUT };
@@ -176,3 +178,10 @@ export async function settleDialogue(run: { dialogue: { finishAll(): void } }, p
 
 /** Moves Andrew to the centre of a tile without ticking. */
 export const placeAt = (run: ChapterRun, col: number, row: number): void => run.setPlayerPosition({ x: col * 16 + 8, y: row * 16 + 8 });
+
+/** Drinks a held drink the way the player does: click it in the Tab (spirits go to their slot), then Q or G. False if not held. */
+export function drinkItem(run: ChapterRun, id: OverhaulDrinkId): boolean {
+  if (!holds(run.player.kit, id)) return false;
+  run.selectItem(id);
+  return id === 'whiskey' || id === 'tequila' ? run.useSpirit() : run.useSelected();
+}

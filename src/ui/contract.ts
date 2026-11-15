@@ -47,8 +47,8 @@ export interface UiStateSource {
   throwPreview(): ThrowAim | null;
   /** The latest refusal of a move (`ui.move.*`); `seq` rises with each. Null before the first. */
   refusal(): { readonly textId: TextId; readonly seq: number } | null;
-  /** Tab screen: click an entry. A beer or the hot drink becomes Q's pick, a spirit goes in the spirit slot, a weapon or move is equipped. False if nothing changed. Optional only until `createUiState` in `src/systems/session.ts` forwards it to `run.selectItem` (systems-dev); then it becomes required. */
-  selectItem?(id: string | null): boolean;
+  /** Tab screen: click an entry. A beer or the hot drink becomes Q's pick, a spirit goes in the spirit slot, a weapon or move is equipped. False if nothing changed. */
+  selectItem(id: string | null): boolean;
   /** Tab screen: put a learned move of the slot's own level in a special slot, or clear it. False if refused. */
   assignMove(slot: SpecialSlotIndex, id: MoveId | null): boolean;
   /** Tab screen: equip an owned weapon. */

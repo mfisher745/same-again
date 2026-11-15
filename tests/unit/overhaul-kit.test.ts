@@ -14,7 +14,7 @@ import {
   createKit,
   cycleDrink,
   cycleWeapon,
-  drinkFromInventory,
+  assignSpirit,
   useSelected,
   gainWeapon,
   learnMove,
@@ -23,7 +23,13 @@ import {
   takeHotDrink,
   topUpBottles,
 } from '../../src/systems/kit';
-import type { Kit } from '../../src/core/types';
+import type { Kit, OverhaulDrinkId } from '../../src/core/types';
+
+/** Drink a held drink as the player does: click it in the Tab, then Q (G for a spirit). */
+function drinkFromInventory(kit: Kit, id: OverhaulDrinkId) {
+  if (id === 'whiskey' || id === 'tequila') return useSpirit(assignSpirit(kit, id).kit);
+  return useSelected(selectItem(kit, id).kit);
+}
 
 const full = (): Kit => {
   let k = createKit();

@@ -12,7 +12,7 @@ import type { ChapterModule } from '../../src/core/chapter';
 import { createSandboxModule } from '../../src/core/sandbox';
 import { createKit } from '../../src/systems/kit';
 import { createMeter, drink, restValue } from '../../src/systems/meter';
-import { advance, frame, makeRun, record, teleport } from './helpers';
+import { advance, frame, makeRun, record, teleport, drinkItem } from './helpers';
 
 const O = TUNING.overhaul!;
 const withKit = (patch: Partial<Kit>) => (s: OverhaulSaveState): OverhaulSaveState => ({ ...s, kit: { ...s.kit, ...patch } });
@@ -132,7 +132,7 @@ describe('return to the bar through the run', () => {
     expect(run.takeHotDrink('coffee')).toBe(true);
     expect(run.hotDrinkOffered()).toBe(false);
     expect(run.takeHotDrink('tea')).toBe(false); // one at a time
-    expect(run.drinkFromInventory('coffee')).toBe(true);
+    expect(drinkItem(run, 'coffee')).toBe(true);
     expect(run.hotDrinkOffered()).toBe(false); // this visit's offer is spent
     run.player.meter = createMeter(1, 0.01);
     advance(run, 200);
@@ -296,7 +296,7 @@ describe('the kit through the run', () => {
   it('drinking from the inventory moves the meter and leaves a bottle', () => {
     const { run } = makeRun({ save: withKit({ drinks: { lager: 1, stout: 1 }, bottles: 0 }) });
     const expected = drink(run.player.meter, 'lager').state.value;
-    expect(run.drinkFromInventory('lager')).toBe(true);
+    expect(drinkItem(run, 'lager')).toBe(true);
     expect(run.player.meter.value).toBeCloseTo(expected, 5);
     expect(run.player.kit.drinks.lager ?? 0).toBe(0);
     expect(run.player.kit.drinks.stout).toBe(1);
@@ -306,7 +306,7 @@ describe('the kit through the run', () => {
   it('drinking something he does not hold does nothing', () => {
     const { run } = makeRun();
     const before = run.player.meter.value;
-    expect(run.drinkFromInventory('tequila')).toBe(false);
+    expect(drinkItem(run, 'tequila')).toBe(false);
     expect(run.player.meter.value).toBe(before);
     expect(run.player.kit.bottles).toBe(0);
   });
@@ -314,7 +314,7 @@ describe('the kit through the run', () => {
   it('a hot drink leaves no bottle', () => {
     const { run } = makeRun();
     run.takeHotDrink('coffee');
-    run.drinkFromInventory('coffee');
+    drinkItem(run, 'coffee');
     expect(run.player.kit.bottles).toBe(0);
   });
 

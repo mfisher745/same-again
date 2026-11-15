@@ -102,7 +102,7 @@ import { FightRunner } from './fight';
 import { add, angleFromFacing, distance, fromAngle, normalize, rectContains, scale } from './geometry';
 import { TILE, isShade, moveBox, tileOf } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
-import { assignMove, assignWeapon, cycleDrink, gainWeapon, holds, learnMove, selectItem, topUpForLeaving, useSelected, useSpirit } from './kit';
+import { assignMove, assignWeapon, cycleDrink, gainWeapon, learnMove, selectItem, topUpForLeaving, useSelected, useSpirit } from './kit';
 import { GlintTracker } from './glint';
 import type { ObjectiveMark } from './glint';
 import { takeItem } from './pickups';
@@ -1209,11 +1209,6 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     return r.changed;
   }
 
-  /** @deprecated Select instead (`selectItem`). Kept until `src/ui` stops calling it; there is no "put it here" step. */
-  assignDrink(id: OverhaulDrinkId | null): boolean {
-    return this.selectItem(id);
-  }
-
   give(item: PickupItem): void {
     const res = takeItem(this.player.kit, item);
     if (res.inert) return;
@@ -1815,18 +1810,6 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     const r = useSpirit(this.player.kit);
     if (r.refusal) this.bus.emit(GameEvents.KitUseRefused, { action: 'useSpirit', textId: 'ui.spirit.none' });
     return this.drinkResult(r);
-  }
-
-  /** @deprecated Select then use. Kept until `src/ui` stops calling it; the "drink it" button is gone from the model. */
-  drinkFromInventory(id: OverhaulDrinkId): boolean {
-    if (!this.player.canAct) return false;
-    if (!holds(this.player.kit, id)) return false;
-    if (id === 'whiskey' || id === 'tequila') {
-      this.selectItem(id);
-      return this.useSpirit();
-    }
-    this.selectItem(id);
-    return this.useSelected();
   }
 
   private drinkResult(r: { readonly consumed: OverhaulDrinkId | null; readonly kit: Kit }): boolean {

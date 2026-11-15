@@ -70,7 +70,8 @@ export class FakeSource implements UiStateSource {
     bottles: 4,
     weapons: ['fists'],
     moves: [],
-    slots: { drink: 'stout', specials: [null, null, null, null], melee: 'fists' },
+    slots: { drink: 'stout', spirit: 'whiskey', specials: [null, null, null, null], melee: 'fists' },
+    selectedItem: null,
   };
   slots: MoveSlotView[] = [
     { slot: 1, moveId: 'shoulder', lit: true, cooldownLeftMs: 0, cooldownMs: 5000 },

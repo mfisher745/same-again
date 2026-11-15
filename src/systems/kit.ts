@@ -351,13 +351,3 @@ export function topUpForLeaving(kit: Kit, beer: BeerId, tuning?: OverhaulTuning)
 
 /** True when `kit` has no hot drink and the bar should offer one. */
 export const needsHotDrink = (kit: Kit): boolean => kit.hotDrink === null;
-
-/** @deprecated Select instead (`selectItem`); there is no "put it here" step. Kept until `src/ui` stops calling it. */
-export function assignDrink(kit: Kit, id: OverhaulDrinkId | null): KitChange {
-  return selectItem(kit, id);
-}
-
-/** @deprecated Select, then `useSelected`. Kept until `src/ui` stops calling it. */
-export function drinkFromInventory(kit: Kit, id: OverhaulDrinkId, tuning?: OverhaulTuning): DrinkResult {
-  return consume(kit, id, tuning);
-}

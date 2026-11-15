@@ -13,7 +13,8 @@ const kit = (over: Partial<Kit> = {}): Kit => ({
   bottles: 0,
   weapons: ['fists', 'hurley'],
   moves: ['shoulder'],
-  slots: { drink: 'stout', specials: ['shoulder', null, null, null], melee: 'hurley' },
+  slots: { drink: 'stout', spirit: null, specials: ['shoulder', null, null, null], melee: 'hurley' },
+  selectedItem: 'stout',
   ...over,
 });
 
