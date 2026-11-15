@@ -48,7 +48,6 @@ import type {
   TextId,
   HotDrinkId,
   MoveId,
-  OverhaulDrinkId,
   SpecialSlotIndex,
   TabMode,
 } from '../core/types';
@@ -418,17 +417,14 @@ export function createUiState(session: GameSession) {
     refusal(): ActionRefusal | null {
       return run()?.combat.lastRefusal ?? null;
     },
-    assignDrink(id: OverhaulDrinkId | null): boolean {
-      return run()?.assignDrink(id) ?? false;
+    selectItem(id: string | null): boolean {
+      return run()?.selectItem(id) ?? false;
     },
     assignMove(slot: SpecialSlotIndex, id: MoveId | null): boolean {
       return run()?.assignMove(slot, id) ?? false;
     },
     assignWeapon(id: WeaponId): boolean {
       return run()?.assignWeapon(id) ?? false;
-    },
-    drinkFromInventory(id: OverhaulDrinkId): boolean {
-      return run()?.drinkFromInventory(id) ?? false;
     },
     hotDrinkOffered(): boolean {
       return run()?.hotDrinkOffered() ?? false;

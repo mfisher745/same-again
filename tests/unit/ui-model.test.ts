@@ -411,16 +411,16 @@ describe('HUD model', () => {
   });
 
   it('the drink slot shows the selected drink and its count; bottles are the throw count', () => {
-    const kit = kitWith({ drinks: { stout: 2, whiskey: 1, lager: 3 }, bottles: 4, slots: { drink: 'whiskey', specials: [null, null, null, null], melee: 'fists' } });
+    const kit = kitWith({ drinks: { stout: 2, whiskey: 1, lager: 3 }, bottles: 4, selectedItem: 'lager', slots: { drink: 'lager', spirit: 'whiskey', specials: [null, null, null, null], melee: 'fists' } });
     const m = buildHudModel(source({ kitState: kit }));
-    expect(m.drink).toEqual({ drinkId: 'whiskey', count: 1 });
+    expect(m.drink).toEqual({ drinkId: 'lager', count: 3 });
     expect(m.bottles).toBe(4);
-    const none = buildHudModel(source({ kitState: kitWith({ drinks: {}, slots: { drink: null, specials: [null, null, null, null], melee: 'fists' } }) }));
+    const none = buildHudModel(source({ kitState: kitWith({ drinks: {}, slots: { drink: null, spirit: null, specials: [null, null, null, null], melee: 'fists' } }) }));
     expect(none.drink).toEqual({ drinkId: null, count: 0 });
   });
 
   it('a hot drink in the slot counts one', () => {
-    const m = buildHudModel(source({ kitState: kitWith({ drinks: { stout: 1 }, hotDrink: 'tea', slots: { drink: 'tea', specials: [null, null, null, null], melee: 'fists' } }) }));
+    const m = buildHudModel(source({ kitState: kitWith({ drinks: { stout: 1 }, hotDrink: 'tea', selectedItem: 'tea', slots: { drink: 'stout', spirit: null, specials: [null, null, null, null], melee: 'fists' } }) }));
     expect(m.drink).toEqual({ drinkId: 'tea', count: 1 });
   });
 

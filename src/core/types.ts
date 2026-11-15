@@ -2036,15 +2036,13 @@ export interface WeaponDef {
 /** The six slots: one drink, four specials (slot n takes level n), one melee. DESIGN.md 7.7. */
 export interface KitSlots {
   /**
-   * The beer the wheel cycles to and Q drinks when nothing is selected. Always a beer or null (saves are migrated
-   * and the kit keeps it so); typed wide until `src/ui` stops reading a hot drink from it, then it narrows to `BeerId`.
+   * The beer the wheel cycles to. Always a beer or null (saves are migrated and the kit keeps it so).
    */
-  readonly drink: OverhaulDrinkId | null;
+  readonly drink: BeerId | null;
   /**
-   * The spirit G drinks at once. A spirit or null; the kit keeps it on a held spirit while one is held. Optional
-   * only until `src/ui` builds slot literals with it, then it becomes required.
+   * The spirit G drinks at once. A spirit or null; the kit keeps it on a held spirit while one is held.
    */
-  readonly spirit?: SpiritId | null;
+  readonly spirit: SpiritId | null;
   readonly specials: readonly [MoveId | null, MoveId | null, MoveId | null, MoveId | null];
   readonly melee: WeaponId;
 }
@@ -2064,9 +2062,9 @@ export interface Kit {
   readonly slots: KitSlots;
   /**
    * What Q drinks: a beer or the hot drink, or null. Set by clicking it in the Tab screen or rolling the wheel
-   * (beers only); the kit keeps it on something held. Weapons, moves and spirits never go here. Saved. Optional only until `src/ui` builds kit literals with it.
+   * (beers only); the kit keeps it on something held. Weapons, moves and spirits never go here. Saved.
    */
-  readonly selectedItem?: string | null;
+  readonly selectedItem: BeerId | HotDrinkId | null;
 }
 
 /** One special slot as the HUD and the Tab screen show it. DESIGN.md 7.2, 7.7. */
