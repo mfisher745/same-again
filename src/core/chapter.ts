@@ -165,6 +165,13 @@ export interface PropPlacement {
    * ram will not cross). Guards on a patrol ignore it.
    */
   readonly blocksEnemies?: TileFootprint;
+  /**
+   * A boss body that stands against this prop (within a tile of its `solid` footprint) for this many ms batters
+   * through it: the prop is hidden, as when a script opens it with E, and `prop:brokenByBoss` is emitted. The pause
+   * is the prop slowing the boss; use `TUNING.overhaul.ramGatePauseMs`. Nothing happens if the prop is already hidden.
+   * Needs `id` and `solid`.
+   */
+  readonly bossBreaksAfterMs?: number;
   /** Starts hidden (shown later with `ctx.setPropVisible`). */
   readonly hidden?: boolean;
   /** 'floor' draws under every character (rugs, puddles, markings); default 'sorted'. */
@@ -485,6 +492,9 @@ export interface ChapterContext {
    * Promise a move lesson: the first time Andrew is at Bit much (level 3 or more) in a LATER chapter while it is
    * still owed, the run plays `sceneId`, learns the move into its slot, and stops owing it. Learning the move any
    * other way (`learnMove`) also clears it. Saved. Calling it again for the same move changes nothing.
+   * If Andrew reaches Bit much during a fight, stealth section, set piece, Myko call or dialogue scene, the lesson
+   * waits and plays when that ends, whatever his level by then. If the kit already has the move (a Chapter Select
+   * replay) nothing is owed and nothing plays. After the lesson, `move:taughtByFallback` is emitted.
    */
   oweMove(moveId: MoveId, sceneId: DialogueId): void;
   /** Whether a move's lesson is still owed. */
@@ -510,6 +520,15 @@ export interface ChapterContext {
   setCameraLead(direction: Facing | null): void;
   /** Freeze Andrew's controls (cutscene walk-ins). */
   setControlsLocked(locked: boolean): void;
+  /**
+   * An involuntary Stumble: Andrew lurches along `dir` (a `Facing` or an angle in degrees) with the Stumble's motion
+   * and breakage (stops at walls, kegs and closed gates; smashes every breakable in the lane; `onMoveHit` hooks fire
+   * as `stumble`), whether or not the move is learned. Costs nothing: no cooldown, no meter, no drink. Input is
+   * blocked until it ends. Resolves when he has stopped, so the script can play the lesson next. `distance` and
+   * `durationMs` default to the Stumble's own distance and `TUNING.overhaul.forcedLurchMs`. A second call while one
+   * is under way returns the first's promise. Resolves early if the run ends or he returns to the bar.
+   */
+  forceLurch(dir: Facing | number, opts?: { readonly distance?: number; readonly durationMs?: number }): Promise<void>;
   spawnPickup(def: PickupDef): void;
   removePickup(id: string): void;
   /** Ends the chapter: hangover carry-over, save, next chapter. */
