@@ -17,7 +17,7 @@ session.bus.on(GameEvents.ScreenEntered, ({ region }) => audio.setRegion(region)
 session.playEffect = (id) => audio.play(id);
 const uiScenes = createUiScenes(uiState, { play: (id) => audio.play(id) });
 const HUD_SCENES: readonly string[] = [UiSceneKeys.Hud];
-const OVERLAYS: readonly string[] = [UiSceneKeys.Pause, UiSceneKeys.Casebook, UiSceneKeys.Deduction, UiSceneKeys.Settings];
+const OVERLAYS: readonly string[] = [UiSceneKeys.Pause, UiSceneKeys.Tab, UiSceneKeys.Deduction, UiSceneKeys.Settings, UiSceneKeys.HotDrink];
 
 const WIDTH = 480;
 const HEIGHT = 270;

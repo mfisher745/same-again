@@ -58,12 +58,20 @@ export const C02: DialogueFile = {
     caption('c2.caption.bog', 'The bog. Before dawn.'),
     caption('c2.caption.farm', "Brennan's"),
 
+    // --- The bar: a lean-to at the bog gate ---
     scene(
-      'c2.open',
+      'c2.bar.open',
       ['myko', "It's five in the morning, Andrew. I've seen five in the morning before, but from the other side."],
-      ['andrew', "It's over here."],
-      ['myko', "It's a soft day already. That's my good coat."],
+      ['andrew', 'What is this?'],
+      ['myko', "A crate of stout, two chairs and a box for the money. The turf cutters keep it. It's the only honest business in the county."],
+      ['andrew', "There's a flask."],
+      ['myko', 'Tea. And a jar of coffee, for anyone who wants to be let down. Take one and put something in the box.'],
+      ['andrew', "I've nothing on me."],
+      ['myko', 'Then the box is used to you.'],
     ),
+    box('c2.bar.hotDrink', ['myko', "The flask's still warm. I don't know who fills it. I've never asked."]),
+    box('c2.bar.return', ['myko', "Back at the chairs. Nobody saw. There's nobody to see. That's the good of a bog."]),
+    scene('c2.open', ['andrew', "It's over here."], ['myko', "It's wet already. That's my good coat."]),
     scene(
       'c2.ring.found',
       ['andrew', 'Look.'],
@@ -90,10 +98,10 @@ export const C02: DialogueFile = {
       ['myko', "In a bog. They're not from the Department. The Department would have the sense to wear wellies."],
     ),
     scene(
-      'c2.throw.lesson',
-      ['myko', "I'll wait at the gate. I'll ring you. Andrew, what's that noise when you walk?", 'by phone'],
-      ['andrew', 'Empties. From last night.'],
-      ['myko', "So it's a plan now. Throw one. Not at them. Past them. They'll go and look, they're the type."],
+      'c2.throw.reminder',
+      ['myko', "I'll wait at the gate. I'll ring you. You've bottles on you?", 'by phone'],
+      ['andrew', 'A few.'],
+      ['myko', "Then don't throw them at these lads. Throw them past them. They'll go and look. They're the type."],
     ),
     box('c2.suits.overheard.1', ['npc:name.departmentMan', "Did you sign for the van? I didn't sign for the van."]),
     box('c2.suits.overheard.2', ['npc:name.departmentMan', "It's just turf. Miles of it. What do they do with it?"]),
@@ -122,12 +130,23 @@ export const C02: DialogueFile = {
       ['myko', "Nobody knows. I asked a lad who works there. He didn't know either."],
     ),
     scene(
-      'c2.shed.poitin',
+      'c2.shed.whiskey',
       ['andrew', "There's a bottle behind the hay."],
-      ['myko', "That's the Brennans' poitín. Andrew. That's not a drink, it's a decision."],
+      ['myko', "That's the Brennans' good whiskey. The one they hide from each other."],
       ['andrew', "I'll bring it."],
-      ['myko', "You will, of course. Don't drink it unless the day has gone very wrong."],
+      ['myko', "You will, of course. That'll put you up where it's a bit much. You hit like a door up there, and you walk like one."],
     ),
+
+    // --- The Stumble (slot 3): the first time he is at Bit much ---
+    scene(
+      'c2.stumble.lesson',
+      ['myko', 'What was that crash?'],
+      ['andrew', 'I went through the buckets.'],
+      ['myko', 'All of them?'],
+      ['andrew', 'I was going that way anyway.'],
+      ['myko', "Then do it on purpose. Press 3 and go in a straight line. Nobody stops a man who's already falling."],
+    ),
+    box('c2.stumble.done', ['myko', 'All the grace of a bag of turf, and everything that was in front of you is on the ground.']),
 
     // --- Cousins ---
     scene(
@@ -137,6 +156,16 @@ export const C02: DialogueFile = {
       ['npc:name.cousin', 'He said that you’d say that.'],
       ['myko', "Two cousins and a lad who's come for the look of it. Watch the shoulder on the big one. He leads with it.", 'by phone'],
     ),
+    // --- Reflex Test (a second move for slot 1) ---
+    scene(
+      'c2.reflex.lesson',
+      ['myko', 'How long were you at the medicine, Andrew? Six years?', 'by phone'],
+      ['andrew', 'Six. And the rest.'],
+      ['myko', 'Then where does a man fold?'],
+      ['andrew', 'Just under the kneecap.'],
+      ['myko', "So tap him there. It's in your kit now. Tab, and put it on 1 if you'd rather it than the shoulder."],
+    ),
+    box('c2.reflex.done', ['myko', "He sat down like he'd been told bad news. You've still the touch.", 'by phone']),
     scene(
       'c2.cousins.end',
       ['npc:name.cousin', 'Grand. Grand. Tell Tom we tried.'],
@@ -188,13 +217,13 @@ export const C02: DialogueFile = {
     box('c2.hint.ring.1', ['myko', "It's the big burnt circle. You found it last night with your face."]),
     box('c2.hint.ring.2', ['myko', 'Middle of the bog. Stand at the ring, the shiny bit and the tracks, and press E at each. Three things.']),
     box('c2.hint.cross.1', ['myko', "They've torches and they point them where they're looking. Don't be there. Be behind turf.", 'by phone']),
-    box('c2.hint.cross.2', ['myko', 'Hold Shift. Go stack to stack. Right click throws an empty the far side, and they’ll all wander over to it.', 'by phone']),
+    box('c2.hint.cross.2', ['myko', 'Hold Shift. Go stack to stack. Hold right click and put a bottle the far side, and they’ll all wander over to it.', 'by phone']),
     box('c2.hint.sheep.1', ['myko', "Each gate opens one pen and shuts another. The sheep go wherever isn't you."]),
     box('c2.hint.sheep.2', ['myko', 'Open the far pen first. Then the middle gate. Then walk at them from the shed side. Shut it after them.']),
     box('c2.hint.shed.1', ['myko', "It's a shed. Things are in it. Look behind what's in front."]),
     box('c2.hint.shed.2', ['myko', 'The docket is on the bench. And there’s something behind the hay, if you’re the kind to look. You are.']),
     box('c2.hint.yard.1', ['myko', 'The big one drops his shoulder before he runs at you. You’ve time. Not loads.', 'by phone']),
-    box('c2.hint.yard.2', ['myko', 'Sidestep the charge, hit him in the back. Bottles work on the other fella, he doesn’t like them.', 'by phone']),
+    box('c2.hint.yard.2', ['myko', 'Step off the charge and hit him in the back. A tap under the knee stops the other one swinging.', 'by phone']),
     box('c2.hint.ram.1', ['myko', "It's a lane. There's two directions and he's in one of them.", 'by phone']),
     box('c2.hint.ram.2', ['myko', 'Keep right, go round the puddles, E for the gate, bottle behind you if he gets close. Cattle grid at the end.', 'by phone']),
 

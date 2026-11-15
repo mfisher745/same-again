@@ -210,8 +210,21 @@ export class Dressing {
   gridFor(layout: ScreenLayout): TileGrid {
     const cached = this.grids.get(layout.id);
     if (cached && cached.version === this.version) return cached.grid;
+    const grid = this.buildGrid(layout, false);
+    this.grids.set(layout.id, { version: this.version, grid });
+    return grid;
+  }
+
+  /** Like `gridFor`, but breakable props do not block: what a charge that smashes through them could reach. Not cached. */
+  gridWithoutBreakables(layout: ScreenLayout): TileGrid {
+    return this.buildGrid(layout, true);
+  }
+
+  private buildGrid(layout: ScreenLayout, skipBreakables: boolean): TileGrid {
     const base = layout.grid;
-    const props = this.propsOn(layout.id).filter((p) => p.visible && !p.broken && (p.def.solid || p.def.blocksSight));
+    const props = this.propsOn(layout.id).filter(
+      (p) => p.visible && !p.broken && (p.def.solid || p.def.blocksSight) && !(skipBreakables && p.def.breakable),
+    );
     const npcs = this.npcsOn(layout.id).filter((n) => n.visible && n.def.solid === true);
     let grid = base;
     if (props.length > 0 || npcs.length > 0) {
@@ -233,8 +246,29 @@ export class Dressing {
       for (const n of npcs) mark(blocked, Math.floor(n.pos.x / TILE), Math.floor(n.pos.y / TILE), { width: 1, height: 1 });
       grid = { ...base, blocked, blocksSight };
     }
-    this.grids.set(layout.id, { version: this.version, grid });
     return grid;
+  }
+
+  /** Whether a visible prop's `slows` footprint covers tile (`col`, `row`) of the screen. */
+  slowsAt(screenId: ScreenId, col: number, row: number): boolean {
+    return this.footprintAt(screenId, col, row, (p) => p.def.slows);
+  }
+
+  /** Whether a visible prop's `blocksEnemies` footprint covers tile (`col`, `row`) of the screen. */
+  blocksEnemiesAt(screenId: ScreenId, col: number, row: number): boolean {
+    return this.footprintAt(screenId, col, row, (p) => p.def.blocksEnemies);
+  }
+
+  private footprintAt(screenId: ScreenId, col: number, row: number, pick: (p: LiveProp) => TileFootprint | undefined): boolean {
+    for (const p of this.props.values()) {
+      if (p.screenId !== screenId || !p.visible || p.broken) continue;
+      const fp = pick(p);
+      if (!fp) continue;
+      const c0 = p.col + (fp.dx ?? 0);
+      const r0 = p.row + (fp.dy ?? 0);
+      if (col >= c0 && col < c0 + fp.width && row >= r0 && row < r0 + fp.height) return true;
+    }
+    return false;
   }
 
   /** IDs of examinables that belong to an NPC (drawn as the NPC, not as a marker). */

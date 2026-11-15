@@ -40,10 +40,15 @@ export function canSee(grid: TileGrid, from: Vec2, facingDeg: number, cone: Cone
   return lineOfSight(grid, from, target);
 }
 
-/** A guard hears a noise if it is within the noise's radius and the guard's hearing radius. */
+/**
+ * A guard hears a noise if it is within the noise's radius. Footsteps are decided by that radius alone (DESIGN.md
+ * 7.3: each level is louder than the last); every other noise must also be inside the guard's `hearingRadius`.
+ * A guard with `hearingRadius` 0 (drones) is deaf to everything.
+ */
 export function canHear(listener: Vec2, hearingRadius: number, noise: NoiseEvent): boolean {
   if (hearingRadius <= 0 || noise.radius <= 0) return false;
   const d = distance(listener, noise.position);
+  if (noise.kind === 'footstep' || noise.kind === 'sneakFootstep') return d <= noise.radius;
   return d <= noise.radius && d <= hearingRadius;
 }
 
@@ -354,8 +359,8 @@ export interface StealthHost {
 }
 
 export class StealthRunner {
-  readonly guards: Guard[];
-  readonly hazards: Hazard[];
+  guards: Guard[];
+  hazards: Hazard[];
   private started = false;
   private alarmed = false;
   private finished = false;
@@ -364,12 +369,25 @@ export class StealthRunner {
     readonly def: StealthSectionDef,
     private readonly host: StealthHost,
   ) {
-    this.guards = def.guards.map((g) => {
+    this.guards = this.buildGuards();
+    this.hazards = def.hazards.map((h) => new Hazard(h));
+  }
+
+  private buildGuards(): Guard[] {
+    return this.def.guards.map((g) => {
       const enemy = TUNING.enemies[g.enemyId];
       const senses = enemy.senses ?? { visionRange: 0, visionAngleDeg: 0, hearingRadius: 0 };
       return new Guard(g.enemyId, g, senses, enemy.moveSpeed);
     });
-    this.hazards = def.hazards.map((h) => new Hazard(h));
+  }
+
+  /** Back to the start with fresh guards and hazards (the return to the bar). A finished section stays finished. */
+  reset(): void {
+    if (this.finished) return;
+    this.started = false;
+    this.alarmed = false;
+    this.guards = this.buildGuards();
+    this.hazards = this.def.hazards.map((h) => new Hazard(h));
   }
 
   get sectionId(): StealthSectionId {

@@ -12,6 +12,8 @@ export const C05: DialogueFile = {
     'name.ticketMachine': 'Ticket machine',
     'name.agent': 'Agent',
     'name.lobbyGuard': 'Guard',
+    'name.barman': 'Barman',
+    'c5.card.bar': 'A hotel bar, Washington DC. Ten in the morning.',
 
     'c5.objective.lobby': 'Get past the lobby.',
     'c5.objective.floor': 'Cross the records floor.',
@@ -55,6 +57,21 @@ export const C05: DialogueFile = {
     caption('c5.caption.title', 'The Paper Trail'),
     caption('c5.caption.lobby', 'Office of Atmospheric Records. Washington DC.'),
 
+    caption('c5.caption.bar', 'A hotel bar, Washington DC. Ten in the morning.'),
+
+    // --- The bar: the hotel across the street ---
+    scene(
+      'c5.bar.open',
+      ['andrew', "It's ten in the morning."],
+      ['myko', "It's a hotel. It's always some time in a hotel. There's a man over there in a lanyard having a brandy."],
+      ['npc:name.barman', 'Coffee? It’s been on since six.'],
+      ['andrew', 'Is there tea?'],
+      ['npc:name.barman', 'There’s a tea bag. We keep it for guests.'],
+      ['myko', 'Take whichever one frightens you less. The records office is across the road.'],
+    ),
+    box('c5.bar.hotDrink', ['npc:name.barman', 'Coffee, or the tea bag. Same tea bag.']),
+    box('c5.bar.return', ['npc:name.barman', 'Back already. Rough meeting?'], ['andrew', 'It’s ongoing.']),
+
     scene(
       'c5.open',
       ['andrew', "I'll ask at the desk."],
@@ -67,7 +84,7 @@ export const C05: DialogueFile = {
       'c5.actNatural.lesson',
       ['myko', "See the guard? He's looked at everyone in this room except the queue. Nobody has ever looked at a man in a queue."],
       ['andrew', 'So?'],
-      ['myko', "So stand in one. Stand beside anything boring and be still. You'll vanish. You've the face for it."],
+      ['myko', "So stand in one. Stand beside anything boring and be still. You'll vanish. You've the face for it. Tab, put it on 1."],
       ['andrew', "What's that supposed to mean?"],
       ['myko', "It's a compliment. I'll be outside. I'm too interesting for this."],
     ),
@@ -81,7 +98,7 @@ export const C05: DialogueFile = {
     box('c5.floor.overheard.5', ['npc:name.agent', "I just file the sky stuff. I don't read the sky stuff."]),
     box('c5.floor.clean', ['myko', "Six agents and not one of them saw a man in a green anorak. There's a memo on that desk. Have it.", 'by phone']),
     box('c5.floor.caught', ['myko', "You're seen. They come in pairs and one goes round the back. Don't let him.", 'by phone']),
-    box('c5.floor.locked', ['myko', "I can hear your feet from the street. You're locked, Andrew. Stand still till it passes or have a tea.", 'by phone']),
+    box('c5.floor.loud', ['myko', "I can hear your feet from the street. That's a bit much, Andrew. Let it settle, or take the coffee.", 'by phone']),
 
     // --- Files and the redaction puzzle ---
     box('c5.files.requisition', ['andrew', 'Forty acres of replacement corn.'], ['myko', 'What happened the first corn?', 'by phone'], ['andrew', '“Affected.”']),
@@ -109,6 +126,15 @@ export const C05: DialogueFile = {
       ['myko', "That alarm isn't the photocopier, Andrew. That's the building."],
     ),
 
+    // --- Lock-in (slot 3) ---
+    scene(
+      'c5.lockIn.lesson',
+      ['myko', "They're coming from every side. You know how Dympna keeps a room when she wants it kept?", 'by phone'],
+      ['andrew', "She says nobody's going anywhere."],
+      ['myko', "And nobody does. Say it like her. It's on 3, if you're far enough gone to mean it. There's a birthday bottle in that fridge if you're not."],
+    ),
+    box('c5.lockIn.done', ['myko', "Nobody moved. Not one. She'd be proud of you. She wouldn't say it.", 'by phone']),
+
     // --- Cubicle fight ---
     scene(
       'c5.fight.intro',
@@ -133,7 +159,7 @@ export const C05: DialogueFile = {
     // --- Pruitt, round one ---
     scene(
       'c5.pruitt.intro',
-      ['pruitt', "Evening. Agent Pruitt. You'd be the gentlemen from the lobby camera."],
+      ['pruitt', "Evening. Agent Pruitt. You'd be the gentleman from the lobby camera."],
       ['andrew', "I know about the bog. And Boston. And the corn."],
       ['pruitt', "I expect you do. I'd like you to stop, please. I'm asking once, and I'm asking nicely, because I'm tired and you seem all right."],
       ['andrew', "I can't."],
@@ -152,8 +178,9 @@ export const C05: DialogueFile = {
       ['pruitt', "So I don't do this after five. Thirty-one years. I'm three from my pension and I'm not giving them a minute past."],
       ['pruitt', "Door's unlocked. I'll have to write this up in the morning. I'd be gone by the morning, if I were you."],
       ['andrew', 'Thanks.'],
-      ['pruitt', "Don't thank me. Ohio's a long bus."],
+      ['pruitt', "Don't thank me. Ohio's a long bus. Take the umbrella from the stand. I'm told it rains there."],
     ),
+    box('c5.weapon.umbrella', ['myko', "He's given you his umbrella. Government issue. It'd go through two men and stay dry. Press R.", 'by phone']),
 
     scene(
       'c5.closing',
@@ -169,17 +196,17 @@ export const C05: DialogueFile = {
     box('c5.hint.lobby.1', ['myko', "You're not going to get to 847. Find somewhere dull to stand near the staff door.", 'by phone']),
     box('c5.hint.lobby.2', ['myko', 'Stand still beside the noticeboard till the guard turns, then through the door marked Staff.', 'by phone']),
     box('c5.hint.floor.1', ['myko', "Vending machines, the water cooler, the queue for the copier. Go from boring thing to boring thing.", 'by phone']),
-    box('c5.hint.floor.2', ['myko', 'Shift between props, stop dead beside each, wait for the patrol to pass. Stay under Locked or they’ll hear you.', 'by phone']),
+    box('c5.hint.floor.2', ['myko', 'Shift between props, stop dead beside each, wait for the patrol to pass. Stay at Grand or under, or they’ll hear you.', 'by phone']),
     box('c5.hint.files.1', ['myko', "The loose pages are on desks. They're the ones with the black lines.", 'by phone']),
     box('c5.hint.files.2', ['myko', 'Five sheets: two by the cooler, one at the copier, two in the corner cubicles. And the requisition on the big desk.', 'by phone']),
     box('c5.hint.redacted.1', ['myko', "You want three where every word shows on at least one. Look at where the black is.", 'by phone']),
     box('c5.hint.redacted.2', ['myko', 'First, third and fourth. Leave the two with the coffee rings.', 'by phone']),
     box('c5.hint.fight.1', ['myko', "The darts are slow. It's the one behind you that'll have you.", 'by phone']),
-    box('c5.hint.fight.2', ['myko', 'Back into a cubicle so they come one side only. Slam when three are in. Space out of the cuffs.', 'by phone']),
+    box('c5.hint.fight.2', ['myko', 'Back into a cubicle so they come one side only. Hold them with 3 when three are in. Keep moving, or the cuffs have you.', 'by phone']),
     box('c5.hint.board.1', ['myko', 'You’ve a place name now. What else points at it?', 'by phone']),
     box('c5.hint.board.2', ['myko', 'The line from the file, the corn order and the bus claim.', 'by phone']),
     box('c5.hint.pruitt.1', ['myko', "He's not chasing you. He's closing the room on you. Watch the rails.", 'by phone']),
-    box('c5.hint.pruitt.2', ['myko', 'Rails light, change lane. Get up to him between cranks. Bottles work, he can’t dodge and wind at once.', 'by phone']),
+    box('c5.hint.pruitt.2', ['myko', 'Rails light, change lane. Get up to him between cranks. Bottles work, he can’t duck and crank at once.', 'by phone']),
 
     // --- Myko calls ---
     scene(

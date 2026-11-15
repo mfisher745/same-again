@@ -37,13 +37,14 @@ export const C07: DialogueFile = {
     'name.costumeD': 'Figure in the queue',
     'name.costumeE': 'Figure by the fridge magnets',
     'name.clerk': 'Clerk',
+    'name.bartender': 'Bartender',
     'name.zip': 'Zip',
     'name.zap': 'Zap',
     'name.zorp': 'Zorp',
 
     'c7.objective.strip': 'Find the gift shop.',
     'c7.objective.tells': 'Work out which three are real.',
-    'c7.objective.sliotar': 'Try the sliotar.',
+    'c7.objective.gary': 'Talk to the man at the till.',
     'c7.objective.stock': 'Search the stockroom.',
     'c7.objective.yard': 'Clear the yard.',
     'c7.objective.van': 'Check the van.',
@@ -85,14 +86,24 @@ export const C07: DialogueFile = {
     ...ohio.sequences,
     ...other.sequences,
 
+    // --- The bar: open-fronted, on the strip. The drinks are green. ---
     scene(
-      'c7.open',
+      'c7.bar.open',
       ['andrew', 'Everyone is dressed as an alien.'],
       ['myko', 'They are.'],
-      ['andrew', "I've come four thousand miles to prove there's aliens and there's a diner shaped like a saucer."],
+      ['andrew', "I've come four thousand miles to prove there's aliens and the barman has antennae."],
       ['myko', "You're in the one town on earth where you're not interesting. How does it feel?"],
       ['andrew', 'Bad.'],
     ),
+    scene(
+      'c7.bar.tequila',
+      ['npc:name.bartender', 'Welcome, Earthling! First one’s on the house. It’s green!'],
+      ['andrew', 'What is it?'],
+      ['npc:name.bartender', 'Tequila! We call it a Close Encounter.'],
+      ['myko', "You've heard of tequila. That's as far as you've ever got. It puts you straight up on the top floor, and a few seconds later it takes the stairs away."],
+    ),
+    box('c7.bar.hotDrink', ['npc:name.bartender', 'Coffee or tea? The tea’s green too. That one’s on purpose.']),
+    box('c7.bar.return', ['npc:name.bartender', 'Back again, Earthling! Rough landing?']),
     scene(
       'c7.strip.tourist1',
       ['andrew', "Excuse me. I've evidence of an actual landing. In Ireland. I've a fragment."],
@@ -104,7 +115,6 @@ export const C07: DialogueFile = {
       ['andrew', "I'm not in a costume."],
       ['npc:name.tourist', "Ha! Staying in character. Love it."],
     ),
-    box('c7.strip.tequila', ['andrew', 'Tequila.'], ['myko', "You've heard of it. That's as far as you've ever got. Mind yourself, the floor moves after."]),
     box('c7.strip.leaflet', ['andrew', "That's my ring. My bog. “Unverified, Europe.”"], ['myko', "You're in a leaflet. Page six. Your mother will be thrilled."]),
 
     // --- Who is an alien ---
@@ -115,7 +125,7 @@ export const C07: DialogueFile = {
       ['andrew', 'Some of them are.'],
       ['myko', 'Are what?'],
       ['andrew', 'Aliens. Dressed as aliens.'],
-      ['myko', "That's either the cleverest thing you've ever said or we should get you a tea. Go and look at them. Closely."],
+      ['myko', "That's either the cleverest thing you've ever said or we should get you a coffee. Go and look at them. Closely."],
     ),
     // Figure A: tourist.
     box('c7.tells.a', ['andrew', "Sunburnt neck. Phone in his hand. He's complaining about the price of water."], ['myko', "That's a man. That's the most man I've ever seen."]),
@@ -127,7 +137,7 @@ export const C07: DialogueFile = {
     box('c7.tells.d', ['andrew', "He's queueing. There's nobody else in the queue. He's left a gap in front of him anyway."], ['myko', 'He blinked there. Sideways. Did you see? Like a gate closing.']),
     // Figure E: tourist.
     box('c7.tells.e', ['andrew', "He's asked the price of the same magnet three times and he's still annoyed."], ['myko', "Human. Aliens crossed the stars, Andrew. They can read a sticker."]),
-    box('c7.tells.wrong', ['npc:name.tourist', "Dude. I'm from Tucson. Do you work here?"], ['myko', "Scarlet for you. Go again."]),
+    box('c7.tells.wrong', ['npc:name.tourist', "Dude. I'm from Tucson. Do you work here?"], ['myko', 'Mortified for you. Go again.']),
     scene(
       'c7.tells.right',
       ['andrew', 'Him. Him. And –'],
@@ -156,22 +166,19 @@ export const C07: DialogueFile = {
       'c7.gary.payslip',
       ['andrew', 'Who do you work for? Really?'],
       ['gary', "Says on my payslip. Here. Meridian Basin. It's in Nevada. Don't tell them I showed you. Actually, tell them, I don't think they read anything."],
-      ['myko', "You're taking this very well, Gary."],
-      ['gary', "You're taking it better. Most people faint. He nearly did."],
+      ['andrew', "You're taking this very well."],
+      ['gary', "You're taking it better. Most people faint. You nearly did."],
     ),
 
-    // --- Sliotar ---
+    // --- Last Orders (a move for slot 4) ---
     scene(
-      'c7.sliotar.reveal',
-      ['myko', 'Here. You might want this.'],
-      ['andrew', "That's a sliotar."],
-      ['myko', 'It is.'],
-      ['andrew', 'Where did you get a sliotar in New Mexico?'],
-      ['myko', "I didn't. It's been in this coat since 2009."],
-      ['andrew', 'Why?'],
-      ['myko', "It never came up. Hold right click, let it build, and let fly. It'll go through a queue of them."],
+      'c7.lastOrders.lesson',
+      ['gary', "Hang on. It's six. Folks, we're closing."],
+      ['andrew', 'They all just left.'],
+      ['gary', "Nineteen years. You say it like it's already happened. They hear it in the knees."],
+      ['myko', "That's last orders, Andrew. You've heard it a thousand times and never once from the right side of the bar."],
+      ['myko', "It's in your kit, on 4. When you're as far gone as you can go, say it like Gary."],
     ),
-    box('c7.sliotar.done', ['myko', "Straight through the lot. And it came back. It always comes back, that one. Don't ask."]),
 
     // --- Stockroom ---
     scene(
@@ -184,11 +191,11 @@ export const C07: DialogueFile = {
     box('c7.stock.overheard.4', ['npc:name.clerk', 'Gary took a long lunch. I noted it. I noted that I noted it.']),
     scene(
       'c7.stock.clean',
-      ['myko', "Clean as a whistle. There's a staff fridge. Andrew. There's a spice bag in the staff fridge.", 'by phone'],
+      ['myko', "Clean as a whistle. There's a staff fridge. Andrew. There's a can of stout in the staff fridge.", 'by phone'],
       ['andrew', "It has Gary's name on it."],
       ['gary', 'Go ahead. I was curious. I got it shipped. I don’t get it.', 'from the doorway'],
     ),
-    box('c7.stock.caught', ['myko', "They've noticed. They'll line up to shoot, they can't help it. That's what the ball is for.", 'by phone']),
+    box('c7.stock.caught', ['myko', "They've noticed. They'll line up to shoot, they can't help it. Go through the line, or poke along it.", 'by phone']),
     box('c7.stock.permit', ['andrew', 'Staff parking. Gate C. Service entrance.'], ['myko', "Pocket it. Don't fold it.", 'by phone']),
 
     // --- Yard ---
@@ -218,16 +225,17 @@ export const C07: DialogueFile = {
       ['npc:name.zorp', 'AND I’M ZORP! WELCOME TO ROSWELL!'],
       ['andrew', "They're seven foot tall."],
       ['npc:name.zip', 'You went in the stockroom.', 'quietly'],
-      ['myko', "The tourists think it's a show. Let them. When those three line up, put the ball through all of them.", 'by phone'],
+      ['myko', "The tourists think it's a show. Let them. The one with the sign stops everything from the front. So fall through them.", 'by phone'],
     ),
     box('c7.mascots.first', ['npc:name.tourist', "Whoa! He really went down! These guys are GOOD."]),
     box('c7.mascots.second', ['myko', "One left, and he's faster for it. They always are.", 'by phone']),
     scene(
       'c7.mascots.end',
-      ['npc:name.tourist', 'WOOO! Best show on the strip! Here, buddy. For you.'],
-      ['andrew', "He's given me a dollar."],
-      ['myko', "First money you've made in four years. Don't spend it all on ice.", 'by phone'],
+      ['npc:name.tourist', 'WOOO! Best show on the strip! Here, buddy. You win the big guy!'],
+      ['andrew', "He's given me a dollar. And an alien."],
+      ['myko', "First money you've made in four years, and your first alien. It's full of air. Leave that out of the casebook.", 'by phone'],
     ),
+    box('c7.weapon.inflatable', ['myko', "Press R. Swing it. It hurts nobody and it moves everybody. It's the most use an alien's been to you yet."]),
 
     scene(
       'c7.closing',
@@ -235,8 +243,8 @@ export const C07: DialogueFile = {
       ['andrew', "You don't mind?"],
       ['gary', "Honestly? I don't think it's gonna go how you think. But knock yourself out. Just leave me out of it, I've got a good thing here."],
       ['andrew', 'I will.'],
-      ['gary', 'You guys want a bag for that?'],
-      ['myko', "Sound man, Gary. The roads here are narrow, by the way. I've been meaning to say it to someone."],
+      ['gary', 'You want a bag for that?'],
+      ['myko', "The roads here are narrow, Andrew. I've been meaning to say it to someone."],
     ),
 
     // --- Hints ---
@@ -244,18 +252,18 @@ export const C07: DialogueFile = {
     box('c7.hint.strip.2', ['myko', 'Far end of the strip, past the saucer. Little Green Gifts.']),
     box('c7.hint.tells.1', ['myko', "People sweat, complain and fiddle with their phones. Look for the ones doing none of that."]),
     box('c7.hint.tells.2', ['myko', 'The one reading the snow globe, the one queueing behind nobody, and the lad at the till.']),
-    box('c7.hint.sliotar.1', ['myko', "Hold it, don't tap it. Let it build."]),
-    box('c7.hint.sliotar.2', ['myko', 'Hold right click till the hurley’s back, aim down the row of inflatables, let go.']),
+    box('c7.hint.gary.1', ['myko', "The lad at the till says he's one. Ask him things. He answers."]),
+    box('c7.hint.gary.2', ['myko', 'Talk to Gary until he runs out. He closes the shop at six. Watch how.']),
     box('c7.hint.stock.1', ['myko', 'They never change the route. Count it once and you know it for ever.', 'by phone']),
     box('c7.hint.stock.2', ['myko', 'Wait for the count at shelf nine, cross behind them, noticeboard is on the back wall.', 'by phone']),
     box('c7.hint.yard.1', ['myko', "The big foam ones roll. The small ones stand in a row to shoot. A row, Andrew.", 'by phone']),
-    box('c7.hint.yard.2', ['myko', 'Charged shot down the line of clerks. Step off the roll and hit the mascot while he’s on his back.', 'by phone']),
+    box('c7.hint.yard.2', ['myko', 'Stumble along the line of clerks, or use the umbrella. Step off the roll and hit the mascot while he’s on his back.', 'by phone']),
     box('c7.hint.van.1', ['myko', "It's a van. They keep a log. Everybody who drives for a living keeps a log.", 'by phone']),
     box('c7.hint.van.2', ['myko', 'Driver’s door, clipboard on the seat. E.', 'by phone']),
     box('c7.hint.board.1', ['myko', "Three bits of paper that all name the one place."]),
     box('c7.hint.board.2', ['myko', 'Payslip, permit, delivery log.']),
     box('c7.hint.mascots.1', ['myko', "The one with the sign blocks everything from the front. So don't go from the front. Or go through.", 'by phone']),
-    box('c7.hint.mascots.2', ['myko', 'Wait till the three are in a line, charged sliotar. Hit Zip while he’s on his back. Bat Zap’s shots home.', 'by phone']),
+    box('c7.hint.mascots.2', ['myko', 'Stumble through the three when they line up. It knocks the sign away. Hit Zip while he’s on his back. Walk the gaps in Zap’s fan.', 'by phone']),
 
     // --- Myko calls ---
     scene(
@@ -267,10 +275,10 @@ export const C07: DialogueFile = {
     ),
     scene(
       'c7.call.puzzle',
-      ['myko', "Which of ye are aliens? Hands up."],
       ['myko', 'Him, him, and the lad at the till. There you go.'],
-      ['andrew', 'You just asked.'],
-      ['myko', "They're very honest. It's nearly like Ohio. You'd have got there. You'd one of them down as “suspicious” for wearing sandals."],
+      ['andrew', 'How do you know?'],
+      ['myko', "I asked them. They're very honest. It's nearly like Ohio. People forget you can ask."],
+      ['myko', "You'd have got there. You'd one of them down as “suspicious” for wearing sandals."],
     ),
   ],
   pools: {

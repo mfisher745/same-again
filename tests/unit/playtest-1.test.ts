@@ -1,6 +1,6 @@
 /**
  * Behaviour added after the chapter 1 playtest (DESIGN.md 7.1 and 7.5):
- * Buzz drain delay, "nothing is said twice", stale queued remarks, breakables.
+ * "nothing is said twice", stale queued remarks, breakables.
  */
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -10,101 +10,15 @@ import type { ChapterModule } from '../../src/core/chapter';
 import { EventBus } from '../../src/core/events';
 import { MemoryStorage, SaveStore } from '../../src/core/save';
 import { createSandboxModule } from '../../src/core/sandbox';
-import type { PickupItem, SaveState, Vec2 } from '../../src/core/types';
-import { Buzz } from '../../src/systems/buzz';
+import type { OverhaulSaveState, PickupItem, Vec2 } from '../../src/core/types';
 import { DialogueRunner } from '../../src/systems/dialogue';
 import type { DialogueContext } from '../../src/systems/dialogue';
 import { GameSession } from '../../src/systems/session';
 import type { SceneDriver } from '../../src/systems/session';
-import { NO_INPUT, advance, frame, makeRun, record, teleport } from './helpers';
+import { createMeter } from '../../src/systems/meter';
+import { NO_INPUT, advance, advanceWithScene, frame, makeRun, record, teleport } from './helpers';
 
 const T = (col: number, row: number): Vec2 => ({ x: col * 16 + 8, y: row * 16 + 8 });
-
-// ---------------------------------------------------------------------------
-// Buzz does not drain just after a drink (DESIGN.md 7.1)
-// ---------------------------------------------------------------------------
-
-describe('Buzz drain delay after a drink', () => {
-  const delay = TUNING.buzz.drainDelayAfterDrinkMs;
-
-  it('the delay is "a few seconds": positive and well under a minute', () => {
-    expect(delay).toBeGreaterThanOrEqual(3000);
-    expect(delay).toBeLessThanOrEqual(30_000);
-  });
-
-  it('holds the value for the whole delay, then drains at the normal rate', () => {
-    const b = new Buzz(new EventBus(), 0);
-    b.add(20);
-    b.tick(delay - 1);
-    expect(b.value).toBe(20);
-    b.tick(1);
-    expect(b.value).toBe(20);
-    b.tick(10_000);
-    expect(b.value).toBeCloseTo(20 - TUNING.buzz.drainPerSecond * 10, 5);
-  });
-
-  it('a tick that straddles the end of the delay only drains for the part after it', () => {
-    const b = new Buzz(new EventBus(), 0);
-    b.add(30);
-    b.tick(delay);
-    b.tick(1000);
-    expect(b.value).toBeCloseTo(30 - TUNING.buzz.drainPerSecond, 5);
-  });
-
-  it('a second drink restarts the delay', () => {
-    const b = new Buzz(new EventBus(), 0);
-    b.add(10);
-    b.tick(delay - 100);
-    b.add(10);
-    b.tick(delay - 1);
-    expect(b.value).toBe(20);
-  });
-
-  it('with no drink there is no delay: drain starts at once', () => {
-    const b = new Buzz(new EventBus(), 50);
-    b.tick(1000);
-    expect(b.value).toBeCloseTo(50 - TUNING.buzz.drainPerSecond, 5);
-  });
-
-  it('tea (negative add) and spending Buzz do not start the delay', () => {
-    const b = new Buzz(new EventBus(), 50);
-    b.add(-25);
-    b.tick(1000);
-    expect(b.value).toBeCloseTo(25 - TUNING.buzz.drainPerSecond, 5);
-    const c = new Buzz(new EventBus(), 50);
-    expect(c.spend(20)).toBe(true);
-    c.tick(1000);
-    expect(c.value).toBeCloseTo(30 - TUNING.buzz.drainPerSecond, 5);
-  });
-
-  it('restoring a save (load, respawn) clears any delay', () => {
-    const b = new Buzz(new EventBus(), 0);
-    b.add(40);
-    b.restore(40);
-    b.tick(1000);
-    expect(b.value).toBeCloseTo(40 - TUNING.buzz.drainPerSecond, 5);
-  });
-
-  it('the delay does not stop Banjaxed from running its course (fall, then reset)', () => {
-    const b = new Buzz(new EventBus(), 70);
-    b.add(30);
-    expect(b.state).toBe('banjaxed');
-    b.tick(TUNING.buzz.banjaxedPeakMs);
-    expect(b.fallen).toBe(true);
-    b.tick(TUNING.buzz.banjaxedFallenMs);
-    expect(b.value).toBe(TUNING.buzz.banjaxedResetTo);
-  });
-
-  it('crossing a threshold on a drink still fires the state change while draining is held', () => {
-    const bus = new EventBus();
-    const changes = record(bus, 'buzz:stateChanged');
-    const b = new Buzz(bus, 15);
-    b.add(10);
-    expect(changes).toHaveLength(1);
-    b.tick(delay - 1);
-    expect(changes).toHaveLength(1);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // Nothing is said twice (DESIGN.md 7.5)
@@ -288,7 +202,7 @@ describe('DialogueRunner: stale queued remarks are dropped', () => {
   });
 });
 
-describe('Nothing is said twice across death and reload (session)', () => {
+describe('Nothing is said twice across a return to the bar and reload (session)', () => {
   afterEach(() => clearChapterRegistry());
   const examineModule = (): ChapterModule => {
     const base = createSandboxModule(1);
@@ -307,9 +221,10 @@ describe('Nothing is said twice across death and reload (session)', () => {
     bus.on('dialogue:show', ({ sequenceId }) => void shown.push(sequenceId));
     return shown;
   };
-  const kill = (run: NonNullable<ReturnType<GameSession['createRun']>>): void => {
-    run.player.takeHit({ source: { kind: 'hazard', hazardId: 'x' }, targetInstanceId: 'andrew', amount: 1000, knockback: { x: 0, y: 0 }, stunMs: 0, holdMs: 0 });
-    advance(run, 2000);
+  /** The meter runs out: back to the bar. The same run carries on (no scene restart). */
+  const sober = (run: NonNullable<ReturnType<GameSession['createRun']>>): void => {
+    run.player.meter = createMeter(run.chapter, 0.01);
+    advanceWithScene(run, 300);
   };
 
   it('a played line is written to the save as it is shown, before any checkpoint', () => {
@@ -323,24 +238,20 @@ describe('Nothing is said twice across death and reload (session)', () => {
     expect(store.load()?.playedDialogue).toContain('c1.pub.photo');
   });
 
-  it('after a death the line is not said again, and the scene does not block', () => {
+  it('after a return to the bar the line is not said again, and the scene does not block', () => {
     const { session } = setup();
     session.newGame();
-    const run1 = session.createRun();
-    if (!run1) throw new Error('no run');
-    run1.tick(16, NO_INPUT);
-    void run1.say('c1.pub.photo');
-    run1.dialogue.finishAll();
-    kill(run1);
-    const run2 = session.createRun();
-    if (!run2) throw new Error('no run');
-    expect(run2).not.toBe(run1);
-    const shown = shownOn(run2.bus as EventBus);
-    run2.tick(16, NO_INPUT);
-    run2.dialogue.finishAll(); // Myko's death remark is a pool line and may show
-    void run2.say('c1.pub.photo');
+    const run = session.createRun();
+    if (!run) throw new Error('no run');
+    run.tick(16, NO_INPUT);
+    void run.say('c1.pub.photo');
+    run.dialogue.finishAll();
+    sober(run);
+    run.dialogue.finishAll(); // Myko's bar-return remark is a pool line and may show
+    const shown = shownOn(run.bus as EventBus);
+    void run.say('c1.pub.photo');
     expect(shown.filter((id) => id === 'c1.pub.photo')).toEqual([]);
-    expect(run2.dialogue.showing('box')).toBeNull();
+    expect(run.dialogue.showing('box')).toBeNull();
   });
 
   it('after quit and Continue (a new session on the same store) it is not said again', () => {
@@ -352,7 +263,7 @@ describe('Nothing is said twice across death and reload (session)', () => {
     void run.say('c1.pub.photo');
     clearChapterRegistry();
     const b = setup();
-    b.store.write(a.store.load() as SaveState);
+    b.store.write(a.store.load() as OverhaulSaveState);
     b.session.continueGame();
     const run2 = b.session.createRun();
     if (!run2) throw new Error('no run');
@@ -377,33 +288,29 @@ describe('Nothing is said twice across death and reload (session)', () => {
     expect(shown).toEqual(['c1.pub.photo']);
   });
 
-  it('a deliberate re-examine repeats the object line every time, even after a death', () => {
+  it('a deliberate re-examine repeats the object line every time, even after a return to the bar', () => {
     const { session } = setup(examineModule());
     session.newGame();
-    const run1 = session.createRun();
-    if (!run1) throw new Error('no run');
-    run1.tick(16, NO_INPUT);
-    const shown1 = shownOn(run1.bus as EventBus);
-    teleport(run1, 12, 12);
+    const run = session.createRun();
+    if (!run) throw new Error('no run');
+    run.tick(16, NO_INPUT);
+    const shown = shownOn(run.bus as EventBus);
+    teleport(run, 12, 12);
     for (let i = 0; i < 2; i++) {
-      run1.tick(16, frame({ pressed: ['interact'] }));
-      run1.dialogue.finishAll();
+      run.tick(16, frame({ pressed: ['interact'] }));
+      run.dialogue.finishAll();
     }
-    expect(shown1.filter((id) => id === 'c1.pub.photo')).toHaveLength(2);
-    kill(run1);
-    const run2 = session.createRun();
-    if (!run2) throw new Error('no run');
-    run2.tick(16, NO_INPUT);
-    run2.dialogue.finishAll(); // the death remark would otherwise queue it
-    const shown2 = shownOn(run2.bus as EventBus);
-    teleport(run2, 12, 12);
-    run2.tick(16, frame({ pressed: ['interact'] }));
-    expect(shown2.filter((id) => id === 'c1.pub.photo')).toHaveLength(1);
+    expect(shown.filter((id) => id === 'c1.pub.photo')).toHaveLength(2);
+    sober(run);
+    run.dialogue.finishAll(); // the bar-return remark would otherwise queue it
+    teleport(run, 12, 12);
+    run.tick(16, frame({ pressed: ['interact'] }));
+    expect(shown.filter((id) => id === 'c1.pub.photo')).toHaveLength(3);
   });
 
   it('Chapter Select replays the lines of the chosen chapter but keeps earlier chapters played', () => {
     const base = createSandboxModule(2);
-    const withPlayed: SaveState = { ...makeRun({ chapter: 2 }).run.snapshot(), playedDialogue: ['c1.pub.photo', 'c2.bog.x', 'c3.later'], brokenProps: ['c1.a', 'c2.b'] };
+    const withPlayed: OverhaulSaveState = { ...makeRun({ chapter: 2 }).run.snapshot(), playedDialogue: ['c1.pub.photo', 'c2.bog.x', 'c3.later'], brokenProps: ['c1.a', 'c2.b'] };
     // chapterSelectSave is covered in save.test.ts; here only the played and broken lists.
     return import('../../src/systems/session').then(({ chapterSelectSave }) => {
       const s = chapterSelectSave(base, withPlayed, []);
@@ -413,19 +320,19 @@ describe('Nothing is said twice across death and reload (session)', () => {
   });
 });
 
-describe('older saves without the new fields still load', () => {
-  it('isSaveState accepts a save with no playedDialogue, brokenProps or lootSeed, and rejects bad ones', async () => {
+describe('the version 2 save needs its fields', () => {
+  it('isSaveState rejects a save with no playedDialogue, brokenProps or lootSeed, and accepts a full one', async () => {
     const { isSaveState } = await import('../../src/core/save');
     const s = makeRun().run.snapshot();
-    const old: Record<string, unknown> = { ...s };
-    delete old['playedDialogue'];
-    delete old['brokenProps'];
-    delete old['lootSeed'];
-    expect(isSaveState(old)).toBe(true);
-    expect(isSaveState({ ...old, playedDialogue: ['a'], brokenProps: ['b'], lootSeed: 5 })).toBe(true);
-    expect(isSaveState({ ...old, playedDialogue: 'a' })).toBe(false);
-    expect(isSaveState({ ...old, brokenProps: [1] })).toBe(false);
-    expect(isSaveState({ ...old, lootSeed: '5' })).toBe(false);
+    expect(isSaveState(s)).toBe(true);
+    for (const key of ['playedDialogue', 'brokenProps', 'lootSeed']) {
+      const cut: Record<string, unknown> = { ...s };
+      delete cut[key];
+      expect(isSaveState(cut), key).toBe(false);
+    }
+    expect(isSaveState({ ...s, playedDialogue: 'a' })).toBe(false);
+    expect(isSaveState({ ...s, brokenProps: [1] })).toBe(false);
+    expect(isSaveState({ ...s, lootSeed: '5' })).toBe(false);
   });
 });
 
@@ -498,16 +405,15 @@ describe('Breakables', () => {
     expect(propOf(run, BARREL)?.broken).toBe(false);
   });
 
-  it('a thrown bottle breaks a breakable and uses up the empty', () => {
-    const { run, bus } = makeRun({ save: (s) => ({ ...s, player: { ...s.player, empties: 2 } }) });
+  it('a thrown bottle breaks a breakable and uses up the bottle', () => {
+    const { run, bus } = makeRun({ save: (s) => ({ ...s, kit: { ...s.kit, bottles: 2 } }) });
     const broken = record(bus, 'prop:broken');
-    run.unlockAbility('bottleThrow');
     run.setPlayerPosition(T(6, 12));
     const aim = T(6, 8);
-    run.tick(16, frame({ pressed: ['ranged'], aim }));
-    run.tick(16, frame({ released: ['ranged'], holdMs: { ranged: 50 }, aim }));
+    run.tick(16, frame({ pressed: ['aimHold'], aim }));
+    run.tick(16, frame({ released: ['aimHold'], aim }));
     advance(run, 1500);
-    expect(run.player.inventory.empties).toBeLessThan(2);
+    expect(run.player.kit.bottles).toBe(1);
     expect(broken.map((b) => b.propId)).toEqual([BARREL]);
   });
 
@@ -550,7 +456,7 @@ describe('Breakables', () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 
-  it('a broken prop and its undropped loot survive a death; loot picked up stays picked up', () => {
+  it('a broken prop and its undropped loot survive a return to the bar; loot picked up stays picked up', () => {
     registerChapter(createSandboxModule(1));
     const store = new SaveStore(new MemoryStorage());
     const session = new GameSession({ store });
@@ -560,13 +466,15 @@ describe('Breakables', () => {
       const run1 = session.createRun();
       if (!run1) throw new Error('no run');
       run1.tick(16, NO_INPUT);
+      // A full kit leaves the loot lying where it fell.
+      run1.player.setKit({ ...run1.player.kit, drinks: { lager: 6 } });
       punch(run1, T(11, 9), T(11, 8));
       punch(run1, T(11, 9), T(11, 8));
       expect(store.load()?.brokenProps).toContain(CRATE);
-      run1.player.takeHit({ source: { kind: 'hazard', hazardId: 'x' }, targetInstanceId: 'andrew', amount: 1000, knockback: { x: 0, y: 0 }, stunMs: 0, holdMs: 0 });
-      advance(run1, 2000);
-      const run2 = session.createRun();
-      if (!run2) throw new Error('no run');
+      expect(run1.pickups().some((p) => p.def.id === lootId(CRATE))).toBe(true);
+      run1.player.meter = createMeter(1, 0.01);
+      advanceWithScene(run1, 300);
+      const run2 = run1;
       run2.tick(16, NO_INPUT);
       expect(propOf(run2, CRATE)?.broken).toBe(true);
       expect(run2.dressing.brokenKeys()).toContain(CRATE);

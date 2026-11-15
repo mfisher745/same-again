@@ -43,7 +43,7 @@ export interface DebugHooks {
   state(): {
     readonly chapter: number | null;
     readonly screenId: string | null;
-    readonly player: { readonly x: number; readonly y: number; readonly health: number; readonly buzz: number };
+    readonly player: { readonly x: number; readonly y: number; readonly buzz: number };
     readonly enemiesAlive: number;
     readonly currentSection: string | null;
     readonly completed: readonly string[];
@@ -65,7 +65,7 @@ export function installDebugHooks(session: GameSession): DebugHooks {
       return {
         chapter: r.chapter,
         screenId: r.screenId,
-        player: { x: r.player.pos.x, y: r.player.pos.y, health: r.player.health.current, buzz: r.player.buzz.value },
+        player: { x: r.player.pos.x, y: r.player.pos.y, buzz: r.player.meter.value },
         enemiesAlive: r.enemies().filter((e) => !e.down).length,
         currentSection: r.currentCompletable()?.sectionId ?? null,
         completed: snap.completedSectionIds,

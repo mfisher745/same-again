@@ -85,6 +85,8 @@ export interface MykoHost {
   stealthUncaught(): boolean;
   callsLeft(): number;
   callLines(kind: MykoCallKind): MykoCallLineSet | null;
+  /** What a boss or set piece's call lines are called (`BossPlacement.callId`), if it names them. */
+  callId?(sectionId: CompletableSectionId): string | undefined;
   /** Calls already spent in this chapter in this save (read before `spendCall`). */
   callsThisChapter(): number;
   /** Spend one call: decrement, record, casebook entry, save at once. */
@@ -128,6 +130,8 @@ export class Myko {
   moving = false;
   /** Having a smoke: from `smokeIntervalMs` of standing still until he next moves. */
   smoking = false;
+  /** Walking to a scripted point in a hurry: the view plays `hurry` instead of `walk`. */
+  hurrying = false;
   private stillMs = 0;
   private nextSmokeMs: number;
   /** Own seeded stream, so the smoke jitter does not shift the shared RNG (combat, pools). */
@@ -145,6 +149,33 @@ export class Myko {
   /** 0..1 progress of the M hold; 0 when not held or on the Administrator. */
   callHoldProgress(): number {
     return this.holdProgress;
+  }
+
+  /** Scripted: walk to `p` hurrying (the floor return, DESIGN.md 7.1). Hurrying ends when he stands there. */
+  hurryTo(p: Vec2): void {
+    this.mode = 'scripted';
+    this.standPoint = p;
+    this.hurrying = true;
+  }
+
+  /**
+   * Like `hurryTo`, but he arrives within `withinMs` at his walk speed. If he is too far, he is first put at the
+   * furthest point on the straight line to `p` he can cover in that time (kept inside `bounds`), then hurries.
+   */
+  hurryToWithin(p: Vec2, withinMs: number, bounds: { readonly width: number; readonly height: number }): void {
+    const reach = (TUNING.myko.walkSpeed * withinMs) / 1000;
+    const d = distance(this.pos, p);
+    if (d > reach) {
+      const start = add(p, scale(normalize(sub(this.pos, p)), reach));
+      this.pos = { x: Math.min(Math.max(start.x, 0), bounds.width), y: Math.min(Math.max(start.y, 0), bounds.height) };
+    }
+    this.hurryTo(p);
+  }
+
+  /** A frozen world (the return waiting for its scene): only his scripted walk and smoke run. */
+  tickScripted(dtMs: number): void {
+    this.moveStep(dtMs);
+    this.tickSmoke(dtMs);
   }
 
   placeNear(p: Vec2): void {
@@ -215,7 +246,10 @@ export class Myko {
     }
     if (!target) return false;
     const sectionId = target.completable.sectionId;
-    const kind = MYKO_CALL_KIND_BY_SECTION[target.completable.kind];
+    const baseKind = MYKO_CALL_KIND_BY_SECTION[target.completable.kind];
+    // A boss or set piece that names its call lines (`BossPlacement.callId`) uses the chapter's set-piece set.
+    const named = baseKind === 'fight' && this.host.callId?.(sectionId) !== undefined && this.host.callLines('setpiece') !== null;
+    const kind: MykoCallKind = named ? 'setpiece' : baseKind;
     const earlier = this.host.callsThisChapter();
     // Which call of the save this is (whole game); `callsLeft` is saved, so it survives reload.
     const nth = Math.min(3, Math.max(1, TUNING.myko.callsPerGame - this.host.callsLeft() + 1));
@@ -226,7 +260,7 @@ export class Myko {
     this.host.setPlayerProtected(true);
     this.mode = 'calledIn';
     this.smoking = false;
-    const sequenceId = `myko.call.${kind}.blackout.${nth}` as DialogueId;
+    const sequenceId = `myko.call.${baseKind}.blackout.${nth}` as DialogueId;
     this.call = { target, sectionId, kind, sequenceId, earlier, elapsed: 0 };
     this.host.bus.emit(GameEvents.MykoBlackout, { sectionId, kind, sequenceId });
     return true;
@@ -327,8 +361,14 @@ export class Myko {
     const d = distance(this.pos, goal);
     const slack = this.mode === 'following' ? TUNING.myko.followDistance / 2 : 1;
     this.moving = false;
-    if (d <= slack) return;
-    const step = Math.min(d - slack, (TUNING.myko.walkSpeed * dtMs) / 1000);
+    if (d <= slack) {
+      if (this.mode === 'scripted') this.hurrying = false;
+      return;
+    }
+    const reach = (TUNING.myko.walkSpeed * dtMs) / 1000;
+    const step = Math.min(d - slack, reach);
+    // This step lands on the slack boundary: he has arrived (a float epsilon would leave d just above slack).
+    if (this.mode === 'scripted' && reach >= d - slack) this.hurrying = false;
     const dir = normalize(sub(goal, this.pos));
     this.pos = add(this.pos, scale(dir, step));
     this.moving = step > 0;

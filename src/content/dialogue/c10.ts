@@ -13,7 +13,6 @@ export const C10: DialogueFile = {
     'c10.card.anteroom': 'Control level. Reception.',
     'c10.card.control': 'The Administrator’s office',
     'c10.card.pub': "Feeney's, Kilnamoe. A Tuesday.",
-    'name.security': 'Security',
     'name.newsreader': 'Newsreader',
     'name.comment': 'Comment',
 
@@ -58,6 +57,17 @@ export const C10: DialogueFile = {
     caption('c10.caption.week', 'One week later'),
     caption('c10.caption.end', 'Same Again'),
 
+    // --- The bar: the drinks cabinet in the anteroom ---
+    scene(
+      'c10.bar.open',
+      ['andrew', "There's a drinks cabinet."],
+      ['myko', "In reception. Of course there is. What's in it?", 'by phone'],
+      ['andrew', "Decanters. Full. There's dust on them."],
+      ['myko', "They kept it for visitors and never had one. You're the visitor, Andrew. There's a tea trolley too, I can hear it rattle."],
+    ),
+    box('c10.bar.hotDrink', ['myko', "The trolley's still there. Last one before the door. Take it.", 'by phone']),
+    box('c10.bar.return', ['myko', "Back at the cabinet. He's still in there. He's not going anywhere, he has a desk.", 'by phone']),
+
     // --- Anteroom ---
     scene(
       'c10.open',
@@ -87,7 +97,7 @@ export const C10: DialogueFile = {
     scene(
       'c10.admin.phase2',
       ['administrator', "I had hoped to delegate this. Very well. I'm going to have to restructure the room."],
-      ['myko', "He's changing which way is down. The arrows tell you. You've a glove, Andrew. Change it back on him.", 'by phone'],
+      ['myko', "He's changing which way is down. The arrows tell you. You've a glove, Andrew. Put it to a switch and change it back on him.", 'by phone'],
     ),
     box('c10.admin.offer1', ['administrator', "A settlement. Generous. You sign, you go home, there's a sum. Think of your slate."]),
     box('c10.admin.offer2', ['administrator', "A better settlement. And the bog restored. We'd re-turf it. We have a man."]),
@@ -122,14 +132,14 @@ export const C10: DialogueFile = {
       ['andrew', "That's all five."],
       ['myko', 'So press it.'],
       ['andrew', '...'],
-      ['myko', "Twenty years I've been slagging you. Go on. Press it."],
+      ['myko', "Twenty years I've been laughing at you. Go on. Press it."],
     ),
     scene(
       'c10.broadcast.sent',
       ['andrew', "It's gone. Every screen. Everywhere."],
       ['myko', 'How long?'],
       ['andrew', 'Ninety seconds.'],
-      ['myko', "Ninety seconds on every telly on earth. That's more than the Angelus gets."],
+      ['myko', "Ninety seconds on every telly on earth. That's more than the county final gets."],
     ),
 
     // --- The world's reaction ---
@@ -143,7 +153,7 @@ export const C10: DialogueFile = {
     scene('c10.reaction.comment', ['npc:name.comment', 'nice', 'from Gary']),
     scene(
       'c10.reaction.colleen',
-      ['colleenAnn', 'I ALWAYS knew. Didn’t I say? I said. And those two guys? Friends of mine. Irish guys. The aliens are probably Irish too, if you think about it.'],
+      ['colleenAnn', 'I ALWAYS knew. Didn’t I say? I said. And that guy? Friend of mine. Irish guy. The aliens are probably Irish too, if you think about it.'],
     ),
 
     // --- Feeney's ---
@@ -185,8 +195,8 @@ export const C10: DialogueFile = {
       ['myko', "You were right. About the lights, and the bog, and the bit of metal. I said tractor. I said it to your face."],
       ['myko', 'It was a spaceship, Andrew. There was a spaceship in Leitrim and you were the only one looking up.'],
       ['myko', "I stood in a lift with you and a bag of proof. I shook hands with a man from another planet who works a till. I've never had a week like it. I've never had a life like it."],
-      ['andrew', "You're not slagging me."],
-      ['myko', "I'm not. I'll start again tomorrow. Tonight, tell it to me again. From the start. From the chipper. Leave nothing out."],
+      ['andrew', "You're not making fun of me."],
+      ['myko', "I'm not. I'll start again tomorrow. Tonight, tell it to me again. From the start. From the chip shop. Leave nothing out."],
     ),
     // If all three calls are unused.
     scene(
@@ -209,15 +219,15 @@ export const C10: DialogueFile = {
       ['andrew', 'Who?'],
       ['myko', "They'd love this in Ohio. We should go back and tell them. They'd listen. They'd put it on the water tower."],
       ['andrew', '...'],
-      ['dympna', 'Well? Are ye having one or are ye taking up stools?'],
+      ['dympna', 'Well? Same again, or are you only taking up room?'],
       ['andrew', 'Same again.'],
     ),
 
     // --- Hints ---
     box('c10.hint.anteroom.1', ['myko', "Everything you have, Andrew. This is what it was all for.", 'by phone']),
-    box('c10.hint.anteroom.2', ['myko', 'Glove the shields, sliotar the lines, slam when they close in. Drink between waves.', 'by phone']),
+    box('c10.hint.anteroom.2', ['myko', 'Glove the shields, hold the rest, put your foot down when they close in. Drink between waves.', 'by phone']),
     box('c10.hint.administrator.1', ['myko', "He's behind that desk till the two guards are down. Then he isn't.", 'by phone']),
-    box('c10.hint.administrator.2', ['myko', 'Drop both guards and hit him while the desk is dark. When he flips the room, glove a switch and flip it back. When he vanishes, stumble.', 'by phone']),
+    box('c10.hint.administrator.2', ['myko', 'Drop both guards and hit him while the desk is dark. When he flips the room, E at a switch to flip it back. When he vanishes, keep walking.', 'by phone']),
     box('c10.hint.broadcast.1', ['myko', "Each plug's a different shape. Match the shape, not the colour."]),
     box('c10.hint.broadcast.2', ['myko', 'The tape and the photo look like they share a socket. The tape’s has the notch. E on a socket to look closer.']),
     box('c10.hint.button.1', ['myko', "It's the big one. He told you himself."]),

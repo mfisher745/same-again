@@ -2,35 +2,62 @@
  * Text used in every chapter: names, pickup text, HUD and menu labels,
  * prompts, and Myko's general-purpose remarks. Tone rules: DESIGN.md section 2
  * and docs/style-guide.md section 6.
+ *
+ * Entries under a RETIRING comment belong to systems the overhauled design
+ * removes (health, food, hangover, the dodge, the heat meter). The current
+ * code still reads them. Delete each one with the code that reads it.
  */
 
 import type { DialogueFile } from './index';
 import { box, linePool, mykoPool, scene } from './build';
 
-const death = mykoPool('myko.death', [
+// --- Back at the bar (DESIGN.md 7.1). Said at the bar, after the fade. ---
+
+const barSober = mykoPool('myko.bar.sober', [
+  'You went very quiet out there. Drink that.',
+  "There he is. You'd a face on you like a man reading his own bank statement.",
+  "You stopped drinking and started thinking. I've told you about that.",
+  "Sober, in the middle of everything. That's not bravery, Andrew. That's neglect.",
+  "I couldn't get a word in. I don't know where you went. Welcome back.",
+  'You saw it all very clearly, did you? And how was it?',
+]);
+
+const barFloor = mykoPool('myko.bar.floor', [
   "You're grand. You fell over with great conviction.",
-  "I'd have helped, but I'm here in an advisory capacity.",
-  'Take your time. They seem happy to wait.',
+  "I carried you. I'm saying it now so there's no argument later.",
+  'You went past brave and out the far side.',
+  'Up you get. Same again, only less of it.',
   "That's the worst I've seen you since the table quiz final.",
-  "In fairness, he didn't look like he could do that.",
-  'Up you get. Same again, only different.',
-  'I rang nobody. I assumed you had a plan.',
-  "You went down like the county team. Second half, mind.",
+  'You went down like the county team. Second half, mind.',
+  "I'd have caught you, but I'm here in an advisory capacity.",
 ]);
 
-const idle = mykoPool('myko.idle', [
-  "No rush. I've a smoke on.",
-  'Is this the plan, or are we between plans?',
-  "You're thinking. I can hear it from here.",
-  "I'll just stand here, so. Advising.",
-  "If you're waiting on the aliens to come to you, fair enough. It's worked before.",
-  'I could have stayed at home for this. I had the immersion on and everything.',
+/** Andrew, at 0, before the fade. Myko says nothing here. */
+const zero = linePool('andrew', 'andrew.zero', ['Ah.', 'Right. I see.', 'What am I doing here.']);
+
+/** Andrew, running low (under 10). */
+const sober = linePool('andrew', 'andrew.sober', [
+  "Everything is very clear. I don't like it.",
+  "I can hear my own thoughts. They're not helping.",
+  "I'm nearly sober. Write that down. No, don't.",
 ]);
 
-const hangover = mykoPool('myko.hangover', [
-  'Morning. You look like a removal.',
-  "It's bright, yeah. It's called day. Tea or a roll, either will sort you.",
-  "You'd a great night. You told a bus driver about the fragment.",
+const low = mykoPool('myko.low', [
+  "You're running dry. Find something with a cap on it.",
+  "There's very little left in you. I can nearly see through you.",
+  'Drink something, Andrew. You have the look of a man about to make a sensible decision.',
+]);
+
+const bitMuch = mykoPool('myko.bitMuch', [
+  "You're swaying. It suits you, but they'll hear you coming.",
+  "That's a bit much. You hit harder up there. So does everything else.",
+  'Mind yourself. From here a thump sends you up, not down.',
+]);
+
+const fecked = mykoPool('myko.fecked', [
+  "You're one drink from the floor. I'm not saying stop. I'm saying I've seen the floor.",
+  "Easy. You're hitting like a horse and standing like a foal.",
+  "That's as far up as it goes, Andrew. After this it's me and a cloud of smoke.",
 ]);
 
 const drinkComment = mykoPool('myko.drink', [
@@ -40,10 +67,37 @@ const drinkComment = mykoPool('myko.drink', [
   'Fair play. Hydration.',
 ]);
 
-const banjaxed = mykoPool('myko.banjaxed', [
-  "And he's down. Take a minute. Take two.",
-  'That was eight great seconds, in fairness.',
-  "You've gone past brave and out the far side.",
+const whiskey = mykoPool('myko.whiskey', [
+  "Up a floor. Nothing drains for a bit. Don't get hit, it costs you double.",
+  "Whiskey. You'll be very sure of yourself for about eight seconds.",
+  "That's the good stuff working. Stand somewhere nobody can reach you.",
+]);
+
+const tequila = mykoPool('myko.tequila', [
+  "Straight to the top floor. You've a few seconds up there and then the stairs go.",
+  "Tequila. I'll be over here. A good way over here.",
+  'Do whatever you were going to do, and do it now. It leaves faster than it arrives.',
+]);
+
+const hotDrink = mykoPool('myko.hotDrink', [
+  'Back to grand. Like none of it happened.',
+  "That's you reset. It's the only thing that works on you.",
+  'There. A normal man again, for as long as that lasts.',
+]);
+
+const meterGrows = mykoPool('myko.meterGrows', [
+  "You're holding it better than you did at home. That's practice. I'm not sure it's the good kind.",
+  "There's more room in you than there was. Don't fill it all at once.",
+  'You can take a bit more now before it shows. I mean that as information, not praise.',
+]);
+
+const idle = mykoPool('myko.idle', [
+  "No rush. I've a smoke on.",
+  'Is this the plan, or are we between plans?',
+  "You're thinking. I can hear it from here.",
+  "I'll just stand here, so. Advising.",
+  "If you're waiting on the aliens to come to you, fair enough. It's worked before.",
+  "I could have stayed at home for this. I'd the fire lit and everything.",
 ]);
 
 const callRefusedNone = mykoPool('myko.callRefused.noCallsLeft', [
@@ -56,11 +110,36 @@ const callRefusedNotNow = mykoPool('myko.callRefused.notCallable', [
   'Call me for what, Andrew? Walking?',
 ]);
 
+// --- RETIRING: pools the current code plays for removed systems. ---
+
+const death = mykoPool('myko.death', [
+  "You're grand. You fell over with great conviction.",
+  "I'd have helped, but I'm here in an advisory capacity.",
+  'Take your time. They seem happy to wait.',
+  "That's the worst I've seen you since the table quiz final.",
+  "In fairness, he didn't look like he could do that.",
+  'Up you get. Same again, only different.',
+  'I rang nobody. I assumed you had a plan.',
+  'You went down like the county team. Second half, mind.',
+]);
+
+const hangover = mykoPool('myko.hangover', [
+  'Morning. You look like you were buried and they changed their minds.',
+  "It's bright, yeah. It's called day. Tea will sort you.",
+  "You'd a great night. You told a bus driver about the fragment.",
+]);
+
+const banjaxed = mykoPool('myko.banjaxed', [
+  "And he's down. Take a minute. Take two.",
+  'That was eight great seconds, in fairness.',
+  "You've gone past brave and out the far side.",
+]);
+
 const heat = mykoPool('myko.heat', [
   'You need water. Actual water. I know, I was surprised too.',
-  "You're the colour of a hang sandwich. Find shade.",
+  "You're the colour of a boiled ham. Find shade.",
   'Stand under that rock a minute. The aliens will keep.',
-  "It was never this warm in Ohio. It was perfect in Ohio.",
+  'It was never this warm in Ohio. It was perfect in Ohio.',
   "You're cooking. Drink the water, not the other thing.",
 ]);
 
@@ -68,12 +147,6 @@ const heatDrink = mykoPool('myko.heat.wrongDrink', [
   "That's not water. That's the opposite of water.",
   "It won't cool you down. It'll just make you confident about being warm.",
   "I'm not carrying you. I'll advise you along the ground.",
-]);
-
-const sober = linePool('andrew', 'andrew.sober', [
-  "Everything is very clear. I don't like it.",
-  "I can hear my own thoughts. They're not helping.",
-  "I'm sober. Write that down. No, don't.",
 ]);
 
 export const COMMON: DialogueFile = {
@@ -97,29 +170,33 @@ export const COMMON: DialogueFile = {
     'ui.settings.on': 'On',
     'ui.settings.off': 'Off',
     'ui.settings.fullscreenHint': 'F11 or Alt+Enter also works',
+    'ui.settings.tab': 'Tab screen',
+    'ui.settings.tab.toggle': 'Press to open, press to close',
+    'ui.settings.tab.hold': 'Open while held',
     'ui.chapter.label': 'Chapter {n}',
     'ui.chapter.locked': 'Not yet',
     'ui.saved': 'Saved',
 
     // HUD
-    'ui.hud.empties': 'Empties',
+    'ui.hud.bottles': 'Bottles',
     'ui.hud.noDrink': 'Nothing',
-    'ui.hud.noSpecial': 'Sober',
-    'ui.hud.heat': 'Heat',
-    'ui.hud.special.needBuzz': 'More drink',
+    'ui.hud.noMove': 'Nothing',
+    'ui.hud.special.needLevel': 'Not yet',
     'ui.hud.special.recharging': 'Hang on',
+    'ui.hud.sun': 'Sun',
     'ui.key.1': '1',
     'ui.key.2': '2',
     'ui.key.3': '3',
+    'ui.key.4': '4',
     'ui.key.q': 'Q',
-    'ui.key.f': 'F',
     'ui.key.r': 'R',
     'ui.key.m': 'M',
-    'ui.key.space': 'Space',
+    'ui.key.tab': 'Tab',
     'ui.buzz.sober': 'Sober',
+    'ui.buzz.buzzed': 'Buzzed',
     'ui.buzz.grand': 'Grand',
-    'ui.buzz.locked': 'Locked',
-    'ui.buzz.banjaxed': 'Banjaxed',
+    'ui.buzz.bitMuch': 'Bit much',
+    'ui.buzz.fecked': 'Fecked',
 
     // Prompts
     'ui.prompt.interact': 'E',
@@ -130,17 +207,43 @@ export const COMMON: DialogueFile = {
     'ui.prompt.drink': 'Q to drink',
     'ui.prompt.punch': 'Left click to punch. Three in a row.',
     'ui.prompt.push': 'Walk into it to push',
-    'ui.prompt.throw': 'Right click to throw an empty',
+    'ui.prompt.throw': 'Hold right click to aim a bottle. Let go to throw.',
     'ui.prompt.sneak': 'Hold Shift to sneak',
-    'ui.prompt.stumble': 'Space to stumble',
-    'ui.prompt.special': 'F to use. R to change.',
+    'ui.prompt.slot': '{key} to use it',
+    'ui.prompt.weapon': 'R to change weapon',
     'ui.prompt.actNatural': 'Stand still beside it',
-    'ui.prompt.charge': 'Hold right click, then let go',
-    'ui.prompt.deflect': 'Swing as it arrives',
     'ui.prompt.hint': 'H to ask Myko',
     'ui.prompt.callMyko': 'Hold M to call Myko in. Three for the whole game.',
     'ui.prompt.casebook': 'Tab for the casebook',
-    'ui.prompt.selectDrink': '1, 2, 3 or the wheel to choose a drink',
+    'ui.prompt.kit': 'Tab for the kit',
+    'ui.prompt.selectDrink': 'Mouse wheel to change the drink',
+    'ui.prompt.hotDrink': 'E for a hot drink',
+    'ui.prompt.sit': 'E to sit',
+
+    // The Tab screen: casebook and kit (DESIGN.md 7.7)
+    'ui.tab.casebook': 'Casebook',
+    'ui.tab.kit': 'Kit',
+    'ui.kit.title': 'Kit',
+    'ui.kit.drinks': 'Drinks',
+    'ui.kit.places': '{n} of {max}',
+    'ui.kit.hotDrink': 'Hot drink',
+    'ui.kit.bottles': 'Bottles',
+    'ui.kit.weapons': 'Weapons',
+    'ui.kit.moves': 'Moves',
+    'ui.kit.slots': 'Slots',
+    'ui.kit.slot.drink': 'Drink',
+    'ui.kit.slot.melee': 'Melee',
+    'ui.kit.slot.special': 'Special {n}',
+    'ui.kit.slot.level': '{state} and up',
+    'ui.kit.slot.empty': 'Empty',
+    'ui.kit.assign': 'Put it here',
+    'ui.kit.drinkNow': 'Drink it',
+    'ui.kit.none': 'Nothing. Give it time.',
+    'ui.kit.hotDrink.none': 'None. There is one at the bar.',
+    'ui.kit.wrongLevel': 'That one goes in slot {n}.',
+    'ui.bar.choose': 'Which?',
+    'ui.bar.coffee': 'Coffee',
+    'ui.bar.tea': 'Tea',
 
     // Casebook and deduction board
     'ui.casebook.title': 'Casebook',
@@ -165,54 +268,88 @@ export const COMMON: DialogueFile = {
     'speaker.gary': 'Gary',
     'speaker.administrator': 'The Administrator',
 
-    // Drinks
+    // Drinks. Pickup text: the name, the effect, then one dry sentence.
     'drink.stout.name': 'Pint of stout',
-    'drink.stout.pickup': 'Pint of stout. Buzz +20, heals 15. It was just sitting there, which is not like a pint.',
-    'drink.whiskey.name': 'Whiskey',
-    'drink.whiskey.pickup': 'Whiskey. Buzz +30. For the cold. It is not cold.',
-    'drink.poitin.name': 'Poitín',
-    'drink.poitin.pickup': 'Poitín. Buzz +60. No label. The bottle has had a previous career.',
+    'drink.stout.pickup': 'Pint of stout. Buzz +15. It was just sitting there, which is not like a pint.',
+    'drink.lager.name': 'Can of lager',
+    'drink.lager.pickup': 'Can of lager. Buzz +10. Warm. It was always going to be warm.',
     'drink.lightBeer.name': 'American light beer',
     'drink.lightBeer.pickup': 'American light beer. Buzz +2. Andrew isn’t angry. He’s just disappointed.',
-    'drink.bourbon.name': 'Bourbon',
-    'drink.bourbon.pickup': 'Bourbon. Buzz +30, and a short burst of speed. Sweet. Andrew says nothing, loudly.',
     'drink.craftIpa.name': 'Craft IPA',
-    'drink.craftIpa.pickup': 'Craft IPA. Buzz +15. The can has a paragraph on it.',
+    'drink.craftIpa.pickup': 'Craft IPA. Buzz +20. The can has a paragraph on it.',
+    'drink.whiskey.name': 'Whiskey',
+    'drink.whiskey.pickup': 'Whiskey. Up to the top of the next level, and no drain for 8 seconds. Hits cost double while it lasts. For the cold. It is not cold.',
     'drink.tequila.name': 'Tequila',
-    'drink.tequila.pickup': 'Tequila. Buzz +40, and the room moves more. Andrew has heard of it.',
-    'drink.water.name': 'Water',
-    'drink.water.pickup': 'Water. Resets heat. Andrew reads the label twice to be sure.',
+    'drink.tequila.pickup': 'Tequila. Straight to Fecked, and no drain for 8 seconds. Hits cost double. Then Buzz drops 30. Andrew has heard of it.',
+    'drink.coffee.name': 'Coffee',
+    'drink.coffee.pickup': 'Coffee. Back to the bottom of Grand, at once. Andrew does not like it. That is how he knows it is working.',
+    'drink.tea.name': 'Tea',
+    'drink.tea.pickup': 'Tea. Back to the bottom of Grand, slowly, and it holds there a while. Andrew feels better and resents it.',
+    'drink.bottle.name': 'Bottle',
+    'drink.bottle.desc': 'Empty. Hold right click to aim, let go to throw. Every beer leaves one behind.',
 
-    // Food
-    'food.crisps.name': 'Crisps',
-    'food.crisps.pickup': 'Crisps. Heals 10. Cheese and onion. There was no other kind.',
-    'food.chickenFilletRoll.name': 'Chicken fillet roll',
-    'food.chickenFilletRoll.pickup': 'Chicken fillet roll. Heals 40, cures a hangover. Andrew goes quiet for a moment, out of respect.',
-    'food.breakfastRoll.name': 'Breakfast roll',
-    'food.breakfastRoll.pickup': 'Breakfast roll. Heals 40, cures a hangover. Everything in it is a different temperature.',
-    'food.spiceBag.name': 'Spice bag',
-    'food.spiceBag.pickup': 'Spice bag. Heals fully. Still warm. Some things are meant.',
-    'food.tea.name': 'Tea',
-    'food.tea.pickup': 'Tea. Buzz −25, cures a hangover, steadies the hand. Andrew feels better and resents it.',
+    // Pickups
+    'pickup.refused.kitFull': 'The anorak holds {max}. He has counted the pockets.',
+    'pickup.refused.hotDrinkHeld': 'He has one already. It is still warm.',
+    'pickup.bottles': 'Bottles +{n}.',
 
-    // Pickup refusals
-    'pickup.refused.noFreeSlot': 'Andrew has no pocket left for a third kind of anything.',
-    'pickup.refused.slotFull': 'He has enough of those. He checks. He has enough.',
-    'pickup.refused.emptiesFull': 'The anorak is clinking as it is.',
-    'pickup.refused.noEffect': 'He isn’t hungry. He leaves it where he can find it.',
-    'pickup.empties': 'Empties +{n}.',
+    // Refusals from the slots and the throw (systems return a reason code; the HUD shows these)
+    'ui.move.empty': 'Nothing in that slot. Tab for the kit.',
+    'ui.move.dark': 'He’d want a few more in him for that one.',
+    'ui.move.cooldown': 'Not yet.',
+    'ui.move.noTarget': 'Nobody near enough.',
+    'ui.move.noProp': 'Nothing to stand beside.',
+    'ui.move.seen': 'Too late for that. They’ve seen him.',
+    'ui.throw.noBottle': 'No bottles. He’d have to drink something first.',
 
-    // Abilities
+    // Special moves, by level (DESIGN.md 7.2). Old ability IDs are kept where the move survives.
     'ability.punchCombo.name': 'Punch',
     'ability.bottleThrow.name': 'Bottle Throw',
-    'ability.stumble.name': 'The Stumble',
-    'ability.stoutSlam.name': 'Stout Slam',
+    'ability.shoulder.name': 'The Shoulder',
+    'ability.shoulder.desc': 'A short charge, shoulder first. Knocks one of them back.',
+    'ability.reflexTest.name': 'Reflex Test',
+    'ability.reflexTest.desc': 'A tap below the kneecap. He folds, and cannot swing for 2 seconds.',
     'ability.actNatural.name': 'Act Natural',
-    'ability.hurley.name': 'Hurley',
-    'ability.sliotarStrike.name': 'Sliotar Strike',
-    'ability.poitinBreath.name': 'Poitín Breath',
+    'ability.actNatural.desc': 'Stand still beside something dull. Guards look past Andrew until he moves.',
+    'ability.stoutSlam.name': 'Stout Slam',
+    'ability.stoutSlam.desc': 'Put it down hard. Everyone close to Andrew goes over.',
+    'ability.sameAgain.name': 'Same Again',
+    'ability.sameAgain.desc': 'The next three hits each land twice.',
+    'ability.bedsideManner.name': 'Bedside Manner',
+    'ability.bedsideManner.desc': 'Say something calm. Everyone near stops to listen for 3 seconds.',
+    'ability.stumble.name': 'The Stumble',
+    'ability.stumble.desc': 'A lurch in a straight line. Hits everything in the way. It looks like an accident.',
+    'ability.lockIn.name': 'Lock-in',
+    'ability.lockIn.desc': 'Nobody leaves. Those near Andrew are held for 4 seconds and take double.',
+    'ability.secondOpinion.name': 'Second Opinion',
+    'ability.secondOpinion.desc': 'Tell one of them what is about to give way. The next hit on him does four times the damage.',
     'ability.borrowedGlove.name': 'The Borrowed Glove',
+    'ability.borrowedGlove.desc': 'Stuns everyone in front of Andrew for 4 seconds. It is not his.',
+    'ability.oneForTheRoad.name': 'One for the Road',
+    'ability.oneForTheRoad.desc': 'One punch. It finishes anyone ordinary and takes a third off anyone who is not.',
+    'ability.lastOrders.name': 'Last Orders',
+    'ability.lastOrders.desc': 'Call it. Everyone ordinary on the screen is left barely standing, and stunned for 3 seconds.',
+    'ability.barred.name': 'Barred',
+    'ability.barred.desc': 'Collar and belt. One of them leaves, and lands on the others.',
     'ability.unlocked': 'New: {name}',
+    'ability.learned': 'New move: {name}. Slot {n}.',
+
+    // Melee weapons (DESIGN.md 7.2)
+    'weapon.fists.name': 'Fists',
+    'weapon.fists.desc': 'Fast and short. Three in a row, and the third one counts.',
+    'weapon.hurley.name': 'Big Tom’s hurley',
+    'weapon.hurley.desc': 'A long ash stick. More reach, more damage, slower. He will want it back.',
+    'weapon.clipboard.name': 'Halloran’s clipboard',
+    'weapon.clipboard.desc': 'The fastest thing Andrew owns. It does very little, but nobody finishes a swing while being hit with it.',
+    'weapon.shillelagh.name': 'Souvenir shillelagh',
+    'weapon.shillelagh.desc': 'Heavy, slow, and it sends them a long way. It says KISS ME on it. Andrew keeps that side turned in.',
+    'weapon.umbrella.name': 'Pruitt’s umbrella',
+    'weapon.umbrella.desc': 'The longest reach. A straight poke that goes through two of them. Government issue.',
+    'weapon.inflatableAlien.name': 'Inflatable alien',
+    'weapon.inflatableAlien.desc': 'The widest swing. It hurts nobody and moves everybody.',
+    'weapon.securityWand.name': 'Security wand',
+    'weapon.securityWand.desc': 'Fast and strong. Every third hit stuns. It beeps when it is pleased.',
+    'weapon.gained': 'New weapon: {name}',
 
     // Enemies
     'enemy.lad.name': 'A lad',
@@ -239,18 +376,65 @@ export const COMMON: DialogueFile = {
     'boss.c9.setpiece.lockdown.name': 'Lockdown',
     'boss.c10.boss.administrator.name': 'The Administrator',
 
+    // --- RETIRING: read by the current code, not part of the overhauled design. ---
+    'ui.hud.empties': 'Bottles',
+    'ui.hud.noSpecial': 'Nothing',
+    'ui.hud.heat': 'Heat',
+    'ui.hud.special.needBuzz': 'More drink',
+    'ui.key.f': 'F',
+    'ui.key.space': 'Space',
+    'ui.buzz.locked': 'Bit much',
+    'ui.buzz.banjaxed': 'Fecked',
+    'ui.prompt.stumble': 'Space to stumble',
+    'ui.prompt.special': 'F to use. R to change.',
+    'ui.prompt.charge': 'Hold right click, then let go',
+    'ui.prompt.deflect': 'Swing as it arrives',
+    'drink.poitin.name': 'Poitín',
+    'drink.poitin.pickup': 'Poitín. Buzz +60. No label. The bottle has had a previous career.',
+    'drink.bourbon.name': 'Bourbon',
+    'drink.bourbon.pickup': 'Bourbon. Buzz +30, and a short burst of speed. Sweet. Andrew says nothing, loudly.',
+    'drink.water.name': 'Water',
+    'drink.water.pickup': 'Water. Resets heat. Andrew reads the label twice to be sure.',
+    'food.crisps.name': 'Crisps',
+    'food.crisps.pickup': 'Crisps. Heals 10. Cheese and onion. There was no other kind.',
+    'food.chickenFilletRoll.name': 'Chicken fillet roll',
+    'food.chickenFilletRoll.pickup': 'Chicken fillet roll. Heals 40, cures a hangover. Andrew goes quiet for a moment, out of respect.',
+    'food.breakfastRoll.name': 'Breakfast roll',
+    'food.breakfastRoll.pickup': 'Breakfast roll. Heals 40, cures a hangover. Everything in it is a different temperature.',
+    'food.spiceBag.name': 'Spice bag',
+    'food.spiceBag.pickup': 'Spice bag. Heals fully. Still warm. Some things are meant.',
+    'food.tea.name': 'Tea',
+    'food.tea.pickup': 'Tea. Buzz −25, cures a hangover, steadies the hand. Andrew feels better and resents it.',
+    'pickup.refused.noFreeSlot': 'Andrew has no pocket left for a third kind of anything.',
+    'pickup.refused.slotFull': 'He has enough of those. He checks. He has enough.',
+    'pickup.refused.emptiesFull': 'The anorak is clinking as it is.',
+    'pickup.refused.noEffect': 'He doesn’t need it. He leaves it where he can find it.',
+    'pickup.empties': 'Bottles +{n}.',
+    'ability.hurley.name': 'Hurley',
+    'ability.sliotarStrike.name': 'Sliotar Strike',
+    'ability.poitinBreath.name': 'Poitín Breath',
   },
   sequences: [
-    ...death.sequences,
-    ...idle.sequences,
-    ...hangover.sequences,
+    ...barSober.sequences,
+    ...barFloor.sequences,
+    ...zero.sequences,
+    ...sober.sequences,
+    ...low.sequences,
+    ...bitMuch.sequences,
+    ...fecked.sequences,
     ...drinkComment.sequences,
-    ...banjaxed.sequences,
+    ...whiskey.sequences,
+    ...tequila.sequences,
+    ...hotDrink.sequences,
+    ...meterGrows.sequences,
+    ...idle.sequences,
     ...callRefusedNone.sequences,
     ...callRefusedNotNow.sequences,
+    ...death.sequences,
+    ...hangover.sequences,
+    ...banjaxed.sequences,
     ...heat.sequences,
     ...heatDrink.sequences,
-    ...sober.sequences,
     box('myko.callRefused.administrator', ['myko', "No. This one's yours. I'll be here.", 'by phone']),
     box(
       'myko.callRefused.administrator.callsLeft',
@@ -258,6 +442,7 @@ export const COMMON: DialogueFile = {
       ['myko', "I'll hang on to the others for you. You won't need them."],
     ),
     box('myko.cleanRun', ['myko', 'Nobody saw you. I barely saw you, and I was looking.']),
+    box('myko.caught', ['myko', "They've seen you. Go on, so. Plan B was always the plan."]),
     // A second call in the one chapter: the same scene in every chapter.
     scene(
       'myko.call.again',
@@ -281,18 +466,27 @@ export const COMMON: DialogueFile = {
       ['myko', "So I'm back to advising, and here's the advice. Whatever's next, you're all that's coming. I'd pity it, only it'll be grand. It's you I'd pity."],
       ['myko', "Go on. I'll be right behind you. A good bit behind you."],
     ),
-    box('myko.caught', ['myko', "They've seen you. Go on, so. Plan B was always the plan."]),
   ],
   pools: {
-    ...death.pool,
-    ...idle.pool,
-    ...hangover.pool,
+    ...barSober.pool,
+    ...barFloor.pool,
+    ...zero.pool,
+    ...sober.pool,
+    ...low.pool,
+    ...bitMuch.pool,
+    ...fecked.pool,
     ...drinkComment.pool,
-    ...banjaxed.pool,
+    ...whiskey.pool,
+    ...tequila.pool,
+    ...hotDrink.pool,
+    ...meterGrows.pool,
+    ...idle.pool,
     ...callRefusedNone.pool,
     ...callRefusedNotNow.pool,
+    ...death.pool,
+    ...hangover.pool,
+    ...banjaxed.pool,
     ...heat.pool,
     ...heatDrink.pool,
-    ...sober.pool,
   },
 };

@@ -4,40 +4,73 @@
  */
 
 import type {
-  AbilityId,
   AudioSettings,
+  BarReturnReason,
   BossId,
-  BuzzSnapshot,
   CasebookEntry,
   ChapterNumber,
   DeductionBoardDef,
   DeductionSectionId,
   DialogueId,
-  DrinkSlotIndex,
-  DrinkSlots,
   EvidenceId,
   GameEventBus,
-  HangoverState,
+  HotDrinkId,
+  Kit,
+  OverhaulDrinkId,
+  SpecialSlotIndex,
+  TabMode,
+  DrunkLevelTable,
   Health,
-  HeatSnapshot,
+  MeterSnapshot,
+  MoveId,
   ObjectiveId,
-  SaveState,
-  SpecialAbilityId,
+  OverhaulSaveState,
+  MoveSlotView,
+  ThrowAim,
+  TextId,
+  Vec2,
+  WeaponId,
 } from '../core/types';
 
 export interface UiStateSource {
   readonly bus: GameEventBus;
-  health(): Health;
-  buzz(): BuzzSnapshot;
-  heat(): HeatSnapshot;
-  hangover(): HangoverState;
-  empties(): number;
-  drinkSlots(): DrinkSlots;
-  selectedDrink(): DrinkSlotIndex;
-  selectedSpecial(): SpecialAbilityId | null;
-  unlockedAbilities(): readonly AbilityId[];
-  /** 0..1 how much of the Borrowed Glove's recharge is left (1 = just used). Optional: the HUD shows no recharge without it. */
-  specialRecharge?(): number;
+  /** The one Buzz meter: value, level, floor, spirit window, tea hold, sun. There is no health. */
+  meter(): MeterSnapshot;
+  /** Where each level sits on the meter in this chapter (grows by chapter). */
+  levelTable(): DrunkLevelTable;
+  /** What he carries: drinks, hot drink, bottles, weapons, moves and the six slots. */
+  kit(): Kit;
+  /** The four special slots: the move in each, whether Andrew is at its level (lit) or it is dark, and its cooldown. */
+  moveSlots(): readonly MoveSlotView[];
+  /** The melee weapon in use. */
+  weapon(): WeaponId;
+  /** The dotted path of the throw while the button is held (hold right mouse), or null. */
+  throwPreview(): ThrowAim | null;
+  /** The latest refusal of a move (`ui.move.*`); `seq` rises with each. Null before the first. */
+  refusal(): { readonly textId: TextId; readonly seq: number } | null;
+  /** Tab screen: put a held drink in the drink slot, or clear it. False if refused. */
+  assignDrink(id: OverhaulDrinkId | null): boolean;
+  /** Tab screen: put a learned move of the slot's own level in a special slot, or clear it. False if refused. */
+  assignMove(slot: SpecialSlotIndex, id: MoveId | null): boolean;
+  /** Tab screen: equip an owned weapon. */
+  assignWeapon(id: WeaponId): boolean;
+  /** Tab screen: drink any held drink straight from the inventory. */
+  drinkFromInventory(id: OverhaulDrinkId): boolean;
+  /** The bar's free hot drink is on offer (once per visit) and Andrew carries none. */
+  hotDrinkOffered(): boolean;
+  /** Take the free hot drink. False if refused. */
+  takeHotDrink(id: HotDrinkId): boolean;
+  /** Tab as toggle (default) or hold; kept with the save's settings. */
+  tabMode(): TabMode;
+  setTabMode(mode: TabMode): void;
+  /**
+   * A return to the bar is waiting for the scene: the world is frozen where Andrew was (`bar:returning`).
+   * Call once, when the screen is black; it moves him to the bar, resets, and emits `bar:returned`.
+   * The run also completes it by itself after a failsafe delay if the UI never does.
+   */
+  completeBarReturn(): void;
+  /** The waiting return (reason and where Andrew fell), or null when none is waiting. */
+  barReturning(): { readonly reason: BarReturnReason; readonly andrew: Vec2 } | null;
   mykoCallsLeft(): number;
   /** 0..1 progress of the M hold; 0 when not held. */
   mykoCallHoldProgress(): number;
@@ -52,7 +85,7 @@ export interface UiStateSource {
   /** The UI calls this when it has finished showing a sequence. */
   dialogueFinished(sequenceId: DialogueId): void;
   /** Stored save, for Continue and Chapter Select; null if none. */
-  save(): SaveState | null;
+  save(): OverhaulSaveState | null;
   audioSettings(): AudioSettings;
   setAudioSettings(settings: AudioSettings): void;
   newGame(): void;

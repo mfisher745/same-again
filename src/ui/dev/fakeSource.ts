@@ -1,30 +1,40 @@
 /** A fake `UiStateSource` for the dev harness. All state is public and mutable. */
 
 import type {
-  AbilityId,
   AudioSettings,
   BossId,
-  BuzzSnapshot,
-  BuzzState,
   CasebookEntry,
   ChapterNumber,
   DeductionBoardDef,
   DeductionSectionId,
   DialogueId,
-  DrinkSlotIndex,
-  DrinkSlots,
   EvidenceId,
   GameEventBus,
   GameEventName,
   GameEventPayloads,
-  HangoverState,
+  DrunkLevelTable,
   Health,
-  HeatSnapshot,
+  MeterSnapshot,
+  MoveSlotView,
+  TextId,
+  ThrowAim,
+  WeaponId,
   ObjectiveId,
-  SaveState,
-  SpecialAbilityId,
+  Kit,
+  HotDrinkId,
+  MoveId,
+  OverhaulDrinkId,
+  OverhaulSaveState,
+  SpecialLevel,
+  SpecialSlotIndex,
+  TabMode,
+  BarReturnReason,
+  Vec2,
 } from '../../core/types';
-import { TUNING } from '../../content/tuning';
+import { GameEvents } from '../../core/types';
+import { assignDrink, assignMove, assignWeapon, drinkFromInventory, gainWeapon, learnMove, takeHotDrink } from '../../systems/kit';
+import type { KitChange } from '../../systems/kit';
+import { levelFor, overhaulTuning, stateFor } from '../../systems/meter';
 import type { UiStateSource } from '../contract';
 
 export class FakeBus implements GameEventBus {
@@ -45,42 +55,154 @@ export class FakeBus implements GameEventBus {
   }
 }
 
-export const stateForBuzz = (v: number): BuzzState => {
-  const t = TUNING.buzz.thresholds;
-  return v >= t.banjaxed ? 'banjaxed' : v >= t.locked ? 'locked' : v >= t.grand ? 'grand' : 'sober';
-};
 
 export class FakeSource implements UiStateSource {
   readonly bus = new FakeBus();
-  healthState: Health = { current: 70, max: 100 };
+  /** The meter value; the level, state and floor follow from the chapter 1 table. */
   buzzValue = 45;
-  banjaxedPhase: BuzzSnapshot['banjaxedPhase'] = 'none';
-  heatState: HeatSnapshot = { active: false, value: 40 };
-  hangoverState: HangoverState = { active: false };
-  emptiesCount = 4;
-  slots: DrinkSlots = [{ drinkId: 'stout', count: 3 }, { drinkId: 'whiskey', count: 1 }, null];
-  selected: DrinkSlotIndex = 0;
-  special: SpecialAbilityId | null = 'stoutSlam';
-  abilities: AbilityId[] = ['punchCombo', 'bottleThrow'];
+  spiritActive = false;
+  teaHoldActive = false;
+  inSun = false;
+  kitState: Kit = {
+    drinks: { stout: 3, whiskey: 1 },
+    carryLimit: 6,
+    hotDrink: null,
+    bottles: 4,
+    weapons: ['fists'],
+    moves: [],
+    slots: { drink: 'stout', specials: [null, null, null, null], melee: 'fists' },
+  };
+  slots: MoveSlotView[] = [
+    { slot: 1, moveId: 'shoulder', lit: true, cooldownLeftMs: 0, cooldownMs: 5000 },
+    { slot: 2, moveId: 'stoutSlam', lit: true, cooldownLeftMs: 3000, cooldownMs: 12000 },
+    { slot: 3, moveId: null, lit: false, cooldownLeftMs: 0, cooldownMs: 0 },
+    { slot: 4, moveId: null, lit: false, cooldownLeftMs: 0, cooldownMs: 0 },
+  ];
+  weaponId: WeaponId = 'fists';
+  lastRefusal: { textId: TextId; seq: number } | null = null;
   callsLeft = 2;
   holdProgress = 0;
   entries: CasebookEntry[] = [];
   bossState: { bossId: BossId; health: Health } | null = null;
   board: DeductionBoardDef | null = null;
-  saveState: SaveState | null = null;
+  saveState: OverhaulSaveState | null = null;
   settings: AudioSettings = { musicVolume: 0.7, effectsVolume: 0.8 };
   paused = false;
   log: string[] = [];
 
-  health = (): Health => this.healthState;
-  buzz = (): BuzzSnapshot => ({ value: this.buzzValue, state: stateForBuzz(this.buzzValue), banjaxedPhase: this.banjaxedPhase, banjaxedPhaseMsLeft: 0 });
-  heat = (): HeatSnapshot => this.heatState;
-  hangover = (): HangoverState => this.hangoverState;
-  empties = (): number => this.emptiesCount;
-  drinkSlots = (): DrinkSlots => this.slots;
-  selectedDrink = (): DrinkSlotIndex => this.selected;
-  selectedSpecial = (): SpecialAbilityId | null => this.special;
-  unlockedAbilities = (): readonly AbilityId[] => this.abilities;
+  levelTable = (): DrunkLevelTable => overhaulTuning().levels[1];
+  meter = (): MeterSnapshot => {
+    const table = this.levelTable();
+    const level = levelFor(this.buzzValue, table);
+    return {
+      value: this.buzzValue,
+      level,
+      state: stateFor(level),
+      floor: table.floor,
+      spiritActive: this.spiritActive,
+      teaHoldActive: this.teaHoldActive,
+      inSun: this.inSun,
+    };
+  };
+  kit = (): Kit => this.kitState;
+
+  /** Apply a kit function's result: keep the kit and say so on the bus. */
+  private apply(r: KitChange): boolean {
+    if (!r.changed) return false;
+    this.kitState = r.kit;
+    this.bus.emit(GameEvents.KitChanged, { kit: r.kit });
+    this.syncSlots();
+    return true;
+  }
+  /** Rebuild the four slot views from the kit and the meter level (keeps running cooldowns). */
+  syncSlots(): void {
+    const level = this.meter().level;
+    const t = overhaulTuning();
+    this.slots = ([1, 2, 3, 4] as const).map((slot) => {
+      const id = this.kitState.slots.specials[slot - 1] ?? null;
+      const old = this.slots.find((o) => o.slot === slot && o.moveId === id);
+      return { slot, moveId: id, lit: id !== null && level >= slot, cooldownLeftMs: old?.cooldownLeftMs ?? 0, cooldownMs: id === null ? 0 : (t.moves[id]?.cooldownMs ?? 0) };
+    });
+  }
+  /** Run the cooldowns down; the harness calls this every frame. */
+  advance(ms: number): void {
+    this.slots = this.slots.map((s) => (s.cooldownLeftMs > 0 ? { ...s, cooldownLeftMs: Math.max(0, s.cooldownLeftMs - ms) } : s));
+  }
+  /** Put the meter in the middle of a level (1..4) and settle the slots. */
+  setLevelMiddle(level: SpecialLevel): void {
+    const t = this.levelTable();
+    const b = [t.buzzed, t.grand, t.bitMuch, t.fecked][level - 1];
+    if (!b) return;
+    const before = this.meter().level;
+    this.buzzValue = Math.round((b.min + b.max) / 2);
+    this.syncSlots();
+    const m = this.meter();
+    if (m.level !== before) this.bus.emit(GameEvents.BuzzLevelChanged, { from: before, to: m.level, state: m.state, value: m.value });
+  }
+  learn(id: MoveId): void {
+    const r = learnMove(this.kitState, id, { autoAssign: true });
+    if (this.apply(r) && r.learned) this.bus.emit(GameEvents.MoveLearned, { moveId: r.learned });
+  }
+  /** Learn, light and fire a move: its slot goes on cooldown and `move:used` is emitted. */
+  fire(id: MoveId): void {
+    this.learn(id);
+    const def = overhaulTuning().moves[id];
+    if (!def) return;
+    this.setLevelMiddle(def.level);
+    this.slots = this.slots.map((s) => (s.moveId === id ? { ...s, cooldownLeftMs: s.cooldownMs } : s));
+    this.bus.emit(GameEvents.MoveUsed, { moveId: id, slot: def.level });
+  }
+  gain(id: WeaponId, select = true): void {
+    const r = gainWeapon(this.kitState, id);
+    if (this.apply(r) && r.gained) this.bus.emit(GameEvents.WeaponGained, { weaponId: r.gained });
+    if (select) this.assignWeapon(id);
+  }
+  /** Where the fake Andrew "fell" (a point off the middle, so the smoke is seen to start there). */
+  andrewAt: Vec2 = { x: 300, y: 150 };
+  private waitingReturn: { readonly reason: BarReturnReason; readonly andrew: Vec2 } | null = null;
+  /** Fire the return to the bar the way the game does: `bar:returning` now, the reset and `bar:returned` at `completeBarReturn`. */
+  returnToBar(reason: BarReturnReason): void {
+    if (this.waitingReturn !== null) return;
+    this.waitingReturn = { reason, andrew: this.andrewAt };
+    this.bus.emit(GameEvents.BarReturning, this.waitingReturn);
+  }
+  completeBarReturn(): void {
+    const r = this.waitingReturn;
+    if (r === null) return;
+    this.waitingReturn = null;
+    this.buzzValue = r.reason === 'sober' ? 0 : 20;
+    this.hotOffer = true;
+    this.bus.emit(GameEvents.BarReturned, { reason: r.reason });
+  }
+  barReturning = (): { readonly reason: BarReturnReason; readonly andrew: Vec2 } | null => this.waitingReturn;
+  assignDrink = (id: OverhaulDrinkId | null): boolean => this.apply(assignDrink(this.kitState, id));
+  assignMove = (slot: SpecialSlotIndex, id: MoveId | null): boolean => this.apply(assignMove(this.kitState, slot, id));
+  assignWeapon = (id: WeaponId): boolean => this.apply(assignWeapon(this.kitState, id));
+  drinkFromInventory(id: OverhaulDrinkId): boolean {
+    const r = drinkFromInventory(this.kitState, id);
+    if (r.consumed === null) return false;
+    this.apply(r);
+    this.bus.emit(GameEvents.DrinkConsumed, { drinkId: r.consumed });
+    return true;
+  }
+  hotDrinkOffered = (): boolean => this.hotOffer && this.kitState.hotDrink === null;
+  takeHotDrink(id: HotDrinkId): boolean {
+    if (!this.hotDrinkOffered()) return false;
+    const ok = this.apply(takeHotDrink(this.kitState, id));
+    if (ok) this.hotOffer = false;
+    return ok;
+  }
+  tabMode = (): TabMode => this.tabModeValue;
+  setTabMode(mode: TabMode): void {
+    this.tabModeValue = mode;
+  }
+  moveSlots = (): readonly MoveSlotView[] => this.slots;
+  weapon = (): WeaponId => this.weaponId;
+  aim: ThrowAim | null = null;
+  tabModeValue: TabMode = 'toggle';
+  hotOffer = true;
+  throwPreview = (): ThrowAim | null => this.aim;
+  refusal = (): { textId: TextId; seq: number } | null => this.lastRefusal;
   mykoCallsLeft = (): number => this.callsLeft;
   mykoCallHoldProgress = (): number => this.holdProgress;
   casebook = (): readonly CasebookEntry[] => this.entries;
@@ -98,7 +220,7 @@ export class FakeSource implements UiStateSource {
     this.log.push(`finished ${id}`);
     this.bus.emit('dialogue:finished', { sequenceId: id });
   }
-  save = (): SaveState | null => this.saveState;
+  save = (): OverhaulSaveState | null => this.saveState;
   audioSettings = (): AudioSettings => this.settings;
   setAudioSettings(s: AudioSettings): void {
     this.settings = s;

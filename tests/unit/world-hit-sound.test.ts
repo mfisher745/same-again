@@ -106,16 +106,15 @@ describe('world-hit thud', () => {
     const effects: RunEffect[] = [];
     const h = makeRun({
       module: base,
-      save: (s) => ({ ...s, player: { ...s.player, empties: 3 } }),
+      save: (s) => ({ ...s, kit: { ...s.kit, bottles: 3 } }),
       playEffect: (id) => void effects.push(id),
     });
     const broken = record(h.bus, 'prop:broken');
-    h.run.unlockAbility('bottleThrow');
     for (const prop of [BARREL, CRATE]) {
       h.run.setPlayerPosition(T(prop.col, prop.row + 4));
       const aim = T(prop.col, prop.row);
-      h.run.tick(16, frame({ pressed: ['ranged'], aim }));
-      h.run.tick(16, frame({ released: ['ranged'], holdMs: { ranged: 50 }, aim }));
+      h.run.tick(16, frame({ pressed: ['aimHold'], aim }));
+      h.run.tick(16, frame({ released: ['aimHold'], aim }));
       advance(h.run, 1500);
     }
     expect(broken.length).toBeGreaterThan(0); // the bottles did hit

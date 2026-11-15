@@ -16,10 +16,18 @@ import type {
   DrinkId,
   EnemyDef,
   FightDef,
+  DrunkLevelTable,
   FoodDef,
+  HitWeight,
   LootEntry,
+  MoveDef,
+  MoveId,
+  OverhaulTuning,
+  SpecialLevel,
   Tuning,
   WaveDef,
+  WeaponDef,
+  WeaponId,
 } from '../core/types';
 
 // ---------------------------------------------------------------------------
@@ -44,6 +52,17 @@ const shot = (
   impactNoiseRadius: opts.noise ?? 0,
 });
 
+/**
+ * How hard each attack pushes the Buzz meter (DESIGN.md 7.1, docs/chapters/README.md roster).
+ * Anything not listed is an ordinary hit.
+ */
+const HEAVY_ATTACKS: readonly string[] = [
+  'shoulder', 'hook', 'tumble', 'bash', 'pulse', 'haymaker', 'bullCharge', 'butt', 'forkCharge', 'palletDrop',
+  'containerSwing', 'sweep', 'overhead', 'shelf', 'zipTumble', 'barrier', 'door', 'stamp', 'gravityFlip', 'teleportStrike',
+];
+const WORST_ATTACKS: readonly string[] = ['pass', 'truckPass', 'beamSweep'];
+const weightOf = (id: string): HitWeight => (WORST_ATTACKS.includes(id) ? 'worst' : HEAVY_ATTACKS.includes(id) ? 'heavy' : 'ordinary');
+
 /** attack(id, shape, damage, knockback, telegraphMs, cooldownMs, recoveryMs, extras) */
 const attack = (
   id: string,
@@ -54,9 +73,11 @@ const attack = (
   cooldownMs: number,
   recoveryMs: number,
   extra: { burst?: number; holdMs?: number } = {},
-): AttackDef => ({ id, shape, damage, knockback, telegraphMs, cooldownMs, recoveryMs, ...extra });
+): AttackDef => ({ id, shape, damage, knockback, telegraphMs, cooldownMs, recoveryMs, weight: weightOf(id), ...extra });
 
 const wave = (...enemies: WaveDef['enemies'][number][]): WaveDef => ({ enemies });
+/** A wave that drops one given drink for certain (from the last to fall) instead of rolling for each enemy. */
+const waveDropping = (guaranteedDrop: NonNullable<WaveDef['guaranteedDrop']>, ...enemies: WaveDef['enemies'][number][]): WaveDef => ({ enemies, guaranteedDrop });
 
 // ---------------------------------------------------------------------------
 // Buzz
@@ -350,7 +371,7 @@ const enemies: Tuning['enemies'] = {
 // Bosses and set pieces (docs/chapters, "Boss" and "Set piece" sections)
 // ---------------------------------------------------------------------------
 
-type BossMotion = Pick<BossDef, 'moveSpeed' | 'dazedMs' | 'dazedDamageMultiplier'>;
+type BossMotion = Pick<BossDef, 'moveSpeed' | 'dazedMs' | 'dazedDamageMultiplier' | 'noiseStopMs'>;
 
 const boss = (
   id: BossDef['id'],
@@ -408,7 +429,7 @@ const bosses: Tuning['bosses'] = {
     220,
   ),
   // The ram must stay faster than Andrew's runSpeed (100).
-  'c2.setpiece.ram': boss('c2.setpiece.ram', 'setpiece', [90, 12], { moveSpeed: 115 }, { kind: 'reachExit' }, [
+  'c2.setpiece.ram': boss('c2.setpiece.ram', 'setpiece', [90, 12], { moveSpeed: 115, noiseStopMs: 1500 }, { kind: 'reachExit' }, [
     {
       id: 'chase',
       trigger: { kind: 'start' },
@@ -656,9 +677,11 @@ const fight = (id: FightDef['id'], ...waves: WaveDef[]): [FightDef['id'], FightD
 const n = (enemyId: EnemyDef['id'], count: number) => ({ enemyId, count });
 
 const fights: Tuning['fights'] = Object.fromEntries([
-  fight('c1.fight.chipper', wave(n('lad', 1)), wave(n('lad', 2))),
+  // The pair of lads drop exactly one stout between them (owner ruling).
+  fight('c1.fight.chipper', wave(n('lad', 1)), waveDropping('stout', n('lad', 2))),
   fight('c2.fight.yard', wave(n('cousin', 2), n('lad', 1))),
-  fight('c2.stealth.bog.alarm', wave(n('suit', 3))),
+  // Caught in the bog: the three patrolling suits plus one reinforcement (owner ruling).
+  fight('c2.stealth.bog.alarm', wave(n('suit', 1))),
   fight('c3.fight.bay', wave(n('worker', 4), n('lad', 2))),
   fight('c3.stealth.yard.alarm', wave(n('suit', 3))),
   fight('c4.fight.brawl', wave(n('brawler', 2)), wave(n('brawler', 2)), wave(n('brawler', 2))),
@@ -693,6 +716,149 @@ const loot = (item: LootEntry['item'], weight: number): LootEntry => ({ item, we
 const drinkItem = (drinkId: DrinkId): LootEntry['item'] => ({ kind: 'drink', drinkId, count: 1 });
 const crisps: LootEntry['item'] = { kind: 'food', foodId: 'crisps' };
 const anEmpty: LootEntry['item'] = { kind: 'empties', count: 1 };
+
+// ---------------------------------------------------------------------------
+// Overhaul (DESIGN.md 7.1 and 7.2; docs/overhaul-plan.md "Tuning: starting numbers").
+// First guesses, to be changed after chapter 1 has been played.
+// ---------------------------------------------------------------------------
+
+/** Bit much is always 25 wide and Fecked 9, with the floor one above. Only Buzzed and Grand grow. */
+const levels = (buzzedMax: number, grandMax: number): DrunkLevelTable => ({
+  buzzed: { min: 1, max: buzzedMax },
+  grand: { min: buzzedMax + 1, max: grandMax },
+  bitMuch: { min: grandMax + 1, max: grandMax + 25 },
+  fecked: { min: grandMax + 26, max: grandMax + 34 },
+  floor: grandMax + 35,
+});
+
+const moveCooldownMsByLevel: Record<SpecialLevel, number> = { 1: 5000, 2: 12000, 3: 25000, 4: 60000 };
+
+const move = (id: MoveId, level: SpecialLevel, learnedInChapter: MoveDef['learnedInChapter'], effect: MoveDef['effect']): MoveDef => ({
+  id,
+  level,
+  learnedInChapter,
+  cooldownMs: moveCooldownMsByLevel[level],
+  effect,
+  nameTextId: `ability.${id}.name`,
+  descTextId: `ability.${id}.desc`,
+});
+
+/** weapon(id, chapter, reach, swingMs, damage, knockback, quirk). Fists are the yardstick. */
+const weapon = (
+  id: WeaponId,
+  gainedInChapter: WeaponDef['gainedInChapter'],
+  reach: number,
+  swingMs: number,
+  damage: number,
+  knockback: number,
+  quirk: WeaponDef['quirk'],
+): WeaponDef => ({ id, gainedInChapter, reach, swingMs, damage, knockback, quirk, nameTextId: `weapon.${id}.name`, descTextId: `weapon.${id}.desc` });
+
+const overhaul: OverhaulTuning = {
+  drainPerSecond: 1 / 3,
+  sun: { drainMultiplier: 2, beerMultiplier: 1.5, spiritWindowMultiplier: 1.5 },
+  restLevel: 2,
+  // About 9 s of Grand after a reset (first guess).
+  restMargin: 3,
+  // First guesses, carried over from the old abilities: single-target reach, melee arc.
+  moveRange: 220,
+  meleeArcDeg: 100,
+  hitWeights: { ordinary: 5, heavy: 10, worst: 15 },
+  meleeMultiplierByLevel: { 1: 1, 2: 1.5, 3: 2, 4: 3 },
+  lowWarningBelow: 10,
+  levels: {
+    1: levels(34, 65),
+    2: levels(36, 69),
+    3: levels(38, 73),
+    4: levels(40, 77),
+    5: levels(42, 81),
+    6: levels(44, 85),
+    7: levels(46, 89),
+    8: levels(48, 93),
+    9: levels(50, 97),
+    10: levels(51, 98),
+  },
+  drinks: {
+    stout: { kind: 'beer', id: 'stout', nameTextId: 'drink.stout.name', pickupTextId: 'drink.stout.pickup', points: 15, bottlesLeft: 1 },
+    lager: { kind: 'beer', id: 'lager', nameTextId: 'drink.lager.name', pickupTextId: 'drink.lager.pickup', points: 10, bottlesLeft: 1 },
+    lightBeer: { kind: 'beer', id: 'lightBeer', nameTextId: 'drink.lightBeer.name', pickupTextId: 'drink.lightBeer.pickup', points: 2, bottlesLeft: 1 },
+    craftIpa: { kind: 'beer', id: 'craftIpa', nameTextId: 'drink.craftIpa.name', pickupTextId: 'drink.craftIpa.pickup', points: 20, bottlesLeft: 1 },
+    whiskey: {
+      kind: 'spirit',
+      id: 'whiskey',
+      nameTextId: 'drink.whiskey.name',
+      pickupTextId: 'drink.whiskey.pickup',
+      jump: { kind: 'topOfNextLevel' },
+      windowMs: 8000,
+      hitMultiplier: 2,
+    },
+    tequila: {
+      kind: 'spirit',
+      id: 'tequila',
+      nameTextId: 'drink.tequila.name',
+      pickupTextId: 'drink.tequila.pickup',
+      jump: { kind: 'middleOfLevel', level: 4 },
+      windowMs: 8000,
+      hitMultiplier: 2,
+      dropAfterWindow: 30,
+    },
+    coffee: { kind: 'hot', id: 'coffee', nameTextId: 'drink.coffee.name', pickupTextId: 'drink.coffee.pickup', reset: { kind: 'instant' } },
+    tea: { kind: 'hot', id: 'tea', nameTextId: 'drink.tea.name', pickupTextId: 'drink.tea.pickup', reset: { kind: 'ease', easeMs: 10000, holdMs: 20000 } },
+  },
+  carry: { limit: 6, hotDrinkLimit: 1, minBottlesOnLeavingBar: 2 },
+  moveCooldownMsByLevel,
+  moves: {
+    shoulder: move('shoulder', 1, 1, { kind: 'charge', distance: 40, knockback: 140 }),
+    reflexTest: move('reflexTest', 1, 2, { kind: 'stagger', durationMs: 2000 }),
+    actNatural: move('actNatural', 1, 5, { kind: 'hideBesideProp', propRadius: 20 }),
+    stoutSlam: move('stoutSlam', 2, 1, { kind: 'knockdownAround', radius: 44, knockback: 160 }),
+    sameAgain: move('sameAgain', 2, 3, { kind: 'repeatHits', hits: 3, times: 2 }),
+    bedsideManner: move('bedsideManner', 2, 4, { kind: 'calmAround', radius: 64, durationMs: 3000 }),
+    stumble: move('stumble', 3, 2, { kind: 'lurch', distance: 88, width: 20 }),
+    lockIn: move('lockIn', 3, 5, { kind: 'holdAround', radius: 64, durationMs: 4000, damageMultiplier: 2 }),
+    secondOpinion: move('secondOpinion', 3, 6, { kind: 'markTarget', damageMultiplier: 4 }),
+    borrowedGlove: move('borrowedGlove', 3, 9, { kind: 'stunCone', range: 96, angleDeg: 100, durationMs: 4000 }),
+    oneForTheRoad: move('oneForTheRoad', 4, 3, { kind: 'finisher', bossFraction: 1 / 3 }),
+    lastOrders: move('lastOrders', 4, 7, { kind: 'screenWipe', leaveHealthFraction: 0.05, stunMs: 3000, bossFraction: 0.2 }),
+    barred: move('barred', 4, 8, { kind: 'throwOut', landingDamage: 60, landingRadius: 40, bossDamage: 80 }),
+  },
+  weapons: {
+    fists: weapon('fists', 1, 20, 180, 8, 20, { kind: 'combo', hits: 3, finisherKnockbackMultiplier: 6 }),
+    hurley: weapon('hurley', 1, 30, 250, 13, 40, { kind: 'none' }),
+    clipboard: weapon('clipboard', 3, 20, 90, 4, 5, { kind: 'interrupts' }),
+    shillelagh: weapon('shillelagh', 4, 26, 320, 18, 160, { kind: 'none' }),
+    umbrella: weapon('umbrella', 5, 40, 220, 10, 30, { kind: 'pierce', count: 2 }),
+    inflatableAlien: weapon('inflatableAlien', 7, 32, 235, 2, 220, { kind: 'sweep', arcDeg: 160 }),
+    securityWand: weapon('securityWand', 9, 24, 145, 14, 40, { kind: 'nthHitStuns', everyHits: 3, stunMs: 1500 }),
+  },
+  // Degrees of aim sway. None until Bit much (DESIGN.md 7.2, thrown bottles).
+  swayByLevel: { 0: 0, 1: 0, 2: 0, 3: 8, 4: 18 },
+  drops: {
+    breakable: { beer: 0.35, whiskey: 0.04 },
+    enemy: { beer: 0.3, whiskey: 0.03, tequila: 0.01, tequilaFromChapter: 7 },
+  },
+  // Same gap as the old `myko.commentCooldownMs`. For creative-director review.
+  mykoLineCooldownMs: 12000,
+  // The old fists combo window.
+  weaponComboWindowMs: 450,
+  // Floor return total (900 + 1100 + 1800 + 500) plus 2 s.
+  barReturnFailsafeMs: 6300,
+  // stand-in: creative director to set
+  ramGatePauseMs: 1000,
+  // stand-in: creative director to set
+  forcedLurchMs: 220,
+  // Carried over from the old bottle throw (range 220, damage 10, noise 90). First guesses.
+  throw: { range: 220, speed: 150, damage: 10, knockback: 30, noiseRadius: 90, previewPoints: 12, swayPeriodMs: 1700 },
+  // Walking: the old 56, x1.75 at Bit much, x2 at Fecked. Sneaking is silent until Fecked.
+  footstepNoiseRadiusByLevel: { 0: 56, 1: 56, 2: 56, 3: 98, 4: 112 },
+  sneakNoiseRadiusByLevel: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 28 },
+  // stand-in: creative director to set. Puddles in the ram lane (chapter 2): Andrew at three quarters speed.
+  slowGroundMultiplier: 0.75,
+  // stand-in: creative director to set. The camera looks this far ahead of Andrew down the ram lane.
+  cameraLeadPx: 96,
+  // stand-in: creative director to set. The chapter 2 sheep: slower than Andrew, shy of him at about two tiles.
+  sheep: { speed: 60, fleeRadius: 40, bodySize: 10, settleMs: 600 },
+};
 
 export const TUNING: Tuning = {
   audioDefaults: { musicVolume: 0.7, effectsVolume: 0.8 },
@@ -848,4 +1014,14 @@ export const TUNING: Tuning = {
   enemies,
   bosses,
   fights,
+  overhaul,
+  ui: {
+    soberReturn: { flattenMs: 900, fadeMs: 1100, blackMs: 500 },
+    floorReturn: { fallMs: 900, hurryMs: 1100, smokeMs: 1800, blackMs: 500, mykoStartOffset: 24 },
+    revealMs: 700,
+    refusalMs: 1600,
+    flatAtZero: 0.9,
+    throwDotEndAlpha: 0.25,
+    throwDotScale: 2,
+  },
 };

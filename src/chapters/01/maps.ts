@@ -6,118 +6,31 @@
  */
 
 import { PROP } from '../../art/props';
-import { tileFlags, tileIndex } from '../../art/tiles';
 import type { ExitDef, ScreenAmbient, ScreenDressing, ScreenLayout } from '../../core/chapter';
-import type { ScreenId, TileGrid, Vec2 } from '../../core/types';
-import { tileCentre } from '../../systems';
+import { Canvas, T, tilesArea } from '../canvas';
 
-const REGION = 'kilnamoe';
-
-/** Canvas character to kilnamoe tile name. */
-const LEGEND: Readonly<Record<string, string>> = {
-  '#': 'wallTop',
-  W: 'wallFace',
-  S: 'barShelf',
-  w: 'window',
-  '.': 'floor',
-  c: 'counter',
-  t: 'table',
-  s: 'seat',
-  d: 'doorStrip',
-  m: 'marking',
-  b: 'floorAlt',
-  p: 'path',
-  l: 'roadLine',
-  g: 'grass',
-  r: 'rough',
-  ',': 'pavement',
-  y: 'yardConcrete',
-  L: 'litGround',
-  G: 'gate',
-  H: 'hedge',
-  K: 'stoneWall',
-  o: 'cover',
-  P: 'bogPool',
-  n: 'nightGrass',
-  k: 'kerb',
-  R: 'roofSlate',
-  C: 'churchStone',
-  X: 'shopfrontLit',
-  Y: 'shopfrontDark',
-  D: 'doorWood',
-  E: 'doorLit',
-};
-
-interface Extras {
-  readonly mykoStart?: Vec2;
-  readonly dressing?: ScreenDressing;
-  readonly ambient?: ScreenAmbient;
-}
-
-class Canvas {
-  private readonly cells: string[][];
-  constructor(
-    readonly width: number,
-    readonly height: number,
-    fill: string,
-  ) {
-    this.cells = Array.from({ length: height }, () => Array.from({ length: width }, () => fill));
-  }
-  set(col: number, row: number, ch: string): this {
-    const r = this.cells[row];
-    if (r && col >= 0 && col < this.width) r[col] = ch;
-    return this;
-  }
-  rect(col: number, row: number, w: number, h: number, ch: string): this {
-    for (let r = row; r < row + h; r++) for (let c = col; c < col + w; c++) this.set(c, r, ch);
-    return this;
-  }
-  /** Outer ring of wall tops with an inner ring of wall faces. */
-  room(): this {
-    this.rect(0, 0, this.width, 1, '#').rect(0, this.height - 1, this.width, 1, '#');
-    this.rect(0, 0, 1, this.height, '#').rect(this.width - 1, 0, 1, this.height, '#');
-    this.rect(1, 1, this.width - 2, 1, 'W').rect(1, this.height - 2, this.width - 2, 1, 'W');
-    this.rect(1, 1, 1, this.height - 2, 'W').rect(this.width - 2, 1, 1, this.height - 2, 'W');
-    return this;
-  }
-  char(col: number, row: number): string {
-    return this.cells[row]?.[col] ?? '#';
-  }
-  build(id: ScreenId, exits: readonly ExitDef[], playerStart: Vec2, extras: Extras = {}): ScreenLayout {
-    const tiles: number[] = [];
-    const blocked: boolean[] = [];
-    const blocksSight: boolean[] = [];
-    for (let row = 0; row < this.height; row++) {
-      for (let col = 0; col < this.width; col++) {
-        const name = LEGEND[this.char(col, row)];
-        if (name === undefined) throw new Error(`Unknown tile character "${this.char(col, row)}" at ${id} ${col},${row}`);
-        const index = tileIndex(REGION, name);
-        const flags = tileFlags(REGION, index);
-        tiles.push(index);
-        blocked.push(flags.blocked);
-        blocksSight.push(flags.blocksSight);
-      }
-    }
-    const grid: TileGrid = { widthTiles: this.width, heightTiles: this.height, blocked, blocksSight };
-    return { id, grid, tiles, exits, playerStart, ...extras };
-  }
-}
-
-export const T = (col: number, row: number): Vec2 => tileCentre({ col, row });
-
-/** A rectangle of whole tiles as an area in pixels. */
-export const tilesArea = (col: number, row: number, w: number, h: number) => ({ x: col * 16, y: row * 16, width: w * 16, height: h * 16 });
+export { T, tilesArea };
 
 // ---------------------------------------------------------------------------
 // Shared level data
 // ---------------------------------------------------------------------------
 
-export const PUB_START = T(12, 4);
+/** Andrew's stool at the west end of the bar: where he arrives, at the start and after every return. The urn is beside it. */
+export const PUB_ARRIVAL = T(6, 4);
+/** Where E works the urn (the hot drink is offered here). */
+export const URN_SPOT = T(5, 4);
 export const MYKO_SEAT = T(5, 13);
 export const YARD_ARRIVAL = T(5, 3);
+/** Where Andrew steps out of the yard when he comes back from Main Street. */
+export const YARD_FROM_STREET = T(17, 7);
+/** Close enough to the stuck yard gate for The Shoulder to count as a shove at it. */
+export const YARD_GATE_AREA = tilesArea(13, 5, 6, 5);
 export const PUB_BACK_ARRIVAL = T(27, 14);
 export const STREET_ARRIVAL = T(3, 8);
 export const ROAD_ARRIVAL = T(2, 8);
+export const STREET_WEST_ARRIVAL = T(2, 9);
+/** Big Tom's hurley, left against the tractor; E takes it. */
+export const HURLEY_TILE = { col: 64, row: 8 } as const;
 
 /** Keg puzzle: play area top-left tile and local-to-tile mapping. */
 export const KEG_AREA = { col: 11, row: 5, width: 6, height: 5 } as const;
@@ -152,6 +65,8 @@ export function pubScreen(): ScreenLayout {
   const exits: ExitDef[] = [{ id: 'c1.pub.backdoor', area: tilesArea(26, 15, 2, 2), toScreen: 'c1.yard', spawn: YARD_ARRIVAL }];
   const dressing: ScreenDressing = {
     props: [
+      // The urn on the staff side of the bar, beside Andrew's stool.
+      { id: 'urn', frame: PROP.hotDrinkUrn, col: 5, row: 2 },
       { frame: PROP.beerTaps, col: 8, row: 2 },
       { frame: PROP.beerTaps, col: 14, row: 2 },
       { frame: PROP.trophyShelf, col: 24, row: 1 },
@@ -166,7 +81,7 @@ export function pubScreen(): ScreenLayout {
       { id: 'local2', npc: 'localA', col: 14, row: 11, facing: 'up' },
     ],
   };
-  return c.build('c1.pub', exits, PUB_START, { mykoStart: MYKO_SEAT, dressing });
+  return c.build('c1.pub', exits, PUB_ARRIVAL, { mykoStart: MYKO_SEAT, dressing });
 }
 
 // ---------------------------------------------------------------------------
@@ -184,14 +99,18 @@ export function yardScreen(): ScreenLayout {
   c.rect(2, 12, 2, 2, 'o').rect(8, 13, 2, 1, 'o').rect(2, 4, 1, 2, 'o').rect(5, 14, 1, 1, 'o');
   const exits: ExitDef[] = [
     { id: 'c1.yard.door', area: tilesArea(4, 0, 2, 2), toScreen: 'c1.pub', spawn: PUB_BACK_ARRIVAL },
-    { id: 'c1.yard.gate', area: tilesArea(18, 7, 2, 1), toScreen: 'c1.street', spawn: STREET_ARRIVAL, lockedUntil: ['c1.puzzle.kegs'] },
+    { id: 'c1.yard.gate', area: tilesArea(18, 7, 2, 1), toScreen: 'c1.street', spawn: STREET_ARRIVAL, lockedUntil: ['c1.explore.yard'] },
   ];
+  // The gate is stuck: solid in the gateway (18,7) until The Shoulder shifts it. (17,7) stays open: it is where keg2 is pushed from.
+  const dressing: ScreenDressing = {
+    props: [{ id: 'yardGate', frame: PROP.churchGate, col: 17, row: 6, solid: { dx: 1, dy: 1, width: 1, height: 1 } }],
+  };
   const ambient: ScreenAmbient = {
     tint: 'navyDark',
     strength: 0.45,
     lights: [{ x: 5 * 16, y: 2 * 16 + 8, radius: 60, colour: 'amber' }],
   };
-  return c.build('c1.yard', exits, YARD_ARRIVAL, { ambient });
+  return c.build('c1.yard', exits, YARD_ARRIVAL, { dressing, ambient });
 }
 
 // ---------------------------------------------------------------------------
@@ -222,13 +141,27 @@ export function streetScreen(): ScreenLayout {
   c.rect(40, 1, 21, 2, 'R').rect(40, 3, 21, 2, 'C').rect(61, 1, 8, 4, 'H');
   // The road out of town, east end.
   c.rect(69, 9, 1, 3, 'p');
-  const exits: ExitDef[] = [{ id: 'c1.street.east', area: tilesArea(68, 9, 2, 3), toScreen: 'c1.road', spawn: ROAD_ARRIVAL, lockedUntil: ['c1.boss.bigtom'] }];
+  // The west end opens onto the yard gate.
+  c.rect(0, 8, 1, 2, 'p');
+  const exits: ExitDef[] = [
+    { id: 'c1.street.west', area: tilesArea(0, 8, 1, 2), toScreen: 'c1.yard', spawn: YARD_FROM_STREET },
+    { id: 'c1.street.east', area: tilesArea(68, 9, 2, 3), toScreen: 'c1.road', spawn: ROAD_ARRIVAL, lockedUntil: ['c1.boss.bigtom'] },
+  ];
   const dressing: ScreenDressing = {
     props: [
       { frame: PROP.pubSign, col: 8, row: 3 },
       { frame: PROP.bookiesSign, col: 19, row: 3 },
-      { frame: PROP.bins, col: 26, row: 3, solid: { width: 1, height: 1 } },
-      { frame: PROP.bins, col: 27, row: 3, solid: { width: 1, height: 1 } },
+      // The bins close the alley mouth over the whiskey. A thrown bottle breaks them; they hold nothing themselves.
+      { id: 'bins1', frame: PROP.bins, col: 25, row: 4, solid: { width: 1, height: 1 }, breakable: { loot: 'none' } },
+      { id: 'bins2', frame: PROP.bins, col: 26, row: 4, solid: { width: 1, height: 1 }, breakable: { loot: 'none' } },
+      { id: 'bins3', frame: PROP.bins, col: 27, row: 4, solid: { width: 1, height: 1 }, breakable: { loot: 'none' } },
+      // Other things along the street that break: the region's table decides (a stout, now and then, or nothing).
+      { id: 'street.barrel1', frame: PROP.barrel, col: 14, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.crate1', frame: PROP.bottleCrate, col: 21, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.box1', frame: PROP.cardboardBox, col: 38, row: 13, solid: { width: 1, height: 1 }, breakable: { loot: 'none' } },
+      { id: 'street.sack1', frame: PROP.sack, col: 52, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      // Tom leaves his hurley against the tractor when he sits down.
+      { id: 'hurley', frame: PROP.weapon.hurley, col: HURLEY_TILE.col, row: HURLEY_TILE.row, hidden: true },
       { frame: PROP.chipperSign, col: 33, row: 3 },
       // The church gate stands across the west end of the arena, the tractor at the east end.
       { frame: PROP.churchGate, col: CHURCH_GATE.col, row: CHURCH_GATE.row, solid: { width: CHURCH_GATE.width, height: CHURCH_GATE.height } },

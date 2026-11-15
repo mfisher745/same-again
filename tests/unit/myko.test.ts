@@ -355,7 +355,7 @@ describe('Myko call-in in a chapter run (sandbox)', () => {
     teleport(run, ...FIGHT_AT);
     expect(run.currentCompletable()?.sectionId).toBe('c1.fight.chipper');
     const before = saves.length;
-    run.player.setHealth(run.player.health.max - 40);
+    const kitBefore = JSON.stringify(run.player.kit);
 
     holdM(run, TUNING.myko.callHoldMs);
     expect(run.callsRemaining()).toBe(2);
@@ -379,8 +379,8 @@ describe('Myko call-in in a chapter run (sandbox)', () => {
     expect(run.enemies().every((e) => e.down)).toBe(true);
     expect(run.isComplete('c1.fight.chipper')).toBe(true);
     expect(done.find((d) => d.sectionId === 'c1.fight.chipper')?.by).toBe('myko');
-    // Normal rewards: the sandbox fight gives a spice bag, which heals fully.
-    expect(run.player.health.current).toBe(run.player.health.max);
+    // Normal rewards: the sandbox fight's old food reward is not a thing now, so the kit is as it was.
+    expect(JSON.stringify(run.player.kit)).toBe(kitBefore);
     expect(saves.at(-1)?.state.completedSectionIds).toContain('c1.fight.chipper');
     expect(saves.at(-1)?.reason).toBe('mykoCall');
   });
@@ -496,17 +496,16 @@ describe('Myko call-in in a chapter run (sandbox)', () => {
     expect(saves.length).toBe(before);
   });
 
-  it('reloading the Myko-call save does not give the call back; it respawns where Andrew stood', () => {
+  it('reloading the Myko-call save does not give the call back; Andrew is in the bar, not where he stood', () => {
     const { run, saves } = makeRun();
     teleport(run, ...FIGHT_AT);
-    const stood = { ...run.player.pos };
     holdM(run, 1000);
     const callSave = saves.filter((s) => s.reason === 'mykoCall')[0];
     if (!callSave) throw new Error('no save');
-    expect(callSave.state.respawn.position).toEqual(stood);
+    expect(callSave.state).not.toHaveProperty('respawn');
     const again = makeRun({ save: () => callSave.state });
     expect(again.run.callsRemaining()).toBe(2);
-    expect(again.run.player.pos).toEqual(stood);
+    expect(again.run.player.pos).toEqual(again.run.screenLayout.playerStart);
     expect(again.run.casebook.entries().some((e) => e.kind === 'mykoCall')).toBe(true);
   });
 

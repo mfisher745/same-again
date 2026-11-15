@@ -17,7 +17,7 @@ const admire = mykoPool('c6.ohio.general', [
   "That's the fourth person who's held a door. I wasn't even going in.",
   "Smell that. That's nothing. That's the smell of nothing being wrong.",
   "I keep waiting for the catch. I don't think there is one. I think it's just Ohio.",
-  "You know when you put the immersion on and the water's actually hot? It's like that, but a place.",
+  "You know when the kettle's just boiled and somebody else has made the tea? It's like that, but a place.",
 ]);
 
 export const C06: DialogueFile = {
@@ -28,11 +28,10 @@ export const C06: DialogueFile = {
     'c6.card.fields': 'Field 9',
     'name.dale': 'Dale',
     'name.helloMan': 'Man',
-    'name.waitress': 'Waitress',
     'name.motelClerk': 'Front desk',
 
     'c6.objective.town': 'Ask around town.',
-    'c6.objective.hurley': 'Visit the sporting goods shop.',
+    'c6.objective.dale': 'Visit the sporting goods shop.',
     'c6.objective.motel': 'Check the motel.',
     'c6.objective.fields': 'Get into Field 9.',
     'c6.objective.drones': 'Deal with the drones.',
@@ -53,7 +52,7 @@ export const C06: DialogueFile = {
     'c6.clue.receipt.body': 'Under the hatch at the centre: nothing, and a till receipt. Forty snow globes. Little Green Gifts, Roswell.',
     'c6.clue.receipt.margin': 'Forty. Same as the containers. Same as the corn. I noticed that before you did.',
     'c6.clue.coffee.title': 'The coffee',
-    'c6.clue.coffee.body': 'Diner refills the cup without being asked. No charge. Cause unknown. Monitoring.',
+    'c6.clue.coffee.body': 'Motel lounge refills the cup without being asked. No charge. Cause unknown. Monitoring.',
     'c6.clue.coffee.margin': 'It’s called being decent. Write that down.',
     'c6.deduction.roswell.lead.title': 'Lead: Roswell',
     'c6.deduction.roswell.lead.body': 'The motel was paid for by a gift shop. The receipt is from the same gift shop. And the crop formation is the gift shop’s logo. Little Green Gifts, Roswell.',
@@ -74,15 +73,25 @@ export const C06: DialogueFile = {
     caption('c6.caption.fields', 'Field 9'),
     ...admire.sequences,
 
+    // --- The bar: the lounge of the Starlite ---
     scene(
-      'c6.open',
+      'c6.bar.open',
       ['andrew', "Right. There's a test plot somewhere. We need to find out who –"],
       ['myko', 'Andrew.'],
       ['andrew', 'What?'],
-      ['myko', 'Look at that. A car park you could land a plane in, and it’s free. They just let you have it.'],
+      ['myko', 'Look out that window. A car park you could land a plane in, and it’s free. They just let you have it.'],
       ['andrew', "It's a car park."],
       ['myko', "It's Ohio, Andrew."],
     ),
+    scene(
+      'c6.bar.coffee',
+      ['npc:name.motelClerk', 'Coffee, hon? Bottomless.'],
+      ['andrew', "What's the catch?"],
+      ['npc:name.motelClerk', 'No catch. You just look like you need it. Take a cup with you. Come back, I’ll fill it.'],
+      ['myko', "She'll fill it again. You don't even have to ask. Say thank you to the woman."],
+    ),
+    box('c6.bar.hotDrink', ['npc:name.motelClerk', 'More coffee? There’s tea too, hon. Nobody’s ever opened the box.']),
+    box('c6.bar.return', ['myko', 'She saw you coming and she filled it. You never even reached the counter.']),
     scene(
       'c6.askOnce',
       ['andrew', "What's got into you?"],
@@ -96,7 +105,7 @@ export const C06: DialogueFile = {
     // --- Admiration, tagged by the thing he is looking at ---
     box('c6.ohio.road', ['myko', "The width of that road. You could turn a combine in it. You could turn two. They planned for two."]),
     box('c6.ohio.waterTower', ['myko', "They've written the name of the town on the water tower. So you know. That's manners."]),
-    box('c6.ohio.diner', ['myko', "She filled it again. I didn't ask. Andrew, she just filled it again."]),
+    box('c6.ohio.diner', ['myko', "A diner, open all night. For who? For anyone. That's who."]),
     box('c6.ohio.carPark', ['myko', "Every space has lines. Nobody's over the lines. I could cry."]),
     box('c6.ohio.busStation', ['myko', "The bus was on time. It said 2.15 and it was 2.15. I've never seen that. I thought it was a myth."]),
     box('c6.ohio.flag', ['myko', "Somebody mows that verge. There's no house near it. They just mow it, for everyone."]),
@@ -119,35 +128,37 @@ export const C06: DialogueFile = {
     // --- Town ---
     scene(
       'c6.town.hello',
-      ['npc:name.helloMan', 'Morning! How are you folks doing?'],
+      ['npc:name.helloMan', 'Morning! How are you doing?'],
       ['andrew', 'What does he want?', 'quietly'],
-      ['myko', "Nothing. He wants to know how we're doing."],
-      ['andrew', 'Why?'],
-      ['myko', "We're doing very well, thank you. And yourself?"],
+      ['myko', "Nothing. He wants to know how you're doing. Tell him."],
+      ['andrew', 'Grand. And yourself?'],
       ['npc:name.helloMan', "Can't complain!"],
       ['myko', "He can't complain, Andrew. Imagine."],
     ),
     box('c6.town.notice', ['andrew', 'Field 9. Closed for soil work. Meridian.'], ['myko', "It's all laminated. Every notice. Laminated and straight."]),
-    scene(
-      'c6.town.diner',
-      ['npc:name.waitress', 'Coffee, hon? Bottomless.'],
-      ['andrew', "What's the catch?"],
-      ['npc:name.waitress', 'No catch. You just look like you need it.'],
-      ['myko', "It'll do you for tea. It'll sort the head. Say thank you to the woman."],
-    ),
 
-    // --- The hurley ---
+    // --- Dale, and Second Opinion (a move for slot 3) ---
     scene(
-      'c6.hurley.find',
-      ['andrew', "That's a hurley."],
-      ['npc:name.dale', "That? Came in a box lot. I got it in with the, uh, misc bats. Some kinda paddle?"],
-      ['andrew', "It's a hurley. It's ash. It's a good one."],
-      ['npc:name.dale', "If you say so! Tell you what, four dollars. Nobody's ever gonna ask me for it again."],
-      ['myko', "He's holding it like it's a baby. Dale, you've made his year. This is a great shop."],
-      ['npc:name.dale', 'Well, thank you! You fellas come back now.'],
-      ['myko', 'We will, Dale.'],
+      'c6.dale.shoulder',
+      ['npc:name.dale', 'Help you find anything? We got bats, balls, the whole nine.'],
+      ['andrew', 'How long has the shoulder been like that?'],
+      ['npc:name.dale', 'The shoulder? Oh, years. Doc says it’s nothing.'],
+      ['andrew', "It's not nothing. It's the cuff. It'll go the next time you lift that shutter."],
+      ['npc:name.dale', 'Huh. You a doctor?'],
+      ['andrew', 'No.'],
     ),
-    box('c6.hurley.got', ['myko', "Look at you. That's the happiest I've seen you since the quiz. Swing it at something that isn't me."]),
+    scene(
+      'c6.secondOpinion.lesson',
+      ['myko', 'You did that from the door. You looked at a man for two seconds and knew what was about to give.'],
+      ['andrew', "I didn't examine him."],
+      ['myko', "You didn't have to. Do it to the next one who swings at you. Tell him what's going, then hit it. It's in your kit. Tab, it's a 3."],
+    ),
+    box(
+      'c6.dale.bin',
+      ['andrew', "That's a hurley. In with the bats."],
+      ['npc:name.dale', 'That? Came in a box lot. Some kinda paddle? Four dollars.'],
+      ['myko', "You have one. Leave it for the next Leitrim man through. He'll be glad of it."],
+    ),
 
     // --- Motel ---
     scene(
@@ -155,8 +166,6 @@ export const C06: DialogueFile = {
       ['npc:name.motelClerk', "Ledger? Oh, sure, go ahead. It's just the big group. Meridian folks. Real quiet. Paid up front."],
       ['andrew', 'Paid by who?'],
       ['npc:name.motelClerk', 'Gift shop out in New Mexico, says here. Postcard? Dollar each. That’s our field.'],
-      ['andrew', 'Where’s Myko?'],
-      ['npc:name.motelClerk', "Your friend? He's been at the ice machine about twenty minutes. He seems real happy."],
     ),
 
     // --- Fields ---
@@ -170,13 +179,15 @@ export const C06: DialogueFile = {
     box('c6.fields.clean', ['myko', "Not a peep. There's a farm stand by the track with a jar on it and an honesty box. Leave a dollar. Leave two.", 'by phone']),
     box('c6.fields.caught', ['myko', "They've seen you. Ah well. They were very good drones while it lasted.", 'by phone']),
     scene(
-      'c6.deflect.lesson',
-      ['myko', "That one's coming straight for you regardless. Andrew. When it fires, it's slow. You've a hurley.", 'by phone'],
-      ['andrew', 'So?'],
-      ['myko', 'So what do you do with a ball that’s coming at you slow?'],
+      'c6.bottles.lesson',
+      ['myko', "That one's seen you regardless. It stays up out of reach and comes down low to fire.", 'by phone'],
+      ['andrew', "I've bottles."],
+      ['myko', "You've a few. There's a cooler on every second fence post in this county, and it's all the light stuff. Drink it. It does nothing to you and it leaves a bottle."],
+      ['andrew', "So it's ammunition."],
+      ['myko', "It was always ammunition, Andrew. Now it's found its purpose."],
     ),
-    box('c6.deflect.done', ['myko', "Over the bar. I'd say that's the first point ever scored in Wendell County.", 'by phone']),
-    box('c6.drones.wave2', ['npc:name.agent', 'Sir! This is a restricted agricultural site! Put down the, the paddle!']),
+    box('c6.bottles.done', ['myko', "Down it comes. First thing I've seen fall over in Ohio, and even that was tidy.", 'by phone']),
+    box('c6.drones.wave2', ['npc:name.agent', 'Sir! This is a restricted agricultural site! Put down the, the bottle!']),
     box('c6.drones.end', ['myko', "That's the lot. Mind where they fell, somebody will have to tidy that. They'll do it well, too.", 'by phone']),
 
     // --- Maze ---
@@ -213,7 +224,7 @@ export const C06: DialogueFile = {
       ['myko', "It's got three red lights on the cab. I'd say it needs those. Watch the dust, that's the row it's taking next."],
     ),
     box('c6.combine.light1', ['myko', "One out. It's not happy.", 'by phone']),
-    box('c6.combine.light2', ['myko', 'Two. One more. Send a bale back at it if you can’t reach.', 'by phone']),
+    box('c6.combine.light2', ['myko', 'Two. One more. A bottle will do it if you can’t reach.', 'by phone']),
     scene(
       'c6.combine.end',
       ['andrew', "It's stopped."],
@@ -235,20 +246,20 @@ export const C06: DialogueFile = {
     // --- Hints ---
     box('c6.hint.town.1', ['myko', "Ask anyone. They'll tell you. They'll tell you and then ask how you are."]),
     box('c6.hint.town.2', ['myko', 'The noticeboard at the bus station. It’s the laminated one. They’re all the laminated one.']),
-    box('c6.hint.hurley.1', ['myko', "Dale's. The sport shop. He has a bin of bats by the door, and one of them isn't a bat."]),
-    box('c6.hint.hurley.2', ['myko', 'Dale’s Sporting Goods, middle of Main Street. E at the bin. Be nice to Dale.']),
+    box('c6.hint.dale.1', ['myko', "Dale's. The sport shop. Go in and look at Dale. Properly. The way you used to look at people."]),
+    box('c6.hint.dale.2', ['myko', 'Dale’s Sporting Goods, middle of Main Street. E at the counter. Be nice to Dale.']),
     box('c6.hint.motel.1', ['myko', "The Starlite. The pink one. Ask at the desk. I'll be in the corridor."]),
     box('c6.hint.motel.2', ['myko', 'The ledger on the counter, and buy the postcard. It’s a dollar. It’s the best dollar you’ll spend.']),
     box('c6.hint.fields.1', ['myko', "Tall corn hides you if you're still. Moving through it makes noise. So move a bit, stop a lot.", 'by phone']),
     box('c6.hint.fields.2', ['myko', 'Shift along the rows, stop when a light comes near. Bottle the far side to pull them off the track.', 'by phone']),
-    box('c6.hint.drones.1', ['myko', "You can't reach them. But they keep giving you things to hit.", 'by phone']),
-    box('c6.hint.drones.2', ['myko', 'Swing as the bolt arrives and it goes back where it came from. Do the agents on foot between volleys.', 'by phone']),
+    box('c6.hint.drones.1', ['myko', "You can't reach them. But you can throw, and they come down to shoot.", 'by phone']),
+    box('c6.hint.drones.2', ['myko', 'Bottle them when they drop to fire. Drink the light beer for more. Do the agents on foot in between.', 'by phone']),
     box('c6.hint.maze.1', ['myko', "Three stones, in an order. The order's on the postcard. Tab.", 'by phone']),
     box('c6.hint.maze.2', ['myko', 'Near stone on the left first. Then the far one. Then the one by the hatch.', 'by phone']),
     box('c6.hint.board.1', ['myko', "Two bits of paper with the same name on them, and a picture that's the same shape as a field."]),
     box('c6.hint.board.2', ['myko', 'The ledger, the receipt and the postcard.']),
     box('c6.hint.combine.1', ['myko', "It's blind without the red lights. They're on the cab, where you can reach when it passes.", 'by phone']),
-    box('c6.hint.combine.2', ['myko', 'Step out of its row when the dust shows, hit a light as it goes by. Or knock a drone bolt into one.', 'by phone']),
+    box('c6.hint.combine.2', ['myko', 'Step out of its row when the dust shows, hit a light as it goes by. Or put a bottle into one.', 'by phone']),
 
     // --- Myko calls ---
     scene(
@@ -256,7 +267,7 @@ export const C06: DialogueFile = {
       ['myko', "Sorry, lads. Sorry. Lovely machines. Sorry."],
       ['andrew', 'Was that an ice bucket?'],
       ['myko', "It's from the motel. I'll bring it back. You'd them nearly down, I only tidied up. It's a tidy place, you'd want to leave it right."],
-      ['myko', 'A man with a hurley, beaten by flying kettles. In Ohio, of all places. I’ll forgive you, because of where we are.'],
+      ['myko', 'A man with a pocket full of bottles, beaten by flying kettles. In Ohio, of all places. I’ll forgive you, because of where we are.'],
     ),
     scene(
       'c6.call.puzzle',

@@ -8,8 +8,9 @@
  */
 
 import Phaser from 'phaser';
-import { fx, icon, PALETTE, PROPS_KEY, PROP, TEX } from '../../art';
+import { animKey, fx, icon, PALETTE, PROPS_KEY, PROP, TEX } from '../../art';
 import type { PickupItem, Vec2 } from '../../core/types';
+import { facingFromAngle } from '../geometry';
 import { TILE } from '../grid';
 import type { ChapterRun } from '../run';
 
@@ -19,6 +20,8 @@ const PUFF_FPS = 1.5;
 const PUFF_FADE_MS = 600;
 const PICKUP_BOB_PX = 1;
 const FLOOR_DEPTH = -900;
+/** A sheep's position is the centre of its 16px sprite; its feet are half that lower (depth sorts by feet). */
+const SHEEP_FEET_OFFSET = 8;
 /** Above characters, below the night tint. */
 const ICON_DEPTH = 8000;
 const GLINT_ANIM = 'fx.pickupGlint.loop';
@@ -45,6 +48,10 @@ export class ObjectsView {
   private readonly pieces = new Map<string, Phaser.GameObjects.Image>();
   private readonly fixed: Phaser.GameObjects.Image[] = [];
   private readonly floor: Phaser.GameObjects.Graphics;
+  /** The sheep puzzle's flock, by `${sectionId}:${sheepId}`. */
+  private readonly sheepSprites = new Map<string, Phaser.GameObjects.Sprite>();
+  /** The sheep puzzle's gates: the images drawn for a gate's current position, by `${sectionId}:${gateId}`. */
+  private readonly gateImages = new Map<string, { pos: 0 | 1; images: Phaser.GameObjects.Image[] }>();
   private examineIcon: Phaser.GameObjects.Image | null = null;
   private puff: Phaser.GameObjects.Sprite | null = null;
   private puffFadeMs = 0;
@@ -63,6 +70,7 @@ export class ObjectsView {
     if (this.run.screenId !== this.screenId) this.rebuild();
     this.syncPickups();
     this.syncPuzzles();
+    this.syncSheep();
     this.syncExamine();
     this.syncPuff(dtMs, mykoHead);
   }
@@ -93,6 +101,10 @@ export class ObjectsView {
     this.pieces.clear();
     for (const f of this.fixed) f.destroy();
     this.fixed.length = 0;
+    for (const s of this.sheepSprites.values()) s.destroy();
+    this.sheepSprites.clear();
+    for (const g of this.gateImages.values()) for (const i of g.images) i.destroy();
+    this.gateImages.clear();
     this.floor.clear();
   }
 
@@ -137,6 +149,41 @@ export class ObjectsView {
       s.icon.destroy();
       s.glint.destroy();
       this.pickups.delete(id);
+    }
+  }
+
+  /** Sheep as their sprite, depth-sorted by their feet; each gate as one image per tile it blocks in its current position. */
+  private syncSheep(): void {
+    const sheepArt = this.scene.textures.exists(TEX.sheep);
+    const props = this.scene.textures.exists(PROPS_KEY);
+    for (const { puzzle, placement } of this.run.sheepPuzzlesHere()) {
+      if (props) {
+        for (const gate of placement.layout.gates) {
+          const key = `${placement.sectionId}:${gate.id}`;
+          const pos = puzzle.gatePosition(gate.id) ?? 0;
+          const have = this.gateImages.get(key);
+          if (have && have.pos === pos) continue;
+          for (const img of have?.images ?? []) img.destroy();
+          const tiles = gate.positions[pos];
+          // A gate whose tiles share a column hangs along it; otherwise it lies across.
+          const along = tiles.length > 0 && tiles.every((t) => t.col === (tiles[0] as { col: number }).col);
+          const frame = along ? PROP.fieldGate.along : PROP.fieldGate.across;
+          const images = tiles.map((t) => this.scene.add.image(t.col * TILE, t.row * TILE, PROPS_KEY, frame).setOrigin(0, 0).setDepth(t.row * TILE + TILE));
+          this.gateImages.set(key, { pos, images });
+        }
+      }
+      if (!sheepArt) continue;
+      for (const s of puzzle.sheep()) {
+        const key = `${placement.sectionId}:${s.id}`;
+        let sprite = this.sheepSprites.get(key);
+        if (!sprite) {
+          sprite = this.scene.add.sprite(0, 0, TEX.sheep).setOrigin(0.5, 0.5);
+          this.sheepSprites.set(key, sprite);
+        }
+        sprite.setPosition(Math.round(s.pos.x), Math.round(s.pos.y)).setDepth(s.pos.y + SHEEP_FEET_OFFSET);
+        const anim = animKey(TEX.sheep, s.moving ? 'walk' : 'idle', facingFromAngle(s.facingDeg));
+        if (this.scene.anims.exists(anim) && sprite.anims.currentAnim?.key !== anim) sprite.play(anim);
+      }
     }
   }
 

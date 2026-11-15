@@ -12,7 +12,6 @@ export const C04: DialogueFile = {
     'c4.card.airport': 'Boston. Arrivals.',
     'c4.card.bar': "Paddy O'Shamrock's",
     'c4.card.docks': 'Pier Nine',
-    'name.kiosk': 'Kiosk',
     'name.patronDoug': 'Doug',
     'name.patronBarb': 'Barb',
     'name.patronKev': 'Kev',
@@ -20,7 +19,7 @@ export const C04: DialogueFile = {
     'name.foreman': 'Foreman',
     'name.docker': 'Docker',
 
-    'c4.objective.tea': 'Find tea.',
+    'c4.objective.manner': 'Calm them down.',
     'c4.objective.bar': 'Ask around in the bar.',
     'c4.objective.brawl': 'Finish what the bar started.',
     'c4.objective.docks': 'Get into Pier Nine.',
@@ -61,39 +60,31 @@ export const C04: DialogueFile = {
     caption('c4.caption.bar', "Paddy O'Shamrock's"),
     caption('c4.caption.docks', 'Pier Nine'),
 
-    // --- Arrivals, hungover ---
+    // --- The bar: Paddy O'Shamrock's ---
     scene(
-      'c4.open',
-      ['andrew', 'Why is it so bright?'],
-      ['myko', "It's an airport. And you drank the trolley."],
-      ['andrew', 'I had two.'],
-      ['myko', 'You had two, and then the lad beside you fell asleep and you had his two. Tea or a roll, Andrew. Either.'],
-      ['andrew', "They won't have rolls."],
-      ['myko', "They won't. Find tea."],
-    ),
-    scene(
-      'c4.kiosk',
-      ['andrew', 'Tea, please.'],
-      ['npc:name.kiosk', 'Hot or iced?'],
-      ['andrew', '...'],
-      ['myko', 'Hot. He wants it hot. He wants it to have been near a kettle.'],
-      ['npc:name.kiosk', 'Sure! Do you want the bag in or on the side?'],
-      ['andrew', 'I want to go home.'],
-    ),
-    box('c4.kiosk.after', ['myko', "It worked, though. Look at you. You've a face again."]),
-    box('c4.lightBeer', ['andrew', 'Is this beer?'], ['myko', "It's adjacent. It's had beer described to it."]),
-
-    // --- The bar ---
-    scene(
-      'c4.bar.enter',
+      'c4.bar.open',
       ['andrew', "There's a shillelagh over the till."],
-      ['myko', "And a clock counting down to March. Say nothing. We need them."],
+      ['myko', 'And a clock counting down to March. Say nothing. We need them.'],
       ['colleenAnn', 'Welcome to Paddy O’Shamrock’s! Top o’ the mornin’ to ya!'],
       ['andrew', "It's four in the afternoon."],
-      ['colleenAnn', 'Oh my God. Say that again. Your accent. Are you guys Irish? I’m Irish!'],
+      ['colleenAnn', 'Oh my God. Say that again. Your accent. Are you Irish? I’m Irish!'],
       ['andrew', 'Whereabouts?'],
       ['colleenAnn', 'Massachusetts!'],
     ),
+    scene(
+      'c4.bar.tea',
+      ['andrew', 'Tea, please.'],
+      ['colleenAnn', 'Sure! Hot or iced?'],
+      ['andrew', '...'],
+      ['myko', 'Hot. Tell her hot. You want it to have been near a kettle.'],
+      ['andrew', 'Hot.'],
+      ['colleenAnn', 'You got it! Bag in, or on the side?'],
+      ['andrew', 'I want to go home.'],
+    ),
+    box('c4.bar.hotDrink', ['colleenAnn', 'Tea or coffee? I can do the tea Irish style! That means hot, right?']),
+    box('c4.bar.return', ['colleenAnn', 'You’re back! You look terrible. That is SO authentic.']),
+    box('c4.lightBeer', ['andrew', 'Is this beer?'], ['myko', "It's adjacent. It's had beer described to it."]),
+
     scene(
       'c4.bar.doug',
       ['npc:name.patronDoug', 'My great-great-grandmother was from County Cork! Do you know the Sullivans?'],
@@ -133,27 +124,34 @@ export const C04: DialogueFile = {
     box('c4.bar.ipa', ['myko', "That one's called Hop Lawyer. It tastes like someone's been cutting a hedge near it."]),
     scene(
       'c4.bar.colleenHelp',
-      ['colleenAnn', 'The dock guys? Sure, they’re in every night. Roster’s right there by the darts. Why, are you guys, like, detectives?'],
+      ['colleenAnn', 'The dock guys? Sure, they’re in every night. Roster’s right there by the darts. Why, are you, like, a detective?'],
       ['andrew', 'Yes.'],
       ['myko', 'No.'],
-      ['colleenAnn', 'That is SO Irish.'],
+      ['colleenAnn', 'A detective. That is SO Irish.'],
     ),
 
-    // --- Stout Slam and the brawl ---
+    // --- Bedside Manner (a move for slot 2) and the brawl ---
     scene(
-      'c4.slam.lesson',
+      'c4.manner.lesson',
       ['npc:name.patronKev', 'Hey. Hey, Irish. Say something Irish.'],
       ['andrew', 'No.'],
       ['npc:name.patronKev', 'Come on. Do the thing. Do the little dance.'],
       ['andrew', 'No.'],
       ['npc:name.patronDoug', 'Hey, he asked you nice.'],
-      ['myko', "Andrew. Put your pint down. Hard. F. I've seen you do it at home when the quiz went to a tiebreak."],
+      ['myko', "Andrew. The voice. The one you had for telling people their results. It's in your kit. Tab, put it on 2."],
+    ),
+    scene(
+      'c4.manner.done',
+      ['andrew', "Sit down, Doug. It's probably nothing."],
+      ['npc:name.patronDoug', '... Okay.'],
+      ['npc:name.patronKev', 'Wait. What’s probably nothing?'],
+      ['myko', "Three seconds. That's all it buys you. Use them."],
     ),
     box('c4.brawl.wave2', ['colleenAnn', 'That’s four glasses and a stool! I’m keeping count! Here, catch!']),
     box('c4.brawl.wave3', ['colleenAnn', 'Seven glasses! This is the most Irish thing that’s ever happened in here!']),
     scene(
       'c4.brawl.end',
-      ['colleenAnn', 'Nine glasses, two stools, and the shillelagh. You guys are the best. On the house.'],
+      ['colleenAnn', 'Nine glasses, two stools, and the shillelagh. You are the best. On the house.'],
       ['andrew', 'Sorry about the shillelagh.'],
       ['colleenAnn', 'It was plastic!'],
       ['myko', 'She’s sound, you know. Wrong about everything, and sound.'],
@@ -162,13 +160,13 @@ export const C04: DialogueFile = {
     // --- Docks ---
     scene(
       'c4.docks.open',
-      ['myko', "I'll be at the gate with the coffee. They've floodlights. They sweep. Go with them, not against them.", 'by phone'],
+      ['myko', "I'll be at the gate. They've floodlights. They sweep. Go with them, not against them.", 'by phone'],
       ['andrew', 'How do you know that?'],
       ['myko', "I've been to a disco."],
     ),
     box('c4.docks.overheard.1', ['npc:name.docker', 'Tuesday again. Feds show up, we all gotta go look at the wall.']),
     box('c4.docks.overheard.2', ['npc:name.docker', "I asked what's in 'em once. They sent a guy to ask why I asked."]),
-    box('c4.docks.clean', ['myko', "Clean. There's a lunchbox on that bollard with bourbon in it. That's a man who hates his job. Take it.", 'by phone']),
+    box('c4.docks.clean', ['myko', "Clean. There's a lunchbox on that bollard with a bottle of whiskey in it. That's a man who hates his job. Take it.", 'by phone']),
     box('c4.docks.caught', ['myko', "Dockers. Long arms, slow to get them back. Stay inside the swing or well out of it.", 'by phone']),
 
     scene(
@@ -204,12 +202,12 @@ export const C04: DialogueFile = {
       ['npc:name.foreman', 'Wrong answer.'],
       ['andrew', "There's something going through this pier. From my town."],
       ['npc:name.foreman', "I don't care what's in the boxes, pal. I care who's on my dock. I'm gonna use the crane now."],
-      ['myko', "Watch the shadow, that's where the box is going. Get in beside him and put your pint down.", 'by phone'],
+      ['myko', "Watch the shadow, that's where the box is going. Get in beside him and put your foot down.", 'by phone'],
     ),
     scene(
       'c4.foreman.phase2',
       ['npc:name.foreman', 'Okay. Okay. We do it old school.'],
-      ['myko', "He has a hook now. He'll try and reel you in. Fall out of it.", 'by phone'],
+      ['myko', "He has a stick now. There's a ribbon on it. Don't let that fool you, it's a real stick.", 'by phone'],
     ),
     scene(
       'c4.foreman.end',
@@ -221,22 +219,30 @@ export const C04: DialogueFile = {
     ),
 
     scene(
+      'c4.weapon.shillelagh',
+      ['andrew', "He's left the stick."],
+      ['myko', "On the control box. Day guy's problem. Pick it up.", 'by phone'],
+      ['andrew', 'It says KISS ME on it.'],
+      ['myko', "Turn that side in. It's the best stick you've ever held, and it was made in New Jersey. Press R."],
+    ),
+
+    scene(
       'c4.closing',
       ['andrew', "Eleven people told me I'm Irish today."],
       ['myko', 'And were they right?'],
       ['andrew', "That's not the point."],
-      ['myko', "Two tickets to Washington. Bus. Nine hours. And I got a lighter with a lobster on it."],
+      ['myko', "The bus to Washington. Nine hours. It's booked. And I got a lighter with a lobster on it."],
       ['andrew', 'Why?'],
       ['myko', "It's a lobster, Andrew. On a lighter. I don't have to explain everything."],
     ),
 
     // --- Hints ---
-    box('c4.hint.tea.1', ['myko', "There's a kiosk with a cup on the sign. Manage your expectations."]),
-    box('c4.hint.tea.2', ['myko', 'Kiosk, left of the doors. E. Say “hot”. Say it twice.']),
     box('c4.hint.bar.1', ['myko', "Talk to them. All of them. I know. I'm sorry."]),
     box('c4.hint.bar.2', ['myko', 'The roster is pinned beside the dartboard, and the lad at the end has the patch on his sleeve.']),
-    box('c4.hint.brawl.1', ['myko', "When they crowd you, that's when you put the pint down."]),
-    box('c4.hint.brawl.2', ['myko', 'F with a few around you. Space when one grabs. Take what Colleen-Ann throws you.']),
+    box('c4.hint.manner.1', ['myko', "They're excited. You've calmed worse. You've calmed a waiting room."]),
+    box('c4.hint.manner.2', ['myko', 'Tab, put Bedside Manner on 2, and press 2 with them near you.']),
+    box('c4.hint.brawl.1', ['myko', "When they crowd you, that's when you put your foot down."]),
+    box('c4.hint.brawl.2', ['myko', 'Press 2 with a few around you. Keep moving when one grabs. Take what Colleen-Ann throws you.']),
     box('c4.hint.docks.1', ['myko', 'The light moves in a line. There’s a gap after it. Live in the gap.', 'by phone']),
     box('c4.hint.docks.2', ['myko', 'Follow the floodlight down the second row, wait behind the blue box, bottle to the left, then go.', 'by phone']),
     box('c4.hint.containers.1', ['myko', "Low, middle, high. In that order, left to right. That's all a stairs is.", 'by phone']),
@@ -244,13 +250,13 @@ export const C04: DialogueFile = {
     box('c4.hint.board.1', ['myko', "Somebody takes it off the pier. Who has the paperwork with their name on it?"]),
     box('c4.hint.board.2', ['myko', 'The notice, the roster and the manifest from home. Meridian sends, Pier Nine holds, the Office collects.']),
     box('c4.hint.foreman.1', ['myko', "He's only dangerous in that box with the levers. Get him out of the box.", 'by phone']),
-    box('c4.hint.foreman.2', ['myko', 'Dodge the swing by the shadow, stand at the control box, F. After that it’s a man with a hook; stay behind him.', 'by phone']),
+    box('c4.hint.foreman.2', ['myko', 'Step out of the shadow, stand at the control box, press 2. After that it’s a man with a stick. Stay behind him.', 'by phone']),
 
     // --- Myko calls ---
     scene(
       'c4.call.fight',
       ['myko', "Excuse me. Sorry. Excuse me. Sorry now."],
-      ['colleenAnn', 'Oh my GOD.'],
+      ['colleenAnn', 'Oh my GOD. Did you do all that?'],
       ['andrew', "You didn't spill it."],
       ['myko', "It's bad stout but it's still stout. You'd them nearly beat. A few more hours and they'd have tired themselves out on you."],
       ['myko', "You said no to that man twice, though. I was proud of that part."],
@@ -260,7 +266,7 @@ export const C04: DialogueFile = {
       ['myko', 'That lever. No, your other left. Give it here.'],
       ['andrew', 'That was it?'],
       ['myko', "That was it. You'd tried every other way first, which is thorough. That's the detective in you."],
-      ['myko', "Go on up your stairs. I'll mind the coffee."],
+      ['myko', "Go on up your stairs. I'll mind the gate."],
     ),
   ],
 };

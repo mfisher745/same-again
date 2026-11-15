@@ -9,7 +9,7 @@
  * - Chapter Select: the chapter with the abilities it expects (everything
  *   unlocked in earlier chapters), three stout, no hangover, the save's Myko
  *   calls and casebook, full health.
- * - Death: the save is reloaded and Andrew respawns where it says.
+ * - Back to the bar (meter at 0 or at the floor) happens inside the run; there is no death and no game over.
  * - Chapter complete: hangover rule, Buzz back to 0, health to max, save,
  *   next chapter (or the title after chapter 10).
  */
@@ -22,35 +22,40 @@ import { EventBus } from '../core/events';
 import type { Random } from '../core/random';
 import { seededRandom } from '../core/random';
 import { MemoryStorage, SaveStore } from '../core/save';
-import { GameEvents, SAVE_VERSION } from '../core/types';
+import { GameEvents, SAVE_VERSION_OVERHAUL } from '../core/types';
 import type {
-  AbilityId,
+  BarReturnReason,
+  Vec2,
   AudioSettings,
-  BuzzState,
   CasebookEntry,
   ChapterNumber,
-  CheckpointId,
   DeductionBoardDef,
   DeductionSectionId,
   DialogueId,
-  DrinkSlotIndex,
-  DrinkSlots,
   EvidenceId,
   GameEventBus,
-  HangoverState,
+  DrunkLevelTable,
+  DrunkState,
   Health,
-  HeatSnapshot,
-  BuzzSnapshot,
+  MeterSnapshot,
   ObjectiveId,
-  SaveState,
-  SpecialAbilityId,
+  Kit,
+  OverhaulSaveState,
+  MoveSlotView,
+  ThrowAim,
+  WeaponId,
   BossId,
   TextId,
+  HotDrinkId,
+  MoveId,
+  OverhaulDrinkId,
+  SpecialSlotIndex,
+  TabMode,
 } from '../core/types';
-import { abilitiesForChapterStart } from './abilities';
-import { hangoverAtChapterStart, hangoverFromChapterEnd, maxHealthFor } from './conditions';
+import { gainWeapon, createKit, learnMove, pickUpDrink, topUpBottles } from './kit';
+import { createMeter, levelTable, snapshot } from './meter';
+import type { ActionRefusal } from './playerCombat';
 import type { DialogueLookup } from './dialogue';
-import { freshPlayerSnapshot } from './player';
 import { ChapterRun } from './run';
 import type { RunEffect } from './run';
 
@@ -79,34 +84,21 @@ export function poolOrEmpty(id: string): readonly DialogueId[] {
 
 interface PendingRun {
   readonly module: ChapterModule;
-  readonly save: SaveState;
+  readonly save: OverhaulSaveState;
   readonly resumed: boolean;
-  readonly afterDeath: boolean;
   /** Sandbox and missing-chapter runs never touch the real save. */
   readonly store: SaveStore;
 }
 
-export function chapterStartCheckpoint(module: ChapterModule): CheckpointId {
-  const def = module.def;
-  return def.checkpoints.find((c) => c.kind === 'chapterStart')?.id ?? `c${def.number}.start`;
+/** A save positioned at the start of a chapter: loading it puts Andrew in the chapter's bar at the bottom of Grand. */
+export function saveAtChapterStart(module: ChapterModule, base: Omit<OverhaulSaveState, 'chapter'>): OverhaulSaveState {
+  return { ...base, chapter: module.def.number };
 }
 
-/** A save positioned at the start of a chapter. */
-export function saveAtChapterStart(module: ChapterModule, base: Omit<SaveState, 'chapter' | 'checkpointId' | 'respawn'>): SaveState {
-  const def = module.def;
-  const cpId = chapterStartCheckpoint(module);
-  const cp = def.checkpoints.find((c) => c.id === cpId);
-  const screen = module.screens.find((s) => s.id === def.startScreenId) ?? module.screens[0];
-  const respawn = cp
-    ? { screenId: cp.screenId, position: cp.position }
-    : { screenId: def.startScreenId, position: screen?.playerStart ?? { x: 0, y: 0 } };
-  return { ...base, chapter: def.number, checkpointId: cpId, respawn };
-}
-
-export function emptyProgress(): Omit<SaveState, 'chapter' | 'checkpointId' | 'respawn'> {
+export function emptyProgress(): Omit<OverhaulSaveState, 'chapter'> {
   return {
-    version: SAVE_VERSION,
-    player: freshPlayerSnapshot(),
+    version: SAVE_VERSION_OVERHAUL,
+    kit: createKit(),
     mykoCallsLeft: TUNING.myko.callsPerGame,
     mykoCalls: [],
     finishedChapters: [],
@@ -114,16 +106,38 @@ export function emptyProgress(): Omit<SaveState, 'chapter' | 'checkpointId' | 'r
     cleanStealthRunIds: [],
     collectedPickupIds: [],
     casebook: [],
+    openedShortcuts: [],
+    settings: { tabMode: 'toggle' },
     hintsGiven: {},
     flags: {},
+    playedDialogue: [],
+    brokenProps: [],
+    lootSeed: 0,
   };
 }
 
+/**
+ * The kit a chapter expects at its start (Chapter Select): the moves learned
+ * and the weapons gained in earlier chapters, a few stout, and Andrew still in
+ * the bar with nothing hot (the bar offers it). docs/chapters/README.md "Carry-over rules".
+ */
+export function kitForChapterStart(n: ChapterNumber): Kit {
+  const o = TUNING.overhaul;
+  let kit = createKit();
+  if (!o) return kit;
+  const moves = Object.values(o.moves).filter((m) => m.learnedInChapter < n).sort((a, b) => a.level - b.level);
+  for (const m of moves) kit = learnMove(kit, m.id, { autoAssign: true }).kit;
+  const weapons = Object.values(o.weapons).filter((w) => w.gainedInChapter < n);
+  for (const w of weapons) kit = gainWeapon(kit, w.id).kit;
+  // Chapter 1 hands Andrew his first pint itself.
+  if (n > 1) for (let i = 0; i < 3; i++) kit = pickUpDrink(kit, 'stout').kit;
+  return topUpBottles(kit).kit;
+}
+
 /** Chapter Select start state. docs/chapters/README.md "Carry-over rules". */
-export function chapterSelectSave(module: ChapterModule, existing: SaveState | null, priorEvidence: readonly EvidenceId[]): SaveState {
+export function chapterSelectSave(module: ChapterModule, existing: OverhaulSaveState | null, priorEvidence: readonly EvidenceId[]): OverhaulSaveState {
   const n = module.def.number;
-  const base = existing ?? { ...emptyProgress(), chapter: n, checkpointId: chapterStartCheckpoint(module), respawn: { screenId: module.def.startScreenId, position: { x: 0, y: 0 } } };
-  const abilities = abilitiesForChapterStart(n);
+  const base = existing ?? { ...emptyProgress(), chapter: n };
   const casebook: CasebookEntry[] = [...base.casebook];
   for (const id of priorEvidence) {
     // Filed under the chapter the clue came from (its ID prefix), not the one being started.
@@ -131,28 +145,18 @@ export function chapterSelectSave(module: ChapterModule, existing: SaveState | n
     const chapter = (from >= 1 && from < n ? from : n) as ChapterNumber;
     if (!casebook.some((e) => e.kind === 'evidence' && e.evidenceId === id)) casebook.push({ kind: 'evidence', evidenceId: id, chapter });
   }
-  const specials = abilities.filter((a): a is SpecialAbilityId => a === 'stoutSlam' || a === 'poitinBreath' || a === 'borrowedGlove');
   return saveAtChapterStart(module, {
     ...base,
-    player: {
-      health: TUNING.player.maxHealth,
-      buzz: 0,
-      empties: 0,
-      // Chapter 1's tutorial hands Andrew his first pint; a full stout slot would refuse it.
-      drinkSlots: n === 1 ? freshPlayerSnapshot().drinkSlots : TUNING.chapterSelect.startingDrinks,
-      selectedDrink: 0,
-      selectedSpecial: specials[0] ?? null,
-      unlockedAbilities: abilities,
-      hangover: { active: false },
-    },
+    kit: kitForChapterStart(n),
     casebook,
     // Sections of this and later chapters start fresh.
     completedSectionIds: base.completedSectionIds.filter((id) => chapterOf(id) < n),
+    cleanStealthRunIds: base.cleanStealthRunIds.filter((id) => chapterOf(id) < n),
     collectedPickupIds: [],
     flags: Object.fromEntries(Object.entries(base.flags).filter(([k]) => chapterOf(k) < n)),
     // Lines of this and later chapters may play again; earlier chapters' and shared lines stay played.
-    playedDialogue: (base.playedDialogue ?? []).filter((id) => chapterOf(id) < n),
-    brokenProps: (base.brokenProps ?? []).filter((k) => chapterOf(k) < n),
+    playedDialogue: base.playedDialogue.filter((id) => chapterOf(id) < n),
+    brokenProps: base.brokenProps.filter((k) => chapterOf(k) < n),
   });
 }
 
@@ -162,21 +166,13 @@ export function chapterOf(id: string): number {
   return m ? Number(m[1]) : 0;
 }
 
-/** Applies the end-of-chapter rules and positions the save at the next chapter. */
-export function carryOver(snapshot: SaveState, endState: BuzzState, next: ChapterModule): SaveState {
-  const ended = snapshot.chapter;
-  const hungover = hangoverAtChapterStart(next.def.number, hangoverFromChapterEnd(ended, endState));
-  const finished = snapshot.finishedChapters.includes(ended) ? snapshot.finishedChapters : [...snapshot.finishedChapters, ended];
-  return saveAtChapterStart(next, {
-    ...snapshot,
-    finishedChapters: finished,
-    player: {
-      ...snapshot.player,
-      buzz: 0,
-      health: maxHealthFor(hungover),
-      hangover: { active: hungover },
-    },
-  });
+/** Applies the end-of-chapter rules and positions the save at the next chapter. The kit carries over; Buzz does not. */
+export function carryOver(snap: OverhaulSaveState, _endState: DrunkState, next: ChapterModule): OverhaulSaveState {
+  const ended = snap.chapter;
+  const finished = snap.finishedChapters.includes(ended) ? snap.finishedChapters : [...snap.finishedChapters, ended];
+  // Buzz does not carry over: every chapter starts at the bottom of Grand in its bar (DESIGN.md 7.1).
+  // Every chapter starts in its bar, and leaving the bar means at least two bottles (DESIGN.md 7.1).
+  return saveAtChapterStart(next, { ...snap, kit: topUpBottles(snap.kit).kit, finishedChapters: finished });
 }
 
 export interface SessionOptions {
@@ -196,6 +192,7 @@ export class GameSession {
   private current: ChapterRun | null = null;
   private paused = false;
   private audio: AudioSettings;
+  private tabModeChosen: TabMode = 'toggle';
   /** Sound for effects with no bus event; set by main from the audio module. */
   playEffect: ((id: RunEffect) => void) | null = null;
 
@@ -230,7 +227,7 @@ export class GameSession {
     const lootSeed = Math.floor(this.rng.next() * 0x7fffffff);
     const save = saveAtChapterStart(module.module, { ...emptyProgress(), lootSeed });
     module.store.write(save);
-    this.begin({ module: module.module, save, resumed: false, afterDeath: false, store: module.store });
+    this.begin({ module: module.module, save, resumed: false, store: module.store });
   }
 
   continueGame(): void {
@@ -241,7 +238,7 @@ export class GameSession {
     }
     const module = this.moduleFor(save.chapter);
     if (!module) return;
-    this.begin({ module: module.module, save, resumed: true, afterDeath: false, store: module.store });
+    this.begin({ module: module.module, save, resumed: true, store: module.store });
   }
 
   startChapter(chapter: ChapterNumber): void {
@@ -254,15 +251,15 @@ export class GameSession {
     }
     const save = chapterSelectSave(found.module, found.store === this.store ? this.store.load() : null, prior);
     found.store.write(save);
-    this.begin({ module: found.module, save, resumed: false, afterDeath: false, store: found.store });
+    this.begin({ module: found.module, save, resumed: false, store: found.store });
   }
 
   /** Starts a module directly with an in-memory save (sandbox, tests). */
-  startModule(module: ChapterModule, save?: SaveState): void {
+  startModule(module: ChapterModule, save?: OverhaulSaveState): void {
     const store = new SaveStore(new MemoryStorage());
     const s = save ?? saveAtChapterStart(module, emptyProgress());
     store.write(s);
-    this.begin({ module, save: s, resumed: false, afterDeath: false, store });
+    this.begin({ module, save: s, resumed: false, store });
   }
 
   /** Called by the Game scene when it starts. */
@@ -278,9 +275,7 @@ export class GameSession {
       dialogue: contentDialogue,
       pool: poolOrEmpty,
       resumed: p.resumed,
-      afterDeath: p.afterDeath,
-      writeSave: (state: SaveState) => p.store.write(state),
-      onDeath: () => this.onDeath(),
+      writeSave: (state: OverhaulSaveState) => p.store.write(state),
       onChapterComplete: (endState, snap) => this.onChapterComplete(endState, snap),
       playEffect: (id) => this.playEffect?.(id),
       patchSave: (patch) => {
@@ -324,6 +319,19 @@ export class GameSession {
     this.store.writeAudio(settings);
   }
 
+  /** Tab as toggle or hold: the running chapter's setting, else the save's, else toggle. */
+  tabMode(): TabMode {
+    return this.current?.tabMode() ?? this.store.load()?.settings.tabMode ?? this.tabModeChosen;
+  }
+
+  /** Keep the choice with the run and the stored save. */
+  setTabMode(mode: TabMode): void {
+    this.tabModeChosen = mode;
+    this.current?.setTabMode(mode);
+    const saved = this.store.load();
+    if (saved) this.store.write({ ...saved, settings: { ...saved.settings, tabMode: mode } });
+  }
+
   // -------------------------------------------------------------------------
   // Internals
   // -------------------------------------------------------------------------
@@ -341,18 +349,11 @@ export class GameSession {
     return fb ? { module: fb, store: new SaveStore(new MemoryStorage()) } : null;
   }
 
-  private onDeath(): void {
-    const p = this.pending;
-    if (!p) return;
-    const save = p.store.load() ?? p.save;
-    this.begin({ ...p, save, resumed: true, afterDeath: true });
-  }
-
-  private onChapterComplete(endState: BuzzState, snap: SaveState): void {
+  private onChapterComplete(endState: DrunkState, snap: OverhaulSaveState): void {
     const p = this.pending;
     if (!p) return;
     const ended = snap.chapter;
-    this.bus.emit(GameEvents.ChapterCompleted, { chapter: ended, endBuzzState: endState });
+    this.bus.emit(GameEvents.ChapterCompleted, { chapter: ended, endState });
     if (ended >= 10) {
       const finished = snap.finishedChapters.includes(ended) ? snap.finishedChapters : [...snap.finishedChapters, ended];
       p.store.write({ ...snap, finishedChapters: finished });
@@ -373,9 +374,12 @@ export class GameSession {
     const save = carryOver(snap, endState, next);
     p.store.write(save);
     this.bus.emit(GameEvents.SaveWritten, { reason: 'chapterComplete' });
-    this.begin({ module: next, save, resumed: false, afterDeath: false, store: p.store });
+    this.begin({ module: next, save, resumed: false, store: p.store });
   }
 }
+
+const emptySlotViews = (): readonly MoveSlotView[] =>
+  ([1, 2, 3, 4] as const).map((slot) => ({ slot, moveId: null, lit: false, cooldownLeftMs: 0, cooldownMs: 0 }));
 
 /**
  * The object the UI receives (`UiStateSource` in `src/ui/contract.ts`).
@@ -387,32 +391,60 @@ export function createUiState(session: GameSession) {
     get bus(): GameEventBus {
       return session.bus;
     },
-    health(): Health {
-      return run()?.player.health ?? { current: TUNING.player.maxHealth, max: TUNING.player.maxHealth };
+    meter(): MeterSnapshot {
+      return run()?.player.meterSnapshot() ?? snapshot(createMeter(1));
     },
-    buzz(): BuzzSnapshot {
-      return run()?.player.buzz.snapshot() ?? { value: 0, state: 'sober', banjaxedPhase: 'none', banjaxedPhaseMsLeft: 0 };
+    levelTable(): DrunkLevelTable {
+      return levelTable(run()?.chapter ?? 1);
     },
-    heat(): HeatSnapshot {
-      return run()?.player.heat.snapshot() ?? { active: false, value: 0 };
+    kit(): Kit {
+      return run()?.player.kit ?? session.store.load()?.kit ?? createKit();
     },
-    hangover(): HangoverState {
-      return run()?.player.hangover.state() ?? { active: false };
+    /** The four special slots: the move in each, whether it is lit, and its cooldown. */
+    moveSlots(): readonly MoveSlotView[] {
+      return run()?.combat.slotViews() ?? emptySlotViews();
     },
-    empties(): number {
-      return run()?.player.inventory.empties ?? 0;
+    /** The melee weapon in use. */
+    weapon(): WeaponId {
+      return run()?.player.kit.slots.melee ?? 'fists';
     },
-    drinkSlots(): DrinkSlots {
-      return run()?.player.inventory.slots() ?? [null, null, null];
+    /** The throw's preview while aiming. */
+    throwPreview(): ThrowAim | null {
+      return run()?.combat.throwPreview() ?? null;
     },
-    selectedDrink(): DrinkSlotIndex {
-      return run()?.player.inventory.selected ?? 0;
+    /** The latest refusal of a move (`ui.move.*`), for the HUD to flash. */
+    refusal(): ActionRefusal | null {
+      return run()?.combat.lastRefusal ?? null;
     },
-    selectedSpecial(): SpecialAbilityId | null {
-      return run()?.player.abilities.selectedSpecial() ?? null;
+    assignDrink(id: OverhaulDrinkId | null): boolean {
+      return run()?.assignDrink(id) ?? false;
     },
-    unlockedAbilities(): readonly AbilityId[] {
-      return run()?.player.abilities.unlocked() ?? [];
+    assignMove(slot: SpecialSlotIndex, id: MoveId | null): boolean {
+      return run()?.assignMove(slot, id) ?? false;
+    },
+    assignWeapon(id: WeaponId): boolean {
+      return run()?.assignWeapon(id) ?? false;
+    },
+    drinkFromInventory(id: OverhaulDrinkId): boolean {
+      return run()?.drinkFromInventory(id) ?? false;
+    },
+    hotDrinkOffered(): boolean {
+      return run()?.hotDrinkOffered() ?? false;
+    },
+    takeHotDrink(id: HotDrinkId): boolean {
+      return run()?.takeHotDrink(id) ?? false;
+    },
+    tabMode(): TabMode {
+      return session.tabMode();
+    },
+    setTabMode(mode: TabMode): void {
+      session.setTabMode(mode);
+    },
+    completeBarReturn(): void {
+      run()?.completeBarReturn();
+    },
+    barReturning(): { readonly reason: BarReturnReason; readonly andrew: Vec2 } | null {
+      return run()?.barReturning ?? null;
     },
     mykoCallsLeft(): number {
       return run()?.callsRemaining() ?? session.store.load()?.mykoCallsLeft ?? TUNING.myko.callsPerGame;
@@ -446,7 +478,7 @@ export function createUiState(session: GameSession) {
     dialogueFinished(sequenceId: DialogueId): void {
       run()?.dialogueFinished(sequenceId);
     },
-    save(): SaveState | null {
+    save(): OverhaulSaveState | null {
       return session.store.load();
     },
     audioSettings(): AudioSettings {

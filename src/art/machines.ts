@@ -1,5 +1,5 @@
 /**
- * Things that are not people: the drone, the ram, the forklift, the combine,
+ * Things that are not people: the drone, the ram, the sheep, the forklift, the combine,
  * the patrol truck and the lockdown door. They use the same animation names
  * as enemies (idle, walk, telegraph, attack, hurt, down) so the systems can
  * treat them alike.
@@ -7,7 +7,7 @@
 
 import type { Facing } from '../core/types';
 import { FACINGS } from './humanoid';
-import { animKey, frameName } from './keys';
+import { TEX, animKey, frameName } from './keys';
 import { PixelBuffer, SheetBuilder } from './pixels';
 import type { Sheet } from './pixels';
 
@@ -30,9 +30,9 @@ const ANIMS: Readonly<Record<string, ObjectAnim>> = {
   down: { frames: 2, frameRate: 6, repeat: 0 },
 };
 
-function objectSheet(key: string, width: number, height: number, draw: (anim: string) => Draw): Sheet {
+function objectSheet(key: string, width: number, height: number, draw: (anim: string) => Draw, anims: Readonly<Record<string, ObjectAnim>> = ANIMS): Sheet {
   const sheet = new SheetBuilder(key, width, height, 8);
-  for (const [anim, spec] of Object.entries(ANIMS)) {
+  for (const [anim, spec] of Object.entries(anims)) {
     for (const facing of FACINGS) {
       const names: string[] = [];
       for (let i = 0; i < spec.frames; i++) {
@@ -95,6 +95,46 @@ function ram(): Sheet {
     });
     if (anim === 'down') b.set(21, 3, 'white');
   });
+}
+
+/**
+ * A Brennan sheep, 16 x 16 (chapter 2, the yard puzzle). Not an enemy: it has `idle` and `walk` only, in all
+ * four directions. Whiter and rounder than the ram, and no horns, so the two are never confused.
+ */
+function sheep(): Sheet {
+  const anims: Readonly<Record<string, ObjectAnim>> = { idle: { frames: 2, frameRate: 1 }, walk: { frames: 4, frameRate: 8 } };
+  return objectSheet(
+    TEX.sheep,
+    16,
+    16,
+    (anim) => (b, facing, frame) => {
+      const walking = anim === 'walk';
+      const bob = walking && frame % 2 === 1 ? 1 : 0;
+      const leg = (x: number, y: number, lifted: boolean): void => void b.vline(x, y, lifted ? 1 : 2, 'coal');
+      if (facing === 'right') {
+        // Idle frame 1: the head goes down to the grass.
+        const graze = !walking && frame === 1 ? 2 : 0;
+        b.ellipse(1, 4, 11, 8, 'white');
+        b.hline(3, 11, 7, 'bone').set(10, 10, 'bone').set(4, 6, 'bone').set(7, 8, 'bone').set(8, 5, 'bone');
+        b.rect(11, 4 + graze, 4, 4, 'coal').set(11, 3 + graze, 'coal').set(13, 5 + graze, 'bone');
+        [3, 5, 8, 10].forEach((x, i) => leg(x, 12, walking && (i + frame) % 2 === 0));
+      } else if (facing === 'down') {
+        b.ellipse(3, 2 + bob, 10, 10, 'white');
+        b.set(5, 5 + bob, 'bone').set(10, 4 + bob, 'bone').set(4, 8 + bob, 'bone').set(11, 8 + bob, 'bone');
+        b.rect(6, 8 + bob, 4, 4, 'coal').set(5, 8 + bob, 'coal').set(10, 8 + bob, 'coal');
+        b.set(6, 10 + bob, 'bone').set(9, 10 + bob, 'bone');
+        leg(4, 12, walking && frame % 2 === 0);
+        leg(11, 12, walking && frame % 2 === 1);
+      } else {
+        b.rect(6, 1 + bob, 4, 3, 'coal').set(5, 2 + bob, 'coal').set(10, 2 + bob, 'coal');
+        b.ellipse(3, 3 + bob, 10, 10, 'white');
+        b.hline(5, 12 + bob, 6, 'bone').set(5, 6 + bob, 'bone').set(10, 7 + bob, 'bone').set(7, 9 + bob, 'bone').set(8, 11 + bob, 'bone');
+        leg(4, 13, walking && frame % 2 === 0);
+        leg(11, 13, walking && frame % 2 === 1);
+      }
+    },
+    anims,
+  );
 }
 
 /** Mr Halloran on the forklift, 32 x 32. */
@@ -188,5 +228,5 @@ function blastDoor(): Sheet {
 }
 
 export function machineSheets(): Sheet[] {
-  return [drone(), ram(), forklift(), combine(), truck(), blastDoor()];
+  return [drone(), ram(), sheep(), forklift(), combine(), truck(), blastDoor()];
 }

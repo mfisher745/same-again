@@ -13,7 +13,7 @@
 
 import Phaser from 'phaser';
 import { animKey, frameName, PALETTE, TEX, tilesetKey } from '../../art';
-import type { Facing, RegionId, Vec2 } from '../../core/types';
+import type { Facing, RegionId, Vec2, WeaponId } from '../../core/types';
 import type { EnemyActor } from '../enemies';
 import { facingFromAngle, fromAngle, toRad } from '../geometry';
 import { TILE } from '../grid';
@@ -40,6 +40,17 @@ interface KeyedBody {
 
 const CONE_ALPHA = 0.4;
 
+/** The `swing.<name>` animation for each melee weapon (fists use `punch1-3`). */
+const SWING_ANIM: Record<WeaponId, string> = {
+  fists: 'punch',
+  hurley: 'hurley',
+  clipboard: 'clipboard',
+  shillelagh: 'shillelagh',
+  umbrella: 'umbrella',
+  inflatableAlien: 'inflatable',
+  securityWand: 'wand',
+};
+
 export class WorldView {
   private staticLayer: Phaser.GameObjects.Graphics | null = null;
   private tileImages: Phaser.GameObjects.Image[] = [];
@@ -52,6 +63,10 @@ export class WorldView {
   readonly playerBody: Body;
   private readonly mykoBody: Body;
   private mykoWasSmoking = false;
+  private seenSwing = 0;
+  private seenThrow = 0;
+  /** The swing or throw animation key being held over walk and idle, or null. */
+  private actionKey: string | null = null;
   private lastSync = -1;
 
   constructor(
@@ -68,12 +83,23 @@ export class WorldView {
     this.buildScreen();
   }
 
+  /**
+   * Draw the world as it is now and put the camera on Andrew with no slide. For a jump (the return to the bar)
+   * that happens while the Game scene is paused, so `update()` and the camera follow are not running.
+   */
+  snap(): void {
+    this.sync();
+    const cam = this.scene.cameras.main;
+    const b = this.playerBody;
+    cam.centerOn(b.x, b.y);
+  }
+
   /** Call once per frame after the simulation ticks. */
   sync(): void {
     if (this.run.screenId !== this.screenId) this.buildScreen();
     const r = this.run;
     const p = r.player;
-    this.place(this.playerBody, p.pos, TEX.andrew, p.moving ? 'walk' : 'idle', p.facing);
+    this.syncPlayer();
     if (this.playerBody instanceof Phaser.GameObjects.Rectangle) {
       this.playerBody.setAlpha(p.invulnerable && !p.protected_ ? 0.5 : 1);
       this.playerBody.setFillStyle(p.incapacitated ? PALETTE.fog : PALETTE.anorak);
@@ -110,6 +136,50 @@ export class WorldView {
     this.drawDynamic();
   }
 
+  /**
+   * Andrew: `punch1-3` (fists, by combo place) or `swing.<weapon>` stretched to the weapon's swing time
+   * on a swing; `aim` while the throw is aimed; `throw` on release; else walk or idle.
+   */
+  private syncPlayer(): void {
+    const p = this.run.player;
+    const body = this.playerBody;
+    const c = this.run.combat;
+    if (body instanceof Phaser.GameObjects.Sprite) {
+      // A floor return waiting for its scene: Andrew falls where he was and stays down.
+      if (this.run.barReturning?.reason === 'floor') {
+        const fall = animKey(TEX.andrew, 'fall', p.facing);
+        if (body.anims.currentAnim?.key !== fall && this.scene.anims.exists(fall)) body.play(fall);
+        body.setPosition(Math.round(p.pos.x), Math.round(p.pos.y + FEET_OFFSET)).setDepth(p.pos.y);
+        return;
+      }
+      const sw = c.lastSwing;
+      if (sw && sw.seq !== this.seenSwing) {
+        this.seenSwing = sw.seq;
+        const anim = sw.weaponId === 'fists' ? `punch${Math.min(3, Math.max(1, sw.comboIndex))}` : `swing.${SWING_ANIM[sw.weaponId]}`;
+        this.playAction(body, animKey(TEX.andrew, anim, p.facing), sw.swingMs);
+      }
+      if (c.throwSeq !== this.seenThrow) {
+        this.seenThrow = c.throwSeq;
+        this.playAction(body, animKey(TEX.andrew, 'throw', p.facing));
+      }
+      const held = this.actionKey !== null && body.anims.isPlaying && body.anims.currentAnim?.key === this.actionKey;
+      if (held) {
+        body.setPosition(Math.round(p.pos.x), Math.round(p.pos.y + FEET_OFFSET)).setDepth(p.pos.y);
+        return;
+      }
+      this.actionKey = null;
+    }
+    this.place(body, p.pos, TEX.andrew, c.aiming ? 'aim' : p.moving ? 'walk' : 'idle', p.facing);
+  }
+
+  /** Plays `key` once; with `durationMs` the whole animation takes exactly that long. */
+  private playAction(body: Phaser.GameObjects.Sprite, key: string, durationMs?: number): void {
+    if (!this.scene.anims.exists(key)) return;
+    this.actionKey = key;
+    if (durationMs === undefined) body.play({ key });
+    else body.play({ key, duration: durationMs });
+  }
+
   /** Walks when moving; the `smoke` animation once when a smoke starts, then idle. */
   private syncMyko(): void {
     const m = this.run.myko;
@@ -127,7 +197,7 @@ export class WorldView {
         return;
       }
     }
-    this.place(body, m.pos, TEX.myko, m.moving ? 'walk' : 'idle', m.facing);
+    this.place(body, m.pos, TEX.myko, m.moving ? (m.hurrying ? 'hurry' : 'walk') : 'idle', m.facing);
   }
 
   destroy(): void {
@@ -255,12 +325,9 @@ export class WorldView {
       }
     }
 
-    // Aim reticle and Sliotar charge.
+    // Aim reticle (the throw preview is drawn from the HUD layer).
     const pl = r.player;
     g.lineStyle(1, PALETTE.white, 0.6).strokeCircle(pl.aimPoint.x, pl.aimPoint.y, 3);
-    const charge = pl.abilities.chargeProgress();
-    // Just above Andrew's head (his sprite is ANDREW_H tall, feet at pos.y + FEET_OFFSET).
-    if (charge > 0) this.bar(pl.pos.x - 8, pl.pos.y + FEET_OFFSET - ANDREW_H - 3, 16, charge, PALETTE.amberLight);
   }
 
   /** `?debug=1`: checkpoints, examinable boxes, triggers, section areas, entrances, spawn points, hiding radii, puzzle bounds. */
@@ -270,7 +337,7 @@ export class WorldView {
     const here = r.screenId;
     const area = (a: { x: number; y: number; width: number; height: number }, colour: number): void => void g.lineStyle(1, colour, 0.6).strokeRect(a.x, a.y, a.width, a.height);
     const dot = (p: Vec2, colour: number): void => void g.fillStyle(colour, 0.8).fillCircle(p.x, p.y, 2);
-    for (const cp of r.module.def.checkpoints) if (cp.screenId === here) g.lineStyle(1, PALETTE.white, 0.5).strokeCircle(cp.position.x, cp.position.y, 6);
+    for (const cp of r.module.def.checkpoints ?? []) if (cp.screenId === here) g.lineStyle(1, PALETTE.white, 0.5).strokeCircle(cp.position.x, cp.position.y, 6);
     for (const e of r.examinablesHere()) {
       g.fillStyle(PALETTE.amberLight, 0.9).fillTriangle(e.position.x - 4, e.position.y - 10, e.position.x + 4, e.position.y - 10, e.position.x, e.position.y - 4);
       g.lineStyle(1, PALETTE.amberLight, 0.8).strokeRect(e.position.x - 5, e.position.y - 5, 10, 10);
@@ -290,13 +357,18 @@ export class WorldView {
     }
     for (const s of r.module.stealth) {
       if (s.screenId !== here) continue;
-      area(s.startArea, PALETTE.amber);
+      if (s.startArea) area(s.startArea, PALETTE.amber);
       area(s.exitArea, PALETTE.lime);
       dot(s.entrance, PALETTE.lime);
     }
     for (const { placement } of r.pushPuzzlesHere()) {
       const a = placement.layout.area;
       g.lineStyle(1, PALETTE.amberLight, 0.3).strokeRect(a.col * TILE, a.row * TILE, a.width * TILE, a.height * TILE);
+    }
+    for (const { placement } of r.sheepPuzzlesHere()) {
+      const pen = placement.layout.targetPen;
+      g.lineStyle(1, PALETTE.amberLight, 0.4).strokeRect(pen.col * TILE, pen.row * TILE, pen.width * TILE, pen.height * TILE);
+      for (const p of placement.layout.pens ?? []) g.lineStyle(1, PALETTE.amberLight, 0.2).strokeRect(p.col * TILE, p.row * TILE, p.width * TILE, p.height * TILE);
     }
     for (const { runner } of r.stealthHere()) {
       for (const prop of runner.def.hidingProps) g.lineStyle(1, PALETTE.white, 0.6).strokeCircle(prop.position.x, prop.position.y, prop.radius);

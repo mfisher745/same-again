@@ -112,9 +112,9 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
 
   // Myko call-in: the music cuts out completely until the called section completes.
   let callSection: string | null = null;
-  const endCall = (): void => {
+  const endCall = (keepSilent = false): void => {
     callSection = null;
-    music.setSilent(false);
+    if (!keepSilent) music.setSilent(false);
   };
 
   // Boss music: intense while a boss or set piece is on, one step more at each phase change.
@@ -127,6 +127,30 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
     bossPhases = 0;
     music.setIntensity(0);
   };
+
+  // Sober return: silence until the fade has run, then the bar's music.
+  let soberTimer: ReturnType<typeof setTimeout> | null = null;
+  let soberCut = false;
+  const uncutMusic = (): void => {
+    if (soberTimer !== null) clearTimeout(soberTimer);
+    soberTimer = null;
+    soberCut = false;
+    music.setSilent(callSection !== null);
+  };
+  const cutMusicForSober = (): void => {
+    if (soberTimer !== null) clearTimeout(soberTimer);
+    soberTimer = null;
+    soberCut = true;
+    music.setSilent(true);
+  };
+  /** The return is complete and the screen is black: the bar's music comes back as the black ends. */
+  const restoreMusicAfterBlack = (): void => {
+    const u = TUNING.ui?.soberReturn;
+    if (soberTimer !== null) clearTimeout(soberTimer);
+    if (!soberCut) cutMusicForSober();
+    soberTimer = setTimeout(uncutMusic, u ? u.blackMs : 1000);
+  };
+  let lastMelee: string | null = null;
 
   const haymakerKnockback = TUNING.abilities.punchCombo.combo?.at(-1)?.knockback ?? Infinity;
   const heatWarnAt = TUNING.heat.max * TUNING.heat.thermalDetectFraction;
@@ -148,17 +172,25 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
 
   const G = GameEvents;
   const unsubs: Array<() => void> = [
-    bus.on(G.PlayerDamaged, () => play('hurt')),
-    bus.on(G.PlayerDied, () => {
+    bus.on(G.PlayerHit, () => play('hurt')),
+    // The return starts when the world freezes where Andrew stands (`bar:returning`); `bar:returned` comes at black.
+    bus.on(G.BarReturning, ({ reason }) => {
       stopAlarm();
-      endCall();
+      endCall(reason === 'sober');
       endBoss();
-      play('fallOver');
+      if (reason === 'floor') play('fallOver');
+      // At 0 Buzz the music is cut at once; it comes back once the black is over (below).
+      else cutMusicForSober();
     }),
-    bus.on(G.PlayerRespawned, () => {
-      stopAlarm();
-      endCall();
-      endBoss();
+    bus.on(G.BarReturned, ({ reason }) => {
+      if (reason === 'sober') restoreMusicAfterBlack();
+    }),
+    bus.on(G.MoveUsed, () => play('moveUsed')),
+    bus.on(G.SpiritStarted, () => play('spiritStart')),
+    bus.on(G.SpiritEnded, () => play('spiritEnd')),
+    bus.on(G.KitChanged, ({ kit }) => {
+      if (lastMelee !== null && kit.slots.melee !== lastMelee) play('weaponSwap');
+      lastMelee = kit.slots.melee;
     }),
     bus.on(G.SectionStarted, ({ sectionId, kind }) => {
       if (kind !== 'boss' && kind !== 'setpiece') return;
@@ -185,7 +217,7 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
       if (e !== undefined && e !== 'hurley') play(e);
     }),
     bus.on(G.AbilityUnlocked, () => play('abilityUnlocked')),
-    bus.on(G.DrinkConsumed, () => play('drink')),
+    bus.on(G.DrinkConsumed, ({ drinkId }) => play(drinkId === 'coffee' || drinkId === 'tea' ? 'hotDrink' : 'drink')),
     bus.on(G.FoodConsumed, () => play('drink')),
     bus.on(G.PickupCollected, () => play('pickup')),
     bus.on(G.PickupRefused, () => play('refuse')),
@@ -214,6 +246,7 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
       lastHeat = active ? value : 0;
     }),
     bus.on(G.SaveWritten, () => play('save')),
+    bus.on(G.PropBrokenByBoss, () => play('breakWood')),
     bus.on(G.PropBroken, ({ frame }) => play(/bottle|flowerPot/i.test(frame) ? 'breakGlass' : /barrel|sack|cardboard/i.test(frame) ? 'smallCrash' : 'breakWood')),
     bus.on(G.MykoCallStarted, ({ sectionId }) => {
       callSection = sectionId;
@@ -229,6 +262,7 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
       stopAlarm();
       endCall();
       endBoss();
+      uncutMusic();
     }),
     bus.on(G.ChapterCompleted, () => {
       stopAlarm();
@@ -247,6 +281,7 @@ export function createAudio(bus: GameEventBus, getSettings: () => AudioSettings,
       for (const u of unsubs) u();
       stopAlarm();
       clearInterval(settingsTimer);
+      if (soberTimer !== null) clearTimeout(soberTimer);
       music.dispose();
       if (typeof window !== 'undefined') {
         window.removeEventListener('pointerdown', gesture);

@@ -35,6 +35,8 @@ export class GameScene extends Phaser.Scene {
     for (const key of this.hudKeys) {
       if (this.scene.get(key)) this.scene.launch(key);
     }
+    // A bar return completes at black, possibly with this scene paused: draw the bar and snap the camera now.
+    const offReturn = this.run.onBarReturnSettled(() => this.view?.snap());
     const onResume = (): void => {
       this.suppressPresses = true;
       this.input_?.tracker.releaseAll();
@@ -42,6 +44,7 @@ export class GameScene extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.RESUME, onResume);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.RESUME, onResume);
+      offReturn();
       this.cleanup();
     });
   }
@@ -58,6 +61,18 @@ export class GameScene extends Phaser.Scene {
     run.tick(dt, frame);
     this.suppressPresses = run.sceneBlocking || run.activeDeduction() !== null;
     if (this.run === run && !run.isEnded) this.view?.sync();
+    this.easeCameraLead(dt);
+  }
+
+  /** The camera looks ahead of Andrew where the chapter asks (`ChapterContext.setCameraLead`), easing there. */
+  private easeCameraLead(dtMs: number): void {
+    const run = this.run;
+    if (!run) return;
+    const cam = this.cameras.main;
+    const want = run.cameraLead();
+    const k = Math.min(1, dtMs / 400);
+    // Phaser subtracts the follow offset, so looking ahead is a negative offset.
+    cam.setFollowOffset(cam.followOffset.x + (-want.x - cam.followOffset.x) * k, cam.followOffset.y + (-want.y - cam.followOffset.y) * k);
   }
 
   private cleanup(): void {

@@ -43,6 +43,8 @@ export interface CombatWorld {
   spawnProjectile(spawn: ProjectileSpawn): void;
   /** Extra blocked tiles (pushables, closed doors). */
   extraBlocked(col: number, row: number): boolean;
+  /** Tiles only enemies cannot enter (the cattle grid the ram will not cross). Absent: none. */
+  enemyBlocked?(col: number, row: number): boolean;
   actors(): readonly EnemyActor[];
 }
 
@@ -61,6 +63,8 @@ export interface ActorStats {
   readonly attacks: readonly AttackDef[];
   readonly frontalShieldDeg?: number;
   readonly disguisedUntilAttack?: boolean;
+  /** A bottle landing within its noise radius stops the body and makes it look for this long (the ram). */
+  readonly noiseStopMs?: number;
   readonly spriteKey: string;
 }
 
@@ -111,6 +115,9 @@ export class EnemyActor {
   spriteKey: string;
 
   private statusMs = 0;
+  /** Time left looking at a noise: no movement, no attacks, facing `lookAt`. */
+  private lookMs = 0;
+  private lookAt: Vec2 | null = null;
   private kb: Vec2 = { x: 0, y: 0 };
   private readonly cooldowns = new Map<string, number>();
   private current: AttackDef | null = null;
@@ -164,6 +171,34 @@ export class EnemyActor {
     this.current = null;
     this.status = 'stunned';
     this.statusMs = Math.max(this.statusMs, ms);
+  }
+
+  /** Whether it is stopped and looking at a noise (the ram after a bottle). */
+  get looking(): boolean {
+    return this.lookMs > 0;
+  }
+
+  /**
+   * A thrown bottle landed at `at`: if this body is distractible (`ActorStats.noiseStopMs`) it drops what it was
+   * about to do, stands still and faces the landing. Returns whether it was distracted.
+   */
+  distractBy(at: Vec2): boolean {
+    const ms = this.stats.noiseStopMs;
+    if (ms === undefined || ms <= 0 || this.down || this.frozen) return false;
+    // A charge already under way is not stopped by a noise; it finishes and the body looks afterwards.
+    if (this.status === 'attacking') return false;
+    this.interrupt();
+    this.lookMs = ms;
+    this.lookAt = at;
+    return true;
+  }
+
+  /** Cancels whatever it was about to do (the clipboard): a telegraphed or running attack is dropped. */
+  interrupt(): void {
+    if (this.status !== 'telegraphing' && this.status !== 'attacking') return;
+    this.current = null;
+    this.burstLeft = 0;
+    this.status = 'normal';
   }
 
   /** Puts the actor down without damage numbers (Myko, completeNow). */
@@ -244,6 +279,11 @@ export class EnemyActor {
         return;
     }
 
+    if (this.lookMs > 0) {
+      this.lookMs = Math.max(0, this.lookMs - dtMs);
+      if (this.lookAt) this.facingDeg = turnToward(this.facingDeg, angleTo(this.pos, this.lookAt), TUNING.stealth.turnDegPerSecond * (dtMs / 1000) * 2);
+      return;
+    }
     if (this.disguised) {
       if (targetable && dist <= TUNING.combat.disguiseRevealRange) this.reveal(world);
       else return;
@@ -341,6 +381,7 @@ export class EnemyActor {
         damage: a.damage,
         knockback: a.knockback,
         holdMs: a.holdMs ?? 0,
+        weight: a.weight ?? 'ordinary',
         frame: projectileFrame(a.id),
       });
     } else if (world.playerTargetable() && shapeHits(a.shape, this.pos, this.attackDir, world.playerPosition(), TUNING.combat.characterHitRadius)) {
@@ -381,6 +422,7 @@ export class EnemyActor {
         knockback: knockbackVector(from, player, a.knockback, 0),
         stunMs: 0,
         holdMs: a.holdMs ?? 0,
+        weight: a.weight ?? 'ordinary',
       },
       from,
     );
@@ -420,7 +462,7 @@ export class EnemyActor {
     } else {
       this.repathMs -= dtMs;
       if (this.repathMs <= 0 || this.path.length === 0) {
-        this.path = findPath(world.grid, this.pos, goal, (c, r) => isBlocked(world.grid, c, r) || world.extraBlocked(c, r), 600) ?? [];
+        this.path = findPath(world.grid, this.pos, goal, (c, r) => isBlocked(world.grid, c, r) || world.extraBlocked(c, r) || world.enemyBlocked?.(c, r) === true, 600) ?? [];
         this.repathMs = TUNING.combat.repathMs;
       }
       const next = this.path[0];
@@ -448,7 +490,7 @@ export class EnemyActor {
       return { blocked: false };
     }
     const size = TUNING.player.bodyWidth;
-    const res = moveBox(world.grid, this.pos, size, size, delta, (c, r) => world.extraBlocked(c, r));
+    const res = moveBox(world.grid, this.pos, size, size, delta, (c, r) => world.extraBlocked(c, r) || world.enemyBlocked?.(c, r) === true);
     this.pos = res.position;
     return { blocked: (res.blockedX && delta.x !== 0) || (res.blockedY && delta.y !== 0) };
   }

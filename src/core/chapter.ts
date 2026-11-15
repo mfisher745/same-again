@@ -29,16 +29,17 @@
  *   light sources cut out of it.
  * - `triggers`: named areas; walking in calls `script.onTrigger(id)`. A
  *   spawn or respawn inside a trigger fires it on the next tick.
- * - Checkpoints are `def.checkpoints`; walking near one reaches it (save).
- *   Stealth and boss placements reach their checkpoint when they start, if
- *   it was not reached already.
+ * - There are no checkpoints. The chapter's bar is `def.bar` (or, while a
+ *   chapter has none, its start screen's `playerStart`); Andrew starts there
+ *   and comes back there when the meter reaches 0 or the floor. A save is
+ *   written when a section finishes.
  *
  * Script (`createScript(ctx)` returns a `ChapterScript`): small event hooks.
  * Everything a script does goes through `ChapterContext`: dialogue by ID
  * (`say` resolves when the line is finished; box lines never block play,
  * scene lines pause it), objectives, flags (saved), starting and finishing
- * sections, scripted completables, boss hooks, abilities, items, evidence,
- * exits, heat, props, NPCs and ambience (`setProp*`, `setNpc*`,
+ * sections, scripted completables, boss hooks, moves, weapons, items, evidence,
+ * exits, the bar's hot drink, props, NPCs and ambience (`setProp*`, `setNpc*`,
  * `setAmbient`: run-time only, restore from flags), melee hits on world
  * objects (`onMeleeHit`), and `completeChapter()` at the end.
  *
@@ -50,15 +51,17 @@
  * subclass from `src/systems`). Either way `completeNow()` works for the
  * Myko call and for QA.
  *
- * State after death or Continue: the chapter is rebuilt from the save.
+ * State after Continue: the chapter is rebuilt from the save, in the bar.
  * Completed sections stay complete, collected pickups stay collected, and
- * `onStart({ checkpointId, resumed })` tells the script where it is; the
- * script restores anything else from `ctx.flag()`.
+ * `onStart({ resumed })` tells the script where it is; the script restores
+ * anything else from `ctx.flag()`. After a return to the bar the run keeps
+ * going: flags go back to the last save, the unfinished section starts over,
+ * and `onBarReturn` tells the script.
  *
  * QA: `window.__game.completeCurrent()` calls `completeNow('debug')` on the
  * current section; `window.__game.walkChapter()` completes every section in
  * `def.sections` order (stealth and explore are marked done, evidence and
- * new abilities are granted, `script.debugWalk?.()` runs) and then completes
+ * the chapter's moves and weapons are granted, `script.debugWalk?.()` runs) and then completes
  * the chapter.
  */
 
@@ -68,6 +71,7 @@ import type { BossBodyPlacement, BossHooks, BossRunner } from '../systems/boss';
 import type { FightHooks, FightRunner } from '../systems/fight';
 import type { PuzzleBase } from '../systems/investigation';
 import type { PushPuzzleLayout } from '../systems/puzzles';
+import type { SheepPuzzleLayout } from '../systems/sheep';
 import type { SectionHost } from '../systems/sections';
 import type {
   AbilityId,
@@ -75,7 +79,10 @@ import type {
   ChapterDef,
   ChapterFlagValue,
   ChapterNumber,
-  CheckpointId,
+  BarReturnReason,
+  HotDrinkId,
+  MoveId,
+  WeaponId,
   CompletableKind,
   CompletableSectionId,
   CompletionSource,
@@ -85,6 +92,7 @@ import type {
   Facing,
   FightSectionId,
   GameEventBus,
+  Kit,
   ObjectiveId,
   PickupDef,
   PickupItem,
@@ -147,6 +155,23 @@ export interface PropPlacement {
   readonly solid?: TileFootprint;
   /** Tiles that block vision cones and headlights while visible (default: none). `true` uses `solid`. */
   readonly blocksSight?: TileFootprint | true;
+  /**
+   * Slow ground while visible (puddles): Andrew walks at `TUNING.overhaul.slowGroundMultiplier` of his speed
+   * on these tiles. Enemies are not slowed.
+   */
+  readonly slows?: TileFootprint;
+  /**
+   * Tiles that enemies and bosses cannot enter while the prop is visible, though Andrew can (the cattle grid the
+   * ram will not cross). Guards on a patrol ignore it.
+   */
+  readonly blocksEnemies?: TileFootprint;
+  /**
+   * A boss body that stands against this prop (within a tile of its `solid` footprint) for this many ms batters
+   * through it: the prop is hidden, as when a script opens it with E, and `prop:brokenByBoss` is emitted. The pause
+   * is the prop slowing the boss; use `TUNING.overhaul.ramGatePauseMs`. Nothing happens if the prop is already hidden.
+   * Needs `id` and `solid`.
+   */
+  readonly bossBreaksAfterMs?: number;
   /** Starts hidden (shown later with `ctx.setPropVisible`). */
   readonly hidden?: boolean;
   /** 'floor' draws under every character (rugs, puddles, markings); default 'sorted'. */
@@ -234,12 +259,21 @@ export interface ScreenLayout {
 
 /** What a melee swing that touched an `onMeleeHit` area was. */
 export interface MeleeHitInfo {
+  /** The weapon that swung. */
+  readonly weaponId: WeaponId;
+  /** The legacy ability id of the weapon (fists are `punchCombo`). */
   readonly abilityId: AbilityId;
   /** 0-based index in the combo. */
   readonly comboIndex: number;
   readonly comboLength: number;
-  /** The last hit of a combo of two or more (the punch combo's third swing). */
+  /** The last hit of a combo of two or more (the fists' third swing). */
   readonly haymaker: boolean;
+}
+
+/** What a charge or lurch that touched an `onMoveHit` area was. */
+export interface MoveHitInfo {
+  /** `shoulder` (the charge) or `stumble` (the lurch). */
+  readonly moveId: MoveId;
 }
 
 /** What starts a section: Andrew walking into an area, or the script. */
@@ -260,6 +294,11 @@ export interface BossPlacement {
   readonly trigger: SectionTrigger;
   readonly bodies: readonly BossBodyPlacement[];
   readonly entrance: Vec2;
+  /**
+   * What Myko's call lines for this boss or set piece are called: the chapter's `mykoCallLines.setpiece` set is
+   * used, and its casebook entry records this name (`cN.call.<callId>.casebook`). Chapter 2's ram: 'ram'.
+   */
+  readonly callId?: string;
   /** For `reachExit` set pieces. */
   readonly exitArea?: AreaRect;
 }
@@ -267,8 +306,11 @@ export interface BossPlacement {
 export interface StealthPlacement {
   readonly sectionId: StealthSectionId;
   readonly screenId: ScreenId;
-  /** Walking in starts the section (and reaches its checkpoint). */
-  readonly startArea: AreaRect;
+  /**
+   * Walking in starts the section. Absent: only the script starts it (`ctx.startSection(id)`), for guards that
+   * arrive in a scene (the "Department" van in chapter 2). Until it starts the guards are not in the world.
+   */
+  readonly startArea?: AreaRect;
   /** Walking in without the alarm is a clean run. */
   readonly exitArea: AreaRect;
   readonly entrance: Vec2;
@@ -284,6 +326,12 @@ export interface PushPuzzlePlacement {
   readonly resetExaminableId?: string;
   /** Art frame name / texture key hint for the pieces ('keg', 'crate'). */
   readonly pieceKind: string;
+}
+
+export interface SheepPuzzlePlacement {
+  readonly sectionId: PuzzleSectionId;
+  readonly screenId: ScreenId;
+  readonly layout: SheepPuzzleLayout;
 }
 
 export interface DeductionPlacement {
@@ -308,6 +356,8 @@ export interface ChapterModule {
   readonly bosses: readonly BossPlacement[];
   readonly stealth: readonly StealthPlacement[];
   readonly pushPuzzles?: readonly PushPuzzlePlacement[];
+  /** The chapter 2 sheep puzzle: gates that swing, a flock that shies from Andrew. Built by the systems (`sheep.ts`). */
+  readonly sheepPuzzles?: readonly SheepPuzzlePlacement[];
   readonly deduction?: DeductionPlacement;
   readonly triggers: readonly TriggerDef[];
   /** Pools for Myko's tangents (DESIGN.md 7.5: Ohio from chapter 6). */
@@ -318,14 +368,22 @@ export interface ChapterModule {
 }
 
 export interface ChapterStartInfo {
-  readonly checkpointId: CheckpointId;
-  /** True after a death or Continue; false on a fresh chapter start. */
+  /** True after Continue; false on a fresh chapter start. */
   readonly resumed: boolean;
+}
+
+/** Andrew went back to the bar. The chapter puts its own run-time state right. DESIGN.md 7.1. */
+export interface BarReturnInfo {
+  readonly reason: BarReturnReason;
+  /** The section that started over, or null if none was under way. Finished sections are not reset. */
+  readonly resetSectionId: SectionId | null;
 }
 
 /** Hooks a chapter script may implement. All optional. */
 export interface ChapterScript {
   onStart?(info: ChapterStartInfo): void;
+  /** After a return to the bar: flags are back to the last save and the unfinished section starts over. */
+  onBarReturn?(info: BarReturnInfo): void;
   onScreenEntered?(screenId: ScreenId): void;
   onTrigger?(triggerId: string): void;
   /** Return true to replace the default examine behaviour. */
@@ -375,7 +433,7 @@ export interface ChapterContext {
   setObjective(id: ObjectiveId | null): void;
   objective(): ObjectiveId | null;
 
-  // Flags (saved at each checkpoint)
+  // Flags (saved when a section is finished; a return to the bar puts them back)
   flag(key: string): ChapterFlagValue | undefined;
   setFlag(key: string, value: ChapterFlagValue): void;
 
@@ -397,10 +455,56 @@ export interface ChapterContext {
   openDeduction(): void;
 
   // Player and world
+  /** Learn a move: it goes into its slot if that slot is empty. Emits `move:learned`. */
+  learnMove(id: MoveId): void;
+  /** Gain a weapon (not equipped yet). Emits `weapon:gained`. */
+  gainWeapon(id: WeaponId): void;
+  /**
+   * @deprecated Old scripts name abilities: `hurley` gains the hurley; `stumble`, `stoutSlam`,
+   * `actNatural` and `borrowedGlove` learn the move of that name; the rest do nothing.
+   */
   unlockAbility(id: AbilityId): void;
   give(item: PickupItem): void;
   addEvidence(id: EvidenceId): void;
-  reachCheckpoint(id: CheckpointId): void;
+  /** What Andrew carries right now: weapon, moves, bottles, drinks, slots. Read it at chapter start; `kit:changed` announces changes. */
+  kit(): Kit;
+  /**
+   * Hide or show the drink meter. While hidden the HUD does not draw it (`MeterSnapshot.hidden`; `meter:hiddenChanged`
+   * fires on a change). Saved, and kept across a return to the bar until the script shows it again.
+   */
+  setMeterHidden(hidden: boolean): void;
+  /**
+   * Hold or release the plain drain. While held the value does not fall and no sober return comes from drain.
+   * Drinks, hits, sun and tea/spirit timers still apply. Saved, and kept across a return to the bar.
+   */
+  holdDrain(held: boolean): void;
+  /**
+   * Called at the end of a return to the bar, after `onBarReturn` has run, so the world is final. Returns an
+   * unsubscribe function.
+   */
+  onBarReturnSettled(fn: () => void): () => void;
+  /**
+   * Calls `fn` when the sheep puzzle `puzzleId`'s whole flock has settled in a pen that is not the last one it
+   * settled in (`sheep:flockSettled`). `pen` is the layout pen's `id`, or `pen<index>`. Returns an unsubscribe.
+   */
+  onFlockSettled(puzzleId: SectionId, fn: (pen: string) => void): () => void;
+  /**
+   * Promise a move lesson: the first time Andrew is at Bit much (level 3 or more) in a LATER chapter while it is
+   * still owed, the run plays `sceneId`, learns the move into its slot, and stops owing it. Learning the move any
+   * other way (`learnMove`) also clears it. Saved. Calling it again for the same move changes nothing.
+   * If Andrew reaches Bit much during a fight, stealth section, set piece, Myko call or dialogue scene, the lesson
+   * waits and plays when that ends, whatever his level by then. If the kit already has the move (a Chapter Select
+   * replay) nothing is owed and nothing plays. After the lesson, `move:taughtByFallback` is emitted.
+   */
+  oweMove(moveId: MoveId, sceneId: DialogueId): void;
+  /** Whether a move's lesson is still owed. */
+  movesOwed(): readonly MoveId[];
+  /** Take the bar's free hot drink into the kit. False if one is already carried or it was taken. */
+  takeHotDrink(id: HotDrinkId): boolean;
+  /** The bar is offering a free hot drink and Andrew carries none. */
+  hotDrinkOffered(): boolean;
+  /** A shortcut Andrew opened from the far side (a clean-run reward) is open. */
+  shortcutOpened(id: string): boolean;
   goToScreen(screenId: ScreenId, spawn: Vec2): void;
   currentScreen(): ScreenId;
   setExitLocked(exitId: string, locked: boolean): void;
@@ -409,8 +513,22 @@ export interface ChapterContext {
   setMykoScripted(pos: Vec2 | null): void;
   playerPosition(): Vec2;
   setPlayerPosition(pos: Vec2): void;
+  /**
+   * The camera looks ahead of Andrew in `direction` (by `TUNING.overhaul.cameraLeadPx`), or follows him
+   * centred again with null. For the ram's lane, where he runs left to right and the camera leads. Run-time only.
+   */
+  setCameraLead(direction: Facing | null): void;
   /** Freeze Andrew's controls (cutscene walk-ins). */
   setControlsLocked(locked: boolean): void;
+  /**
+   * An involuntary Stumble: Andrew lurches along `dir` (a `Facing` or an angle in degrees) with the Stumble's motion
+   * and breakage (stops at walls, kegs and closed gates; smashes every breakable in the lane; `onMoveHit` hooks fire
+   * as `stumble`), whether or not the move is learned. Costs nothing: no cooldown, no meter, no drink. Input is
+   * blocked until it ends. Resolves when he has stopped, so the script can play the lesson next. `distance` and
+   * `durationMs` default to the Stumble's own distance and `TUNING.overhaul.forcedLurchMs`. A second call while one
+   * is under way returns the first's promise. Resolves early if the run ends or he returns to the bar.
+   */
+  forceLurch(dir: Facing | number, opts?: { readonly distance?: number; readonly durationMs?: number }): Promise<void>;
   spawnPickup(def: PickupDef): void;
   removePickup(id: string): void;
   /** Ends the chapter: hangover carry-over, save, next chapter. */
@@ -437,6 +555,13 @@ export interface ChapterContext {
    * Fires once per swing. Returns a function that removes the hook.
    */
   onMeleeHit(area: AreaRect, callback: (hit: MeleeHitInfo) => void, screenId?: ScreenId): () => void;
+  /**
+   * Calls `callback` when the lane of Andrew's Shoulder or Stumble touches `area` on `screenId` (default: the
+   * screen current when this is called), before he moves. Fires once per use. Returns a function that removes the
+   * hook. The Stumble also breaks every breakable prop in its lane, whatever hits it had left, so a stack of
+   * feed buckets placed as breakables is gone before he arrives.
+   */
+  onMoveHit(area: AreaRect, callback: (hit: MoveHitInfo) => void, screenId?: ScreenId): () => void;
 
   // Timers in game time. They keep running while a scene or the call-in
   // blackout is showing (not while the game is paused) and are cancelled when

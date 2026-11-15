@@ -3,7 +3,7 @@
  * Frame names are in keys.ts.
  */
 
-import type { AbilityId, DrinkId, FoodId } from '../core/types';
+import type { AbilityId, DrinkId, FoodId, MoveId, OverhaulDrinkId, WeaponId } from '../core/types';
 import { TEX, fx, icon } from './keys';
 import type { ColourName } from './palette';
 import { PixelBuffer, SheetBuilder } from './pixels';
@@ -62,6 +62,21 @@ const can = (body: ColourName, band: ColourName): Draw =>
     b.rect(4, 3, 4, 7, body);
     b.hline(4, 3, 4, 'fog').hline(4, 6, 4, band).vline(7, 4, 6, 'steel');
   });
+
+/** One letter per palette colour, for `stamp`-drawn icons. '.' is transparent. */
+export const K: Readonly<Record<string, ColourName>> = {
+  k: 'ink', c: 'coal', s: 'slate', S: 'steel', f: 'fog', b: 'bone', w: 'white',
+  n: 'skin', N: 'skinShade', a: 'anorak', m: 'moss', M: 'mossDark', g: 'grass',
+  t: 'turf', T: 'turfDark', p: 'peat', A: 'amber', Y: 'amberLight', r: 'alarm',
+  B: 'brick', R: 'brickDark', v: 'navy', u: 'dustyBlue', U: 'skyPale', l: 'lime', L: 'limeShade',
+  x: 'tan', X: 'tanShade', e: 'teal', E: 'tealDark', i: 'violet', G: 'alienGrey', o: 'corn', O: 'cornShade',
+};
+
+/** A 12 x 12 picture from rows of letters (see `K`), ink-outlined unless `bare`. */
+const pic = (rows: readonly string[], bare = false): Draw => {
+  const draw: Draw = (b) => void b.stamp(0, 0, rows, K);
+  return bare ? draw : outlined(draw);
+};
 
 const DRINKS: Readonly<Record<DrinkId, Draw>> = {
   stout: pint(3),
@@ -124,15 +139,313 @@ const ABILITIES: Readonly<Record<AbilityId, Draw>> = {
   }),
 };
 
+/** Hot drinks: a mug with steam. Coffee is a brick-red pub mug; tea is white, with the bag's tag over the side. */
+const COFFEE = pic([
+  '....f.f.....',
+  '...f.f......',
+  '....f.f.....',
+  '............',
+  '..BBBBBBB...',
+  '..BTTTTTR...',
+  '..BBBBBBRBB.',
+  '..BBBBBBR.B.',
+  '..BBBBBBRBB.',
+  '..BBBBBBR...',
+  '...RRRRRR...',
+  '............',
+]);
+const TEA = pic([
+  '......f.....',
+  '.....f......',
+  '......f.....',
+  '............',
+  '.bwwwwwww...',
+  '.bwpppppf...',
+  '.bwwwwwwfww.',
+  'YYwwwwwwf.w.',
+  'YYwwwwwwfww.',
+  '..wwwwwwf...',
+  '...ffffff...',
+  '............',
+]);
+
+/** Overhaul drinks not already drawn under the old `DrinkId`s. */
+const OVERHAUL_DRINKS: Readonly<Record<Exclude<OverhaulDrinkId, DrinkId> | 'bottle', Draw>> = {
+  lager: can('amberLight', 'moss'),
+  coffee: COFFEE,
+  tea: TEA,
+  bottle: bottle('moss', 'mossDark'),
+};
+
+/** The thirteen moves. DESIGN.md 7.2. Old ability pictures are reused where the move is the same idea. */
+const MOVES: Readonly<Record<MoveId, Draw>> = {
+  // Head down, shoulder first, and something about to be in the way.
+  shoulder: pic([
+    '............',
+    '............',
+    '..aaaa......',
+    'f.aaaaaaa...',
+    '..aaaaaaaaa.',
+    'ff.aaaaaaaaY',
+    '...aaaaTTn..',
+    'f..aaaa.nn.Y',
+    '...dd.dd....',
+    '..dd...dd...',
+    '.bb.....bb..',
+    '............',
+  ]),
+  // A reflex hammer: red rubber head, steel handle, a spark where the knee was.
+  reflexTest: pic([
+    '............',
+    '.rrrr.......',
+    '.rrrrr......',
+    '..rrrSS.....',
+    '...rrSfS....',
+    'Y.....fS....',
+    '.Y.....fS...',
+    '........fS..',
+    '.........fS.',
+    '..........S.',
+    '............',
+    '............',
+  ]),
+  actNatural: ABILITIES.actNatural,
+  stoutSlam: ABILITIES.stoutSlam,
+  // Two pints, the second exactly like the first. No outline: it sits on the dark strip like the pint.
+  sameAgain: pic(
+    [
+      '............',
+      '..bbbbb.....',
+      '..bwwwb.....',
+      '..btttbbbbb.',
+      '..btttbwwwb.',
+      '..btttbtttb.',
+      '..btttbtttb.',
+      '..btttbtttb.',
+      '..bbbbbtttb.',
+      '......btttb.',
+      '......bbbbb.',
+      '............',
+    ],
+    true,
+  ),
+  // A stethoscope.
+  bedsideManner: pic([
+    '.w......w...',
+    '.e......e...',
+    '.e......e...',
+    '..e....e....',
+    '...e..e.....',
+    '....ee......',
+    '....e...ff..',
+    '....e..ffff.',
+    '.....e.fSSf.',
+    '......efSSf.',
+    '........ff..',
+    '............',
+  ]),
+  stumble: ABILITIES.stumble,
+  // A padlock. Nobody leaves.
+  lockIn: pic([
+    '............',
+    '....ffff....',
+    '...fS..Sf...',
+    '...f....f...',
+    '...f....f...',
+    '..YYYYYYYY..',
+    '..AAAAAAAA..',
+    '..AAAkkAAA..',
+    '..AAAkkAAA..',
+    '..AAAAAAAA..',
+    '..pppppppp..',
+    '............',
+  ]),
+  // An X-ray: one bone, and where it is going to go.
+  secondOpinion: pic([
+    '............',
+    '............',
+    '.uuuuuuuuuu.',
+    '.uvvvvvvvvu.',
+    '.uwwvvvvwwu.',
+    '.uvwwrwwwvu.',
+    '.uvwwwrwwvu.',
+    '.uwwvvvvwwu.',
+    '.uvvvvvvvvu.',
+    '.uuuuuuuuuu.',
+    '............',
+    '............',
+  ]),
+  borrowedGlove: ABILITIES.borrowedGlove,
+  // One punch, side on, and it lands.
+  oneForTheRoad: pic([
+    '............',
+    '..........Y.',
+    '.........Y..',
+    '....nnnnn..Y',
+    'aaaannnnnN..',
+    'aaaannNnnNYY',
+    'aaaannnnnN..',
+    'aaaaNNnnnN.Y',
+    '....nnnnN...',
+    '.........Y..',
+    '..........Y.',
+    '............',
+  ]),
+  // The bell behind the bar.
+  lastOrders: pic([
+    '.....pp.....',
+    '.....AA.....',
+    '.f..YYAA..f.',
+    'f..YYAAAA..f',
+    '...YAAAAA...',
+    '...YAAAAA...',
+    '..YAAAAAAA..',
+    '.YAAAAAAAAA.',
+    '.OOOOOOOOOO.',
+    '.....SS.....',
+    '............',
+    '............',
+  ]),
+  // A door with a bar across it.
+  barred: pic([
+    '............',
+    '..pppppppp..',
+    '..pttppttp..',
+    '..pttppttp..',
+    '..pttppttp..',
+    'frrrrrrrrrrf',
+    'RRRRRRRRRRRR',
+    '..pttpptYp..',
+    '..pttppttp..',
+    '..pttppttp..',
+    '..pppppppp..',
+    '............',
+  ]),
+};
+
+/** The seven melee weapons. DESIGN.md 7.2. */
+export const WEAPONS: Readonly<Record<WeaponId, Draw>> = {
+  fists: ABILITIES.punchCombo,
+  // Big Tom's hurley: black grip tape, pale ash, a steel band on the bas.
+  hurley: pic([
+    '............',
+    '.cc.........',
+    '.ccc........',
+    '..cxx.......',
+    '...xxX......',
+    '....xxX.....',
+    '.....xxX....',
+    '......xxxX..',
+    '.....xxxxxX.',
+    '.....xxxxSX.',
+    '......xxxX..',
+    '............',
+  ]),
+  // Halloran's clipboard: a form, half filled in.
+  clipboard: pic([
+    '............',
+    '....ffff....',
+    '..ppSSSSpp..',
+    '..pwwwwwwp..',
+    '..pwsssswp..',
+    '..pwwwwwwp..',
+    '..pwssswwp..',
+    '..pwwwwwwp..',
+    '..pwsssswp..',
+    '..pwwwwwwp..',
+    '..pppppppp..',
+    '............',
+  ]),
+  // The souvenir shillelagh: a knob, some knots and a green ribbon.
+  shillelagh: pic([
+    '..ppp.......',
+    '.ppppp......',
+    '.ppptt......',
+    '..ttggg.....',
+    '...gptg.....',
+    '.....pt.....',
+    '......ptp...',
+    '.......pt...',
+    '........pt..',
+    '.........pt.',
+    '..........p.',
+    '............',
+  ]),
+  // Pruitt's umbrella, open: government navy.
+  umbrella: pic([
+    '............',
+    '.....SS.....',
+    '....vvvv....',
+    '..vvvvvvvv..',
+    '.vvuvvvvuvv.',
+    '.vuvvvvvvuv.',
+    '.vvvvvvvvvv.',
+    '.v.vv.fvv.v.',
+    '......f.....',
+    '......f.....',
+    '....p.p.....',
+    '.....p......',
+  ]),
+  // The inflatable alien, arms out.
+  inflatableAlien: pic([
+    '...llllll...',
+    '..lwlllllL..',
+    '..llllllll..',
+    '..lkkllkkL..',
+    '..llkllklL..',
+    '...llllLL...',
+    '....lllL....',
+    '.llllllllll.',
+    '....llll....',
+    '....l..l....',
+    '...ll..ll...',
+    '............',
+  ]),
+  // The security wand: a paddle, a light, and it beeps.
+  securityWand: pic([
+    '..........l.',
+    '....ffff.l..',
+    '...fSSSSf.l.',
+    '...fSssSf...',
+    '...fSssSf...',
+    '...fSssSf...',
+    '...fSSSSf...',
+    '....flrf....',
+    '.....ss.....',
+    '.....ss.....',
+    '.....ss.....',
+    '............',
+  ]),
+};
+
+/** Out in the sun (chapter 8). No outline: it is the brightest thing on the strip. */
+const SUN = pic(
+  [
+    '.....YY.....',
+    '.Y...YY...Y.',
+    '..Y......Y..',
+    '....YYYY....',
+    '...YYYYYY...',
+    'YY.YYYYYA.YY',
+    'YY.YYYYYA.YY',
+    '...YYYYAA...',
+    '....AAAA....',
+    '..Y......Y..',
+    '.Y...YY...Y.',
+    '.....YY.....',
+  ],
+  true,
+);
+
 export function iconSheet(): Sheet {
   const sheet = new SheetBuilder(TEX.icons, 12, 12, 8);
   sheet.cell(icon.pintFull, pint(3));
   sheet.cell(icon.pintHalf, pint(2));
   sheet.cell(icon.pintEmpty, pint(0));
   sheet.cell(icon.empty, bottle('moss', 'mossDark'));
-  // Myko calls: a cannabis leaf each (the frame keys keep their old `rollie` names). No ink outline on the dark strip.
-  sheet.cell(icon.rollie, leaf('grass', 'moss'));
-  sheet.cell(icon.rollieSpent, leaf('slate', 'slate'));
+  // Myko calls: a cannabis leaf each. No ink outline on the dark strip.
+  sheet.cell(icon.leaf, leaf('grass', 'moss'));
+  sheet.cell(icon.leafSpent, leaf('slate', 'slate'));
   sheet.cell(
     icon.detection,
     outlined((b) => {
@@ -156,6 +469,10 @@ export function iconSheet(): Sheet {
   for (const [id, draw] of Object.entries(DRINKS)) sheet.cell(icon.drink(id as DrinkId), draw);
   for (const [id, draw] of Object.entries(FOODS)) sheet.cell(icon.food(id as FoodId), draw);
   for (const [id, draw] of Object.entries(ABILITIES)) sheet.cell(icon.ability(id as AbilityId), draw);
+  for (const [id, draw] of Object.entries(OVERHAUL_DRINKS)) sheet.cell(icon.drink(id as OverhaulDrinkId | 'bottle'), draw);
+  for (const [id, draw] of Object.entries(MOVES)) sheet.cell(icon.move(id as MoveId), draw);
+  for (const [id, draw] of Object.entries(WEAPONS)) sheet.cell(icon.weapon(id as WeaponId), draw);
+  sheet.cell(icon.sun, SUN);
   return sheet.build();
 }
 
@@ -198,6 +515,20 @@ export function fxSheet(): Sheet {
     sheet.cell(name, (b) => {
       b.set(8, 8, 'white');
       if (i === 1) b.set(8, 6, 'white').set(8, 10, 'white').set(6, 8, 'white').set(10, 8, 'white');
+    }),
+  );
+  // Throw preview: one small dot, drawn many times along the path.
+  sheet.cell(fx.throwDot, (b) => void b.rect(7, 7, 2, 2, 'white'));
+  // Floor return: Myko's smoke, billowing until the cell is full. Scaled up, it fills the screen.
+  fx.smokeCloud.forEach((name, i) =>
+    sheet.cell(name, (b) => {
+      if (i === 0) {
+        b.ellipse(3, 6, 10, 8, 'fog').ellipse(5, 3, 7, 6, 'fog').ellipse(6, 8, 5, 4, 'steel');
+      } else if (i === 1) {
+        b.ellipse(0, 4, 12, 11, 'fog').ellipse(5, 1, 11, 10, 'fog').ellipse(3, 8, 9, 7, 'steel').ellipse(8, 6, 6, 5, 'steel');
+      } else {
+        b.rect(0, 0, 16, 16, 'fog').ellipse(1, 2, 9, 8, 'steel').ellipse(8, 7, 8, 8, 'steel').ellipse(3, 10, 6, 5, 'steel');
+      }
     }),
   );
   return sheet.build();

@@ -7,6 +7,8 @@
  * Chapter-specific props are added here as each chapter is built.
  */
 
+import type { WeaponId } from '../core/types';
+import { K, WEAPONS } from './icons';
 import { PROPS_KEY } from './keys';
 import { AtlasBuilder, PixelBuffer } from './pixels';
 import type { Sheet } from './pixels';
@@ -39,6 +41,46 @@ export const PROP = {
   pubSign: 'pubSign',
   foldedJacket: 'foldedJacket',
   bogLights: ['bogLights.0', 'bogLights.1', 'bogLights.2'],
+  // Chapter 2 (docs/chapters/02-the-bog.md). Sizes are in the "Art" table of that spec.
+  // A steel field gate. `across` and `along` are one tile each and repeat along a row or a column, for a gate of
+  // any length; `across3` and `along3` are whole three-tile gates with their posts.
+  fieldGate: { across: 'fieldGate.across', along: 'fieldGate.along', across3: 'fieldGate.across3', along3: 'fieldGate.along3' },
+  // Ground, drawn on the 'floor' layer: no outline.
+  puddle: 'puddle',
+  puddleLarge: 'puddleLarge',
+  cattleGrid: 'cattleGrid',
+  tyreTracks: { across: 'tyreTracks.across', along: 'tyreTracks.along' },
+  scorchRing: 'scorchRing',
+  // Obstacles and set dressing.
+  wheelbarrow: 'wheelbarrow',
+  sleepingDog: ['sleepingDog.0', 'sleepingDog.1'],
+  van: { right: 'van.right', left: 'van.left' },
+  leanTo: 'leanTo',
+  honestyBox: 'honestyBox',
+  coffeeJar: 'coffeeJar',
+  hayBale: 'hayBale',
+  feedBuckets: 'feedBuckets',
+  // Clues, drawn as themselves (DESIGN.md section 8).
+  metalFragment: 'metalFragment',
+  boiledFrog: 'boiledFrog',
+  burntWelly: 'burntWelly',
+  lanyard: 'lanyard',
+  docket: 'docket',
+  // Overhaul: the bar's hot drinks (DESIGN.md 7.1).
+  hotDrinkUrn: 'hotDrinkUrn',
+  flask: 'flask',
+  kettle: 'kettle',
+  coffeePot: 'coffeePot',
+  teaTrolley: 'teaTrolley',
+  // Overhaul: weapons as world objects, for a boss to drop or hand over (DESIGN.md 7.2). 16 x 16 each.
+  weapon: {
+    hurley: 'weapon.hurley',
+    clipboard: 'weapon.clipboard',
+    shillelagh: 'weapon.shillelagh',
+    umbrella: 'weapon.umbrella',
+    inflatableAlien: 'weapon.inflatableAlien',
+    securityWand: 'weapon.securityWand',
+  } satisfies Readonly<Record<Exclude<WeaponId, 'fists'>, string>>,
 } as const;
 
 type Draw = (b: PixelBuffer) => void;
@@ -51,6 +93,359 @@ const outlined =
     layer.outline('ink');
     b.blit(layer, 0, 0);
   };
+
+/** A picture from rows of letters (the icon letters, `K` in icons.ts), ink-outlined. */
+const pic = (rows: readonly string[]): Draw => outlined((b) => void b.stamp(0, 0, rows, K));
+
+/** A 12 x 12 icon drawing centred in a 16 x 16 cell. */
+const fromIcon =
+  (draw: Draw): Draw =>
+  (b) => {
+    const icon = new PixelBuffer(12, 12);
+    draw(icon);
+    b.blit(icon, 2, 2);
+  };
+
+const HOT_DRINKS: readonly [string, number, number, readonly string[]][] = [
+  // The urn on the bar: steel, a white highlight, the amber light that says it is on, a black tap.
+  [
+    PROP.hotDrinkUrn,
+    16,
+    24,
+    [
+      '................',
+      '.......ss.......',
+      '.....SSSSSS.....',
+      '...ffffffffff...',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...fwfffAffffS..',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...fwffffffffS..',
+      '...SSSSSSSSSSS..',
+      '......ccc.......',
+      '.......c........',
+      '...SSSSSSSSSSS..',
+      '....s.......s...',
+      '....s.......s...',
+      '...cccccccccc...',
+      '................',
+      '................',
+      '................',
+    ],
+  ],
+  // A tartan flask with the cup on top.
+  [
+    PROP.flask,
+    16,
+    16,
+    [
+      '................',
+      '......SSSS......',
+      '......SfSS......',
+      '.....SSSSSS.....',
+      '.....BRBBRB.....',
+      '.....BRBBRB.....',
+      '.....AAAAAA.....',
+      '.....BRBBRB.....',
+      '.....BRBBRB.....',
+      '.....AAAAAA.....',
+      '.....BRBBRB.....',
+      '.....BRBBRB.....',
+      '.....SSSSSS.....',
+      '................',
+      '................',
+      '................',
+    ],
+  ],
+  // The staff kettle: white plastic, a blue window, scaled to the line.
+  [
+    PROP.kettle,
+    16,
+    16,
+    [
+      '................',
+      '................',
+      '.......sss......',
+      '.....wwwwwww....',
+      '..ww.wwwwwwwbbb.',
+      '...wwwwwwwwwb.b.',
+      '....wwwwwwufb.b.',
+      '....wwwwwwufb.b.',
+      '....wwwwwwufbbb.',
+      '....wwwwwwuf....',
+      '....wwwwwwwf....',
+      '....fffffffff...',
+      '...sssssssssss..',
+      '................',
+      '................',
+      '................',
+    ],
+  ],
+  // A filter-coffee pot on its hotplate, a third full, as it always is.
+  [
+    PROP.coffeePot,
+    16,
+    16,
+    [
+      '................',
+      '......cccc......',
+      '.....cccccc.....',
+      '......UUUU......',
+      '......U..U.ccc..',
+      '.....U....Uc.c..',
+      '....U......Uc.c.',
+      '....U......Ucc..',
+      '....TTTTTTTTc...',
+      '....TTTTTTTT....',
+      '.....TTTTTT.....',
+      '...ssssssssss...',
+      '...ssssssrsss...',
+      '................',
+      '................',
+      '................',
+    ],
+  ],
+  // The tea trolley: a brown teapot and cups on top, saucers and the biscuits below.
+  [
+    PROP.teaTrolley,
+    32,
+    24,
+    [
+      '................................',
+      '.........tt.....................',
+      '........pppp....................',
+      '......pppppppp..................',
+      '..p..pxpppppppp.ppp.ww..ww..ww..',
+      '...p.pxpppppppp.p.pwwww.www.www.',
+      '....ppppppppppppp.p.ww..ww..ww..',
+      '......pppppppppp.p..............',
+      '.ffffffffffffffffffffffffffffff.',
+      '.SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS.',
+      '.S............................S.',
+      '.S............................S.',
+      '.S...bbbb..bbbb....xxXxxXxxX..S.',
+      '.S...wwww..wwww....xxXxxXxxX..S.',
+      '.S............................S.',
+      '.ffffffffffffffffffffffffffffff.',
+      '.SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS.',
+      '.S............................S.',
+      '.S............................S.',
+      '.S............................S.',
+      'ccc..........................ccc',
+      '.c............................c.',
+      '................................',
+      '................................',
+    ],
+  ],
+];
+
+/** Weapons lying about. Long ones are redrawn to use the bigger cell; the rest are their icons. */
+const WEAPON_PROPS: Readonly<Record<Exclude<WeaponId, 'fists'>, Draw>> = {
+  hurley: pic([
+    '................',
+    '................',
+    '.cc.............',
+    '.ccc............',
+    '..ccx...........',
+    '...xxx..........',
+    '....xxX.........',
+    '.....xxX........',
+    '......xxX.......',
+    '.......xxX......',
+    '........xxxX....',
+    '.......xxxxxX...',
+    '.......xxxxSX...',
+    '........xxxX....',
+    '................',
+    '................',
+  ]),
+  clipboard: fromIcon(WEAPONS.clipboard),
+  shillelagh: fromIcon(WEAPONS.shillelagh),
+  // Furled, lying on the floor, the handle hooked.
+  umbrella: pic([
+    '................',
+    '................',
+    '................',
+    '..pp............',
+    '.p..p...........',
+    '.p...v..........',
+    '......vv........',
+    '......vvv.......',
+    '.......vuvv.....',
+    '........vuvv....',
+    '.........vvvv...',
+    '...........vvv..',
+    '............vS..',
+    '.............S..',
+    '................',
+    '................',
+  ]),
+  inflatableAlien: fromIcon(WEAPONS.inflatableAlien),
+  securityWand: fromIcon(WEAPONS.securityWand),
+};
+
+/** Chapter 2: the bog, Brennan's farm and the lane. Kilnamoe colours; the van is the one thing that is not from here. */
+function addChapter2(atlas: AtlasBuilder): void {
+  // --- The field gate: galvanised steel, five bars. Open ends, so the one-tile pieces join up. ---
+  atlas.add(PROP.fieldGate.across, 16, 16, outlined((b) => {
+    b.hline(0, 3, 16, 'bone');
+    for (const y of [6, 9, 12]) b.hline(0, y, 16, 'fog');
+    b.vline(7, 3, 10, 'bone').vline(8, 3, 10, 'steel');
+  }));
+  atlas.add(PROP.fieldGate.along, 16, 16, outlined((b) => {
+    b.vline(6, 0, 16, 'fog').rect(7, 0, 2, 16, 'steel').vline(9, 0, 16, 'slate');
+    for (const y of [3, 11]) b.hline(6, y, 4, 'fog');
+  }));
+  atlas.add(PROP.fieldGate.across3, 48, 16, outlined((b) => {
+    b.hline(3, 3, 42, 'bone');
+    for (const y of [6, 9, 12]) b.hline(3, y, 42, 'fog');
+    b.line(4, 12, 43, 4, 'steel');
+    for (const x of [17, 31]) b.vline(x, 3, 10, 'bone');
+    // Timber posts; the latch end is the right one.
+    for (const x of [0, 45]) b.rect(x, 1, 3, 14, 'peat').vline(x + 2, 2, 13, 'turf').hline(x, 1, 3, 'tan');
+    b.rect(43, 7, 2, 2, 'coal');
+  }));
+  atlas.add(PROP.fieldGate.along3, 16, 48, outlined((b) => {
+    b.vline(6, 4, 40, 'fog').rect(7, 4, 2, 40, 'steel').vline(9, 4, 40, 'slate');
+    for (let y = 9; y < 42; y += 8) b.hline(6, y, 4, 'fog');
+    for (const y of [0, 43]) b.rect(5, y, 6, 5, 'peat').hline(5, y, 6, 'tan').hline(5, y + 4, 6, 'turf');
+  }));
+
+  // --- Ground. No outline: it is scenery underfoot. ---
+  const puddle = (name: string, w: number, h: number, glints: readonly [number, number, number][]): void => {
+    atlas.add(name, w, h, (b) => {
+      b.ellipse(0, 1, w, h - 2, 'turfDark').ellipse(2, 2, w - 4, h - 5, 'navyDark');
+      for (const [x, y, len] of glints) b.hline(x, y, len, 'slate');
+      b.set(Math.floor(w / 3), Math.floor(h / 3), 'fog');
+    });
+  };
+  puddle(PROP.puddle, 32, 16, [[8, 5, 6], [17, 9, 5]]);
+  puddle(PROP.puddleLarge, 48, 32, [[10, 8, 8], [26, 13, 9], [14, 20, 6], [30, 23, 5]]);
+  atlas.add(PROP.cattleGrid, 16, 16, (b) => {
+    // Bars run across the lane (up and down the screen) over a dark pit. Repeats in both directions.
+    b.rect(0, 0, 16, 16, 'ink');
+    for (let x = 1; x < 16; x += 4) b.vline(x, 0, 16, 'fog').vline(x + 1, 0, 16, 'steel');
+  });
+  // Twin rear wheels: each side leaves a pair of ruts. Transparent between them, so they sit on any ground.
+  atlas.add(PROP.tyreTracks.across, 16, 16, (b) => {
+    for (const y of [2, 4, 11, 13]) for (let x = 0; x < 16; x++) if ((x + y) % 4 !== 0) b.set(x, y, 'turfDark');
+  });
+  atlas.add(PROP.tyreTracks.along, 16, 16, (b) => {
+    for (const x of [2, 4, 11, 13]) for (let y = 0; y < 16; y++) if ((x + y) % 4 !== 0) b.set(x, y, 'turfDark');
+  });
+  atlas.add(PROP.scorchRing, 144, 144, (b) => {
+    // Nine tiles across: a perfect circle, which is the point. Charred band, a singed edge either side, bog inside.
+    b.ellipse(0, 0, 144, 144, 'turfDark').ellipse(2, 2, 140, 140, 'ink').ellipse(9, 9, 126, 126, 'turfDark').ellipse(11, 11, 122, 122, null);
+    // A few embers still going.
+    for (const [x, y] of [[71, 5], [20, 27], [138, 70], [116, 124], [40, 131], [5, 84]] as const) b.set(x, y, 'amber');
+  });
+
+  // --- Obstacles and set dressing ---
+  atlas.add(PROP.wheelbarrow, 24, 16, outlined((b) => {
+    // Handles to the right, wheel to the left, a load of turf nobody came back for.
+    b.rect(8, 2, 9, 3, 'turf').hline(9, 2, 7, 'peat').set(11, 1, 'peat').set(14, 1, 'turf');
+    b.rect(5, 5, 14, 5, 'steel').hline(5, 5, 14, 'fog').hline(6, 9, 12, 'slate').set(5, 9, null).set(18, 9, null);
+    b.line(18, 8, 22, 6, 'peat').set(23, 6, 'turfDark');
+    b.vline(15, 10, 4, 'slate').set(16, 13, 'slate');
+    b.ellipse(2, 8, 6, 6, 'coal').set(4, 10, 'fog').set(5, 11, 'steel');
+  }));
+  PROP.sleepingDog.forEach((name, i) => {
+    atlas.add(name, 16, 16, outlined((b) => {
+      // A collie, curled up, chin on the ground, white ruff and tail tip. Frame 1 is the breath in. It does not wake.
+      b.ellipse(4, 7 - i, 11, 7 + i, 'coal');
+      b.ellipse(1, 8, 7, 5, 'coal').set(2, 7, 'coal').set(3, 7, 'coal').set(3, 6, 'coal').set(6, 7, 'coal');
+      b.vline(8, 8, 5, 'white').set(7, 12, 'white').rect(1, 10, 2, 2, 'white').set(4, 9, 'fog');
+      b.hline(5, 13, 2, 'white').set(14, 11, 'white').set(13, 12, 'white').set(11, 8 - i, 'slate');
+    }));
+  });
+  const van = (b: PixelBuffer): void => {
+    // Facing right. Plain white, no markings: a cleaner rectangle on the side where a sign used to be.
+    b.rect(2, 5, 32, 19, 'bone').hline(2, 5, 32, 'white').hline(2, 23, 32, 'fog').vline(2, 6, 18, 'fog');
+    b.rect(8, 9, 18, 8, 'white').vline(30, 7, 16, 'fog');
+    b.rect(34, 9, 9, 15, 'bone').rect(43, 15, 3, 9, 'bone').hline(34, 9, 9, 'white').hline(34, 23, 12, 'fog');
+    b.rect(36, 11, 6, 5, 'dustyBlue').set(36, 11, 'skyPale').set(37, 11, 'skyPale').set(36, 12, 'skyPale');
+    b.rect(45, 17, 1, 2, 'amberLight').rect(2, 16, 1, 2, 'alarm').hline(38, 18, 2, 'steel');
+    // Twin wheels at the back (see the tracks), one at the front.
+    b.ellipse(4, 20, 8, 8, 'ink').ellipse(10, 20, 8, 8, 'ink').ellipse(35, 20, 8, 8, 'ink');
+    for (const x of [7, 13, 38]) b.rect(x, 23, 2, 2, 'steel');
+  };
+  atlas.add(PROP.van.right, 48, 32, outlined(van));
+  atlas.add(PROP.van.left, 48, 32, outlined((b) => {
+    const right = new PixelBuffer(48, 32);
+    van(right);
+    b.blit(right, 0, 0, true);
+  }));
+  atlas.add(PROP.leanTo, 64, 32, outlined((b) => {
+    // Back wall of old boards under a tin roof that slopes to the front. Stand the crate and the flask in front of it.
+    b.rect(3, 12, 58, 18, 'turf');
+    for (let x = 10; x < 60; x += 8) b.vline(x, 12, 18, 'turfDark');
+    b.hline(3, 29, 58, 'turfDark');
+    b.rect(0, 2, 64, 10, 'steel').hline(0, 2, 64, 'fog').hline(0, 11, 64, 'slate');
+    for (let x = 3; x < 64; x += 4) b.vline(x, 3, 8, 'slate');
+    b.rect(45, 4, 5, 4, 'rust').set(46, 8, 'rust');
+    for (const x of [1, 60]) b.rect(x, 12, 3, 19, 'peat').vline(x + 2, 12, 19, 'turfDark');
+  }));
+  atlas.add(PROP.honestyBox, 16, 16, outlined((b) => {
+    // A biscuit tin with a slot cut in the lid.
+    b.rect(3, 6, 10, 8, 'brick').hline(3, 13, 10, 'brickDark').vline(12, 7, 7, 'brickDark');
+    b.rect(2, 4, 12, 3, 'amber').hline(2, 4, 12, 'amberLight').hline(6, 5, 4, 'ink');
+  }));
+  atlas.add(PROP.coffeeJar, 16, 16, outlined((b) => {
+    b.rect(5, 6, 6, 8, 'turfDark').rect(5, 6, 6, 2, 'fog').vline(5, 6, 8, 'bone').rect(6, 9, 4, 3, 'amberLight');
+    b.rect(5, 3, 6, 3, 'alarm').hline(5, 3, 6, 'motelPink');
+  }));
+  atlas.add(PROP.hayBale, 16, 16, outlined((b) => {
+    b.rect(1, 3, 14, 12, 'corn').rect(1, 11, 14, 4, 'cornShade').hline(1, 3, 14, 'amberLight');
+    b.vline(5, 3, 12, 'tanShade').vline(10, 3, 12, 'tanShade');
+    b.set(3, 6, 'cornShade').set(8, 8, 'cornShade').set(12, 5, 'cornShade').set(7, 5, 'amberLight').set(13, 9, 'amberLight');
+  }));
+  atlas.add(PROP.feedBuckets, 16, 24, outlined((b) => {
+    // Three stacked, leaning a little. They break into `debris` like any breakable.
+    const bucket = (x: number, y: number): void => {
+      b.rect(x, y, 8, 6, 'coal').hline(x - 1, y, 10, 'slate').vline(x, y + 1, 5, 'slate').hline(x + 2, y + 3, 4, 'amber');
+    };
+    bucket(5, 17);
+    bucket(4, 10);
+    bucket(5, 3);
+    b.line(4, 2, 9, 0, 'fog').line(9, 0, 14, 2, 'fog');
+  }));
+
+  // --- Clues ---
+  atlas.add(PROP.metalFragment, 16, 16, outlined((b) => {
+    // Still warm. The stamped part number is a row of marks, never letters.
+    b.line(4, 12, 10, 5, 'steel').line(5, 12, 11, 5, 'steel').line(6, 12, 12, 6, 'fog').line(7, 12, 12, 7, 'steel').hline(4, 13, 5, 'slate');
+    b.set(7, 10, 'coal').set(8, 9, 'coal').set(9, 8, 'coal');
+    b.set(11, 5, 'amber').set(12, 6, 'amberLight');
+  }));
+  atlas.add(PROP.boiledFrog, 16, 16, outlined((b) => {
+    // On its back, legs out. A wisp of steam.
+    b.ellipse(5, 8, 6, 5, 'grass').rect(6, 10, 4, 2, 'bone');
+    b.set(4, 8, 'moss').set(3, 7, 'moss').set(11, 8, 'moss').set(12, 7, 'moss').set(4, 13, 'moss').set(3, 14, 'moss').set(11, 13, 'moss').set(12, 14, 'moss');
+    b.set(8, 5, 'fog').set(7, 3, 'fog').set(8, 2, 'fog');
+  }));
+  atlas.add(PROP.burntWelly, 16, 16, outlined((b) => {
+    // One. Moss green at the top, burnt black from the ankle down.
+    b.rect(5, 2, 5, 6, 'moss').hline(5, 2, 5, 'grass').rect(5, 8, 5, 6, 'coal').rect(10, 11, 4, 3, 'coal');
+    b.hline(5, 8, 5, 'turfDark').set(6, 7, 'turfDark').set(8, 7, 'turfDark').hline(5, 14, 9, 'slate').set(12, 9, 'fog');
+  }));
+  atlas.add(PROP.lanyard, 16, 16, outlined((b) => {
+    // A visitor pass on a navy strap.
+    b.line(4, 2, 7, 7, 'navy').line(11, 2, 8, 7, 'navy').hline(5, 2, 6, 'navy');
+    b.rect(5, 8, 7, 6, 'white').rect(5, 8, 7, 2, 'teal').hline(6, 11, 4, 'fog').hline(6, 12, 3, 'fog');
+  }));
+  atlas.add(PROP.docket, 16, 16, outlined((b) => {
+    // A carbon-copy delivery docket, one corner turned up. The signature box is empty.
+    b.rect(3, 2, 10, 12, 'motelPink').rect(3, 2, 10, 2, 'bone').set(12, 13, null).set(12, 12, 'bone').set(11, 13, 'bone');
+    for (const y of [5, 7, 9]) b.hline(4, y, y === 7 ? 6 : 8, 'motelPinkShade');
+    b.rect(8, 11, 3, 2, 'white');
+  }));
+}
 
 export function propsSheet(): Sheet {
   const atlas = new AtlasBuilder(PROPS_KEY, 256);
@@ -172,6 +567,11 @@ export function propsSheet(): Sheet {
       });
     });
   });
+
+  addChapter2(atlas);
+
+  for (const [name, w, h, rows] of HOT_DRINKS) atlas.add(name, w, h, pic(rows));
+  for (const [id, draw] of Object.entries(WEAPON_PROPS)) atlas.add(PROP.weapon[id as Exclude<WeaponId, 'fists'>], 16, 16, draw);
 
   return atlas.build();
 }

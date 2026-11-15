@@ -159,6 +159,18 @@ export class BossRunner extends CompletableSection {
     this.hooks.onEnd?.(this, by);
   }
 
+  /** Back to the start (the return to the bar resets the encounter under way). A finished one stays finished. */
+  reset(): void {
+    if (this.isComplete()) return;
+    this.started = false;
+    this.phaseIdx = -1;
+    this.elapsed = 0;
+    this.bodyList.length = 0;
+    this.targets.length = 0;
+    this.adds.length = 0;
+    this.suspended = false;
+  }
+
   start(): void {
     if (this.started || this.isComplete()) return;
     this.started = true;
@@ -172,6 +184,7 @@ export class BossRunner extends CompletableSection {
         knockbackResistance: p.knockbackResistance ?? 1,
         flies: p.flies ?? false,
         attacks: [],
+        ...(this.def.noiseStopMs === undefined ? {} : { noiseStopMs: this.def.noiseStopMs }),
         ...(p.frontalShieldDeg === undefined ? {} : { frontalShieldDeg: p.frontalShieldDeg }),
         spriteKey: p.spriteKey ?? this.def.spriteKey,
       };

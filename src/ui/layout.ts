@@ -21,32 +21,28 @@ export const DIALOGUE_TEXT = { x: 42, y: 208, rowHeight: 9, maxLines: 3, maxChar
 /** Glyph cell, docs/style-guide.md section 5. */
 export const CELL = { width: 6, height: 9 } as const;
 
-/** Health pips: five pint glasses at full health. */
-export const HEALTH_PIPS = 5;
-
-/** Top left: health pips on a backing, and below them the heat meter (chapter 8). */
-export const HEALTH_BACKING = { x: 0, y: 0, width: 73, height: 18 } as const;
-export const HEAT_METER = { x: 4, y: 22, width: 64, height: 4 } as const;
-
 /**
  * Bottom strip layout, x positions left to right. Each cell is 22 px tall at
- * `cellY`. The drink slots, empties, melee and dodge sit on the left; the Buzz
- * block (state word at double size over a meter) in the middle; the special to
- * its right; Myko's calls at the far right.
+ * `cellY`. Left: the drink (Q), bottles (right click) and weapon (R). Middle:
+ * the Buzz meter, state word over it, in the free space between `buzz.left`
+ * and `buzz.right`. Right: the four special slots (keys 1 to 4), then Myko's calls.
  */
 export const STRIP = {
   cellY: HUD_STRIP.y + 1,
   cellHeight: 22,
-  drink: { x: 4, width: 34, gap: 1 },
-  empties: { x: 112, width: 29 },
-  melee: { x: 144, width: 29 },
-  dodge: { x: 176, width: 34 },
-  buzz: { x: 214, width: 96 },
-  special: { x: 313, width: 108 },
-  calls: { x: 424, rollieGap: 14, capX: 467 },
+  drink: { x: 4, width: 46 },
+  bottles: { x: 52, width: 32 },
+  weapon: { x: 86, width: 32 },
+  buzz: { left: 122, right: 330 },
+  special: { x: 334, width: 24, gap: 1 },
+  calls: { x: 438, leafGap: 13 },
 } as const;
 
-export const BUZZ_METER = { width: 64, height: 4 } as const;
+/** The Buzz meter's length follows the chapter's floor: `pxPerPoint` per point, kept between `minWidth` and `maxWidth`. */
+export const METER = { pxPerPoint: 1.5, minWidth: 80, maxWidth: 190, height: 5 } as const;
+
+/** Where the boss bar sits at the top. */
+export const BOSS_BAR = { x: 120, y: 0, width: 240, height: 24 } as const;
 
 /** Presentation timings in milliseconds (or characters per second). */
 export const DIALOGUE_TIMING = {
