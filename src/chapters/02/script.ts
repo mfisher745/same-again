@@ -7,7 +7,7 @@ import { hasSequence, sequence } from '../../content/dialogue';
 import type { BossHooks, ChapterContext, ChapterScript, FightHooks } from '../../systems';
 import { GameEvents } from '../../core/types';
 import type { SectionId, SpecialSlotIndex, TextId } from '../../core/types';
-import { hidePrompt, onTabOpened, openHotDrinkChoice, showPrompt, showSlotPrompt } from '../../ui/prompts';
+import { hidePrompt, openHotDrinkChoice, showPrompt, showSlotPrompt } from '../../ui/prompts';
 import { PROP } from '../../art/props';
 import { BAR_ARRIVAL, BUCKETS_AREA, FARM_DOG, KEY_CLUES, PRACTICE_BUCKETS_AREA, LANE_GATE_COL, LANE_GATE_OPEN_ROW, LANE_GATE_ROW, LANE_GATE_SEAT, MYKO_CHAIR } from './maps';
 
@@ -43,7 +43,7 @@ type Flag =
   | 'stumble.done'
   | 'reflex.done'
   | 'ram.started'
-  | 'finished';
+  | 'ram.called';
 
 /** The accidental lurch aims at the bucket stack from between these distances (px): far enough to look like a stumble, near enough to land. */
 const LURCH_MIN_PX = 32;
@@ -61,6 +61,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   /** Andrew's drunk level, 0 to 4. He starts every chapter at the bottom of Grand. */
   let level = 2;
   let ramStarting = false;
+  let ramEnding = false;
   /** The lane gate: shut, opened with E, or battered through by the ram (the system hides it). Run-time only. */
   let laneGate: 'shut' | 'open' | 'battered' = 'shut';
   /** The accidental lurch is under way: its bucket hits are not the player's own Stumble. */
@@ -170,7 +171,6 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     const scene = SCENE_FOR[key];
     if (scene !== undefined) await ctx.say(scene);
     if (disposed) return;
-    if (key === 'ring' && first) setPrompt('ui.prompt.casebook', PROMPT_LINGER_MS);
     if (first && keyCluesFound()) await vanArrives();
   };
 
@@ -326,12 +326,18 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ramStarting = false;
   };
 
+  /**
+   * The ram is over: its own ending (unless Myko called it), then the closing, then the chapter ends. Nothing is saved
+   * as "finished" before the chapter really ends: a call saves the moment it completes the ram, so a flag set here would
+   * be on disk while the closing was still to come, and Continue would leave the chapter stuck in the lane.
+   */
   const ramEnded = async (by: string): Promise<void> => {
-    if (flag('finished')) return;
-    setFlag('finished');
+    if (ramEnding) return;
+    ramEnding = true;
     ctx.setCameraLead(null);
-    // A call skips the ram's own ending; Myko's call is the beat, then the closing.
-    if (by !== 'myko') await ctx.say('c2.ram.end');
+    // A call skips the ram's own ending; Myko's call is the beat, then the closing. The flag survives that save.
+    if (by === 'myko') setFlag('ram.called');
+    if (by !== 'myko' && !flag('ram.called')) await ctx.say('c2.ram.end');
     await ctx.say('c2.closing');
     if (disposed) return;
     ctx.completeChapter();
@@ -366,7 +372,6 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
         ctx.onFlockSettled('c2.puzzle.sheep', (pen) => {
           if (pen === 'pen1' && !ctx.isComplete('c2.puzzle.sheep')) void ctx.say('c2.sheep.wrong');
         }),
-        onTabOpened(() => clearPrompt('ui.prompt.casebook')),
         ctx.bus.on(GameEvents.BuzzLevelChanged, ({ to }) => {
           level = to;
           maybeStumbleLesson();
@@ -410,6 +415,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       unsubs.push(ctx.every(500, maybeStumbleLesson));
       if (!flag('intro.done')) void opening();
       else restoreObjective();
+      // Loaded after the ram was over but before the chapter ended (a call saves first, the closing comes after).
+      if (ctx.isComplete('c2.setpiece.ram')) void ramEnded('resume');
     },
 
     /**

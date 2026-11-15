@@ -9,7 +9,7 @@
 
 import Phaser from 'phaser';
 import { PALETTE } from '../../art/palette';
-import { format, hasText, text } from '../../content/dialogue';
+import { allTextIds, format, hasText, text } from '../../content/dialogue';
 import type { Kit, SpecialSlotIndex, TextId } from '../../core/types';
 import type { Label, Pic } from '../gfx';
 import { iconFrames, setLabelColour, setLabelText } from '../gfx';
@@ -28,6 +28,21 @@ const TOP = 28;
 const SUB = 11;
 /** Height of a slot box: the title line, then one line of "what it takes", or two. */
 const BOX_H = { one: 21, two: 30 } as const;
+/** Bottom edge of the panel's columns, and the height of a line of wrapped text. */
+const BOTTOM = 260;
+const LINE = 9;
+const DESC_CHARS = 21;
+/** Smallest row pitch the Moves list shrinks to when the info block leaves it little room. */
+const MIN_PITCH = 8;
+
+/** The longest a description may be (the old whiskey text): the area always has room for this many characters. */
+const WORST_CASE_CHARS = 131;
+
+/** Lines the description area holds: the longest description in the text files, or the worst case if that is more. */
+const maxDescLines = (): number =>
+  allTextIds()
+    .filter((id) => /^(ability\..+\.desc|weapon\..+\.desc|drink\..+\.pickup)$/.test(id))
+    .reduce((m, id) => Math.max(m, wrapText(text(id), DESC_CHARS).length), Math.ceil(WORST_CASE_CHARS / (DESC_CHARS - 2)));
 
 interface Row {
   readonly bg: Phaser.GameObjects.Rectangle;
@@ -80,11 +95,14 @@ export class KitView {
   private readonly bottleLabel: Label;
   private readonly movesNone: Label;
   private readonly picked: Label;
+  private readonly heading: Label;
   private readonly desc: Label;
+  private readonly descLines: number;
+  /** Bottom of the Moves list: the top of the info block under it. */
+  private readonly movesBottom: number;
   /** The keyboard cursor (and what the description shows). Clicking sets it too. */
   private cursorKey: string | null = null;
   private current: readonly KitItem[] = [];
-  private readonly descY: number;
 
   constructor(
     scene: Phaser.Scene,
@@ -122,13 +140,23 @@ export class KitView {
     L.label(COL2.x, TOP, text('ui.kit.section.moves'), 'beanie');
     for (let i = 0; i < 13; i++) this.moveRows.push(this.makeRow(L, COL2.x, TOP + SUB + i * ROW, COL2.width));
     this.movesNone = L.label(COL2.x, TOP + SUB, '', 'steel');
-    // What is picked, how to use it, and the description of what the cursor is on.
-    const iy = TOP + SUB + 13 * ROW + 4;
-    this.picked = L.label(COL2.x, iy, '', 'ink');
-    const how = wrapText(format('ui.kit.howTo', { key: keyText(KEY_IDS.drink) }), 21);
-    L.label(COL2.x, iy + 10, how.join('\n'), 'slate');
-    this.descY = iy + 10 + how.length * 9 + 4;
-    this.desc = L.label(COL2.x, this.descY, '', 'ink');
+    // The info block hangs from the bottom of the column: the Q-pick row, then a divider, then the
+    // description with a heading naming the item. It is as tall as the longest description needs.
+    const how = wrapText(format('ui.kit.howTo', { key: keyText(KEY_IDS.drink) }), DESC_CHARS);
+    this.descLines = maxDescLines();
+    const descTop = BOTTOM - this.descLines * LINE;
+    const headingY = descTop - SUB;
+    const dividerY = headingY - 4;
+    const howY = dividerY - 3 - how.length * LINE;
+    const pickY = howY - SUB - 1;
+    this.movesBottom = pickY - 4;
+    L.rect(COL2.x - 2, this.movesBottom, COL2.width + 2, 1, 'fog');
+    L.rect(COL2.x - 2, pickY - 1, COL2.width + 2, SUB, 'sand');
+    this.picked = L.label(COL2.x, pickY, '', 'ink');
+    L.label(COL2.x, howY, how.join('\n'), 'slate');
+    L.rect(COL2.x - 2, dividerY, COL2.width + 2, 1, 'steel');
+    this.heading = L.label(COL2.x, headingY, '', 'beanie');
+    this.desc = L.label(COL2.x, descTop, '', 'ink');
     // Slots on the right: item slots, then move slots.
     let sy = TOP;
     L.label(COL3.x, sy, `${text('ui.kit.section.items')} ${text('ui.kit.slots')}`, 'beanie');
@@ -250,8 +278,16 @@ export class KitView {
     setLabelText(this.bottleLabel, `${text('ui.kit.bottles')} ×${v.bottles}`);
     this.weaponRows.forEach((r, i) => this.paintRow(r, kit, v.weapons[i] ?? null, v.weapons[i]?.id === kit.slots.melee ? keyText(KEY_IDS.weapon) : ''));
     setLabelText(this.movesNone, v.moves.length === 0 ? wrapText(text('ui.kit.none'), 21).join('\n') : '');
+    // The Moves list gives way to the info block: rows squeeze together if there are more than fit.
+    const pitch = Math.max(MIN_PITCH, Math.min(ROW, Math.floor((this.movesBottom - (TOP + SUB)) / Math.max(1, v.moves.length))));
     this.moveRows.forEach((r, i) => {
       const m = v.moves[i] ?? null;
+      const ry = TOP + SUB + i * pitch;
+      r.bg.setY(ry).setSize(COL2.width + 2, Math.min(ROW, pitch));
+      (r.bg.input?.hitArea as Phaser.Geom.Rectangle | undefined)?.setSize(COL2.width + 2, Math.min(ROW, pitch)); // Phaser types hitArea as any
+      r.icon.setPosition(COL2.x, ry - 1);
+      r.name.setY(ry + 1);
+      r.note.setY(ry + 1);
       this.paintRow(r, kit, m, m === null ? '' : keyText(KEY_IDS.slot(m.level as SpecialSlotIndex)));
     });
     // Slots: the one that takes the cursor's entry is lit.
@@ -270,9 +306,11 @@ export class KitView {
         box.icon.set(iconOf(c.kind === 'hot' ? 'drink' : c.kind, c.id), c.kind === 'move' ? 'amberLight' : 'amber');
       }
     }
-    // What Q will use, and the description of the cursor's entry.
+    // What Q will use (its own row), and the description of the cursor's entry under its own heading.
     const pickedId = kit.selectedItem ?? null;
-    setLabelText(this.picked, pickedId === null ? '' : `${text('ui.kit.selected')}: ${nameOf({ kind: 'drink', id: pickedId })}`.slice(0, 21));
-    setLabelText(this.desc, cur === null ? '' : wrapText(descOf(cur), 21).slice(0, 5).join('\n'));
+    const pickedName = pickedId === null ? text('ui.kit.slot.empty') : nameOf({ kind: 'drink', id: pickedId });
+    setLabelText(this.picked, `${text('ui.kit.selected')}: ${pickedName}`.slice(0, DESC_CHARS));
+    setLabelText(this.heading, cur === null ? '' : nameOf(cur).slice(0, DESC_CHARS));
+    setLabelText(this.desc, cur === null ? '' : wrapText(descOf(cur), DESC_CHARS).slice(0, this.descLines).join('\n'));
   }
 }
