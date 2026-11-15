@@ -102,7 +102,7 @@ import { FightRunner } from './fight';
 import { add, angleFromFacing, distance, fromAngle, normalize, rectContains, scale } from './geometry';
 import { TILE, isShade, moveBox, tileOf } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
-import { assignMove, assignWeapon, cycleDrink, gainWeapon, learnMove, selectItem, topUpForLeaving, useSelected, useSpirit } from './kit';
+import { assignMove, assignWeapon, clampBottles, cycleDrink, gainWeapon, learnMove, selectItem, topUpForLeaving, useSelected, useSpirit } from './kit';
 import { GlintTracker } from './glint';
 import type { ObjectiveMark } from './glint';
 import { takeItem } from './pickups';
@@ -177,6 +177,9 @@ interface SectionEntry {
 
 /** How far past where a blocked lurch ends it still touches (px): the blocker itself, not what lies behind it. */
 const HOOK_TOUCH = 4;
+
+/** `pub.step` value of chapter 1 once Dympna has handed over the first pint (STEP.talked in the chapter script). */
+const FIRST_PINT_STEP = 2;
 /** Buzz level 3 is Bit much (DESIGN.md 7.1). */
 const BIT_MUCH_LEVEL = 3;
 
@@ -293,7 +296,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.openedShortcuts = [...save.openedShortcuts];
 
     // Loading a save puts Andrew in the bar exactly as a return does, bottles topped up (DESIGN.md 7.6). Chapter 1 keeps its own start.
-    this.player = new Player(this.bus, opts.resumed && this.chapter >= 2 ? topUpForLeaving(save.kit, barBeerOf(opts.module.def)) : save.kit, this.chapter);
+    this.player = new Player(this.bus, opts.resumed && this.chapter >= 2 ? topUpForLeaving(save.kit, barBeerOf(opts.module.def)) : clampBottles(save.kit), this.chapter);
     if (save.meterHidden) this.player.setMeterHidden(true);
     if (save.drainHeld) this.player.holdDrain(true);
     this.combat = new PlayerCombat(this.combatHost());
@@ -1798,6 +1801,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** Use the selected beer or hot drink, as Q does. False (and `kit:useRefused`) if nothing is selected. */
   useSelected(): boolean {
     if (!this.player.canAct) return false;
+    if (this.drinkingNotYet('drink')) return false;
     const r = useSelected(this.player.kit);
     if (r.refusal === 'notHeld') this.bus.emit(GameEvents.KitUseRefused, { action: 'drink', textId: 'ui.use.nothing' });
     else if (r.refusal === 'notConsumable') this.bus.emit(GameEvents.KitUseRefused, { action: 'drink', textId: 'ui.use.notADrink' });
@@ -1807,9 +1811,22 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** Drink the spirit in the spirit slot at once, as G does. False (and `kit:useRefused`) if the slot is empty. */
   useSpirit(): boolean {
     if (!this.player.canAct) return false;
+    if (this.drinkingNotYet('useSpirit')) return false;
     const r = useSpirit(this.player.kit);
     if (r.refusal) this.bus.emit(GameEvents.KitUseRefused, { action: 'useSpirit', textId: 'ui.spirit.none' });
     return this.drinkResult(r);
+  }
+
+  /**
+   * No drinking before the first pint: while the meter is hidden every player drink is refused (`kit:useRefused`,
+   * reason `meterHidden`, text `ui.use.notYet`). The one exception is Dympna's pint, which the chapter 1 script hands
+   * over at `pub.step` 2 ("talked") for Andrew to drink himself; blocking it would soft-lock the opening.
+   */
+  private drinkingNotYet(action: 'drink' | 'useSpirit'): boolean {
+    if (!this.player.meterHidden) return false;
+    if (this.chapter === 1 && Number(this.flags['pub.step'] ?? 0) === FIRST_PINT_STEP) return false;
+    this.bus.emit(GameEvents.KitUseRefused, { action, textId: 'ui.use.notYet', reason: 'meterHidden' });
+    return true;
   }
 
   private drinkResult(r: { readonly consumed: OverhaulDrinkId | null; readonly kit: Kit }): boolean {

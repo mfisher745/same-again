@@ -73,7 +73,7 @@ describe('chapter 2 sheep puzzle', () => {
     run.goToScreen('c2.farm', T(2, 11));
     const puzzle = run.sheepPuzzlesHere()[0]?.puzzle;
     if (!puzzle) throw new Error('no puzzle');
-    const pen = (x: number, y: number) => { const c = x / 16, r = y / 16; if ((c > 18.2 && c < 20.8) || (r > 13.2 && r < 15.8)) return -1; return c < 19 ? (r < 14 ? 0 : 3) : (r < 14 ? 1 : 2); };
+    const pen = (x: number, y: number) => { const c = x / 16, r = y / 16; if ((c > 18.6 && c < 20.4) || (r > 13.6 && r < 15)) return -1; return c < 19 ? (r < 14 ? 0 : 3) : (r < 14 ? 1 : 2); };
     let pos = T(11, 11);
     const doors = [T(19, 12), T(21, 14), T(19, 16)];
     // plan: [gate toggles before pass], target pen

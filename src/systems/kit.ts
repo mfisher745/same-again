@@ -186,8 +186,10 @@ function consume(kit: Kit, id: OverhaulDrinkId, tuning?: OverhaulTuning): DrinkR
     next = { ...kit, drinks: { ...kit.drinks, [id]: drinkCount(kit, id) - 1 } };
   }
   const bottlesAdded = def.kind === 'beer' ? def.bottlesLeft : 0;
-  if (bottlesAdded > 0) next = { ...next, bottles: next.bottles + bottlesAdded };
-  return { ...ok(settleSlots(next)), consumed: id, bottlesAdded };
+  const cap = t(tuning).carry.bottleLimit;
+  const added = Math.max(0, Math.min(bottlesAdded, cap - kit.bottles));
+  if (added > 0) next = { ...next, bottles: next.bottles + added };
+  return { ...ok(settleSlots(next)), consumed: id, bottlesAdded: added };
 }
 
 /**
@@ -321,9 +323,16 @@ export function spendBottle(kit: Kit): KitChange {
 
 /** Leaving the bar (start of a chapter, after a return): bottles topped up to the minimum. */
 export function topUpBottles(kit: Kit, tuning?: OverhaulTuning): KitChange {
-  const min = t(tuning).carry.minBottlesOnLeavingBar;
+  const c = t(tuning).carry;
+  const min = Math.min(c.minBottlesOnLeavingBar, c.bottleLimit);
   if (kit.bottles >= min) return refuse(kit, 'unchanged');
   return ok({ ...kit, bottles: min });
+}
+
+/** A kit holding no more empties than the cap (an old save may hold more). */
+export function clampBottles(kit: Kit, tuning?: OverhaulTuning): Kit {
+  const cap = t(tuning).carry.bottleLimit;
+  return kit.bottles > cap ? { ...kit, bottles: cap } : kit;
 }
 
 /** Beers carried (not spirits). */
@@ -346,7 +355,7 @@ export function topUpBeers(kit: Kit, beer: BeerId, tuning?: OverhaulTuning): Kit
 
 /** Everything a bar leaves Andrew with: the minimum beers (region's beer) and the minimum throwing bottles. */
 export function topUpForLeaving(kit: Kit, beer: BeerId, tuning?: OverhaulTuning): Kit {
-  return topUpBottles(topUpBeers(kit, beer, tuning).kit, tuning).kit;
+  return clampBottles(topUpBottles(topUpBeers(kit, beer, tuning).kit, tuning).kit, tuning);
 }
 
 /** True when `kit` has no hot drink and the bar should offer one. */

@@ -133,19 +133,20 @@ describe('chapter 2 sandbox: sheep puzzle', () => {
     expect(done.some((d) => d.sectionId === 'c2.puzzle.sheep')).toBe(true);
   });
 
-  it('a gate refuses to close on a sheep; an unsolved puzzle keeps its state across a return to the bar', () => {
+  it('a gate closes on a sheep by nudging it out; an unsolved puzzle keeps its state across a return to the bar', () => {
     const { run } = mk();
     const p = run.sheepPuzzlesHere()[0]!.puzzle;
     p.toggleGate('gateA');
     expect(p.gatePosition('gateA')).toBe(1);
-    // A sheep stands in the gap; closing A is refused.
+    // A sheep stands in the gap; closing A still works and the sheep is put to one side.
     p.sheep()[0]!.pos = { x: 34 * 16 + 8, y: 5 * 16 + 8 };
-    expect(p.toggleGate('gateA')).toBe(false);
-    const before = p.sheep().map((s) => ({ ...s.pos }));
+    expect(p.toggleGate('gateA')).toBe(true);
+    expect(p.gatePosition('gateA')).toBe(0);
+    expect(Math.floor(p.sheep()[0]!.pos.x / 16)).not.toBe(34);
+    p.toggleGate('gateA');
     run.player.meter = createMeter(2, 0.01);
     advance(run, 100);
     expect(p.gatePosition('gateA')).toBe(1);
-    expect(p.sheep().map((s) => s.pos)).toEqual(before);
   });
 
   it('completeNow (Myko call) puts everything in the solved state', () => {

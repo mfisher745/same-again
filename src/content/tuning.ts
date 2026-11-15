@@ -805,7 +805,7 @@ const overhaul: OverhaulTuning = {
     coffee: { kind: 'hot', id: 'coffee', nameTextId: 'drink.coffee.name', pickupTextId: 'drink.coffee.pickup', reset: { kind: 'instant' } },
     tea: { kind: 'hot', id: 'tea', nameTextId: 'drink.tea.name', pickupTextId: 'drink.tea.pickup', reset: { kind: 'ease', easeMs: 10000, holdMs: 20000 } },
   },
-  carry: { limit: 6, hotDrinkLimit: 1, minBottlesOnLeavingBar: 2, minBeersOnLeavingBar: 2 },
+  carry: { limit: 6, hotDrinkLimit: 1, minBottlesOnLeavingBar: 2, minBeersOnLeavingBar: 2, bottleLimit: 1 },
   moveCooldownMsByLevel,
   moves: {
     shoulder: move('shoulder', 1, 1, { kind: 'charge', distance: 40, knockback: 140 }),
