@@ -418,3 +418,85 @@ describe('a Myko call on the ram chase, then Continue', () => {
     expect(ended).toHaveLength(1);
   });
 });
+
+describe('a Myko call at every point of the ram chase ends the chapter exactly once', () => {
+  async function lane() {
+    const g = await newGame();
+    const ended = record(g.run.bus, 'chapter:completed');
+    const shown = record(g.run.bus, 'dialogue:show');
+    g.run.setFlag('concluded', true);
+    g.run.goToScreen('c2.lane', T(6, 6));
+    g.run.tick(16, NO_INPUT);
+    return { ...g, ended, shown };
+  }
+  const finish = async (g: Awaited<ReturnType<typeof lane>>): Promise<void> => {
+    for (let i = 0; i < 400; i++) {
+      g.run.tick(50, NO_INPUT);
+      if (i % 20 === 0) await settleDialogue(g.run);
+    }
+    await settleDialogue(g.run);
+    g.run.tick(16, NO_INPUT);
+    await settleDialogue(g.run);
+  };
+  const expectOnce = (g: Awaited<ReturnType<typeof lane>>): void => {
+    expect(g.ended).toHaveLength(1);
+    expect(g.shown.filter((s) => s.sequenceId === 'c2.closing')).toHaveLength(1);
+    expect(g.shown.map((s) => s.sequenceId)).not.toContain('c2.ram.end');
+  };
+
+  it('during c2.ram.intro, before the section starts: refused or finished, never stuck', async () => {
+    const g = await lane();
+    // The intro is on screen and the section has not started.
+    expect(g.run.boss('c2.setpiece.ram')!.active).toBe(false);
+    const called = g.run.myko.tryCall();
+    if (called) {
+      await finish(g);
+      expectOnce(g);
+      return;
+    }
+    // Refused: the chase starts when the intro is done, and ends the usual way.
+    await settleDialogue(g.run);
+    g.run.tick(16, NO_INPUT);
+    expect(g.run.boss('c2.setpiece.ram')!.active).toBe(true);
+    g.run.completeCurrent();
+    await finish(g);
+    expect(g.ended).toHaveLength(1);
+  });
+
+  it('right after a c2.ram.hit line', async () => {
+    const g = await lane();
+    await settleDialogue(g.run);
+    g.run.tick(16, NO_INPUT);
+    await settleDialogue(g.run);
+    void g.run.say('c2.ram.hit', { repeat: true });
+    g.run.tick(16, NO_INPUT);
+    expect(g.run.myko.tryCall()).toBe(true);
+    await finish(g);
+    expectOnce(g);
+  });
+
+  it('right at the lane end trigger', async () => {
+    const g = await lane();
+    await settleDialogue(g.run);
+    g.run.tick(16, NO_INPUT);
+    await settleDialogue(g.run);
+    g.run.setPlayerPosition(T(84, 5));
+    g.run.tick(16, NO_INPUT);
+    expect(g.run.myko.tryCall()).toBe(true);
+    g.run.setPlayerPosition(T(86, 5));
+    await finish(g);
+    expectOnce(g);
+  });
+
+  it('while the ram is paused at the gate', async () => {
+    const g = await lane();
+    await settleDialogue(g.run);
+    g.run.tick(16, NO_INPUT);
+    await settleDialogue(g.run);
+    g.run.setPlayerPosition(T(40, 5));
+    for (let i = 0; i < 60; i++) g.run.tick(50, NO_INPUT);
+    expect(g.run.myko.tryCall()).toBe(true);
+    await finish(g);
+    expectOnce(g);
+  });
+});

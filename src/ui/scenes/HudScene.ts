@@ -235,6 +235,15 @@ export class HudScene extends Phaser.Scene {
         }
       }),
       bus.on(GameEvents.KitUseRefused, ({ textId }) => this.setNotice(this.refusalNotice, text(textId), uiTuning().refusalMs)),
+      // A clue went in the casebook. The first one stays up until Tab opens; later ones are a short flash.
+      // Prompts stack above the dialogue box, so neither covers a line being said.
+      bus.on(GameEvents.EvidenceFound, ({ first }) => {
+        if (first) this.prompts.show('ui.casebook.first');
+        else {
+          this.prompts.show('ui.casebook.noted');
+          this.time.delayedCall(NOTICE_MS.pickup, () => this.prompts.hide('ui.casebook.noted'));
+        }
+      }),
       bus.on(GameEvents.PickupRefused, ({ reason, max }) => this.setNotice(this.pickup, format(`pickup.refused.${reason}`, { max: String(max) }), NOTICE_MS.pickup)),
       bus.on(GameEvents.BarReturning, ({ reason, andrew }) => this.startReturn(reason, andrew)),
       bus.on(GameEvents.BarReturned, ({ reason }) => this.onReturned(reason)),
@@ -356,6 +365,7 @@ export class HudScene extends Phaser.Scene {
 
   openTab(): void {
     this.game.events.emit(PROMPT_EVENTS.tabOpened);
+    this.prompts.hide('ui.casebook.first');
     this.shared.overlays.show('tab');
     this.scene.launch(UiSceneKeys.Tab);
     this.scene.bringToTop(UiSceneKeys.Tab);
