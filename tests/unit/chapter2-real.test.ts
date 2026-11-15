@@ -11,6 +11,7 @@ import { createSandboxModule } from '../../src/core/sandbox';
 import { createChapter2Sandbox } from '../../src/core/sandbox2';
 import type { ChapterRun } from '../../src/systems/run';
 import { carryOver } from '../../src/systems/session';
+import { MemoryStorage, SaveStore } from '../../src/core/save';
 import { NO_INPUT, advance, frame, makeRun, placeAt, record, settleDialogue, startChapterGame, drinkItem } from './helpers';
 
 async function newGame(how: 'chapter' | 'continue' = 'chapter', store?: Parameters<typeof startChapterGame>[2]) {
@@ -389,5 +390,31 @@ describe('the owed Stumble', () => {
     expect(shown.map((s) => s.sequenceId)).toContain('c2.stumble.lesson');
     expect(h.run.player.kit.moves).toContain('stumble');
     expect(h.run.movesOwed()).toEqual([]);
+  });
+});
+
+describe('a Myko call on the ram chase, then Continue', () => {
+  it('the closing is not lost when the game is left (or crashes) between the call and the closing', async () => {
+    const store = new SaveStore(new MemoryStorage());
+    const g = await newGame('chapter', store);
+    g.run.setFlag('concluded', true);
+    g.run.goToScreen('c2.lane', T(6, 6));
+    for (let i = 0; i < 2; i++) {
+      g.run.tick(16, NO_INPUT);
+      await settleDialogue(g.run);
+    }
+    g.run.setPlayerPosition(T(11, 5));
+    g.run.tick(16, NO_INPUT);
+    expect(g.run.myko.tryCall()).toBe(true);
+    // The blackout times out and the call saves; the closing is queued but never shown before the game is closed.
+    for (let i = 0; i < 400; i++) g.run.tick(50, NO_INPUT);
+    expect(g.run.boss('c2.setpiece.ram')!.isComplete()).toBe(true);
+    const loaded = startChapterGame(chapter2, 'continue', store);
+    const ended = record(loaded.session.bus, 'chapter:completed');
+    for (let i = 0; i < 4; i++) {
+      loaded.run.tick(50, NO_INPUT);
+      await settleDialogue(loaded.run);
+    }
+    expect(ended).toHaveLength(1);
   });
 });

@@ -76,13 +76,10 @@ export function pubScreen(): ScreenLayout {
       { frame: PROP.dartboard, col: 1, row: 10 },
       // Things to break while waiting on the pint.
       { id: 'pub.p1', frame: PROP.barrel, col: 28, row: 4, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'pub.p2', frame: PROP.bottleCrate, col: 28, row: 6, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'pub.p3', frame: PROP.cardboardBox, col: 28, row: 11, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'pub.p4', frame: PROP.barrel, col: 23, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'pub.p5', frame: PROP.bottleCrate, col: 10, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'pub.p6', frame: PROP.sack, col: 17, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'pub.p7', frame: PROP.barrel, col: 2, row: 15, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'pub.p8', frame: PROP.sack, col: 24, row: 10, solid: { width: 1, height: 1 }, breakable: {} },
     ],
     npcs: [
       { id: 'dympna', npc: 'dympna', col: 21, row: 2, facing: 'down', examinableId: 'c1.dympna' },
@@ -120,13 +117,8 @@ export function yardScreen(): ScreenLayout {
       { id: 'yard.p3', frame: PROP.sack, col: 6, row: 10, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'yard.p4', frame: PROP.cardboardBox, col: 7, row: 15, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'yard.p5', frame: PROP.barrel, col: 12, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'yard.p6', frame: PROP.bottleCrate, col: 14, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'yard.p7', frame: PROP.barrel, col: 17, row: 12, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'yard.p8', frame: PROP.sack, col: 17, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'yard.p9', frame: PROP.bottleCrate, col: 17, row: 3, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'yard.p10', frame: PROP.cardboardBox, col: 13, row: 2, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'yard.p11', frame: PROP.barrel, col: 9, row: 3, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'yard.p12', frame: PROP.sack, col: 7, row: 2, solid: { width: 1, height: 1 }, breakable: {} },
     ],
   };
   const ambient: ScreenAmbient = {
@@ -194,15 +186,7 @@ export function streetScreen(): ScreenLayout {
       { id: 'street.p7', frame: PROP.sack, col: 44, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'street.p8', frame: PROP.barrel, col: 48, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'street.p9', frame: PROP.bottleCrate, col: 56, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p10', frame: PROP.cardboardBox, col: 60, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'street.p11', frame: PROP.barrel, col: 64, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p12', frame: PROP.sack, col: 3, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p13', frame: PROP.bottleCrate, col: 13, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p14', frame: PROP.barrel, col: 23, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p15', frame: PROP.cardboardBox, col: 38, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p16', frame: PROP.bottleCrate, col: 45, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p17', frame: PROP.sack, col: 50, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p18', frame: PROP.barrel, col: 58, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
       // Tom leaves his hurley against the tractor when he sits down.
       { id: 'hurley', frame: PROP.weapon.hurley, col: HURLEY_TILE.col, row: HURLEY_TILE.row, hidden: true },
       { frame: PROP.chipperSign, col: 33, row: 3 },
