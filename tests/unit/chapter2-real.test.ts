@@ -56,25 +56,25 @@ async function toSober(run: ChapterRun): Promise<void> {
 }
 
 describe('bottles at the start of the chapter and on a load', () => {
-  it('Chapter Select starts with at least two bottles', async () => {
+  it('Chapter Select starts with the one bottle he is allowed', async () => {
     const { run } = await newGame();
     expect(run.player.kit.bottles).toBeGreaterThanOrEqual(TUNING.overhaul!.carry.minBottlesOnLeavingBar);
-    expect(run.player.kit.bottles).toBeGreaterThanOrEqual(2);
+    expect(run.player.kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit);
   });
 
-  it('a load tops bottles up to two, and never takes any away', async () => {
+  it('a load tops bottles up to the minimum and clamps an old save to the cap', async () => {
     const a = await newGame();
     a.run.player.setKit({ ...a.run.player.kit, bottles: 0 });
     a.run.learnMove('reflexTest'); // writes a save with no bottles
     expect(a.store.load()?.kit.bottles).toBe(0);
     const loaded = await newGame('continue', a.store);
-    expect(loaded.run.player.kit.bottles).toBe(2);
+    expect(loaded.run.player.kit.bottles).toBe(TUNING.overhaul!.carry.minBottlesOnLeavingBar);
 
     const b = await newGame();
     b.run.player.setKit({ ...b.run.player.kit, bottles: 5 });
     b.run.learnMove('reflexTest');
     const reloaded = await newGame('continue', b.store);
-    expect(reloaded.run.player.kit.bottles).toBe(5);
+    expect(reloaded.run.player.kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit); // an old save holding five is clamped
   });
 
   it('a fresh game in chapter 1 is not topped up by a load (the pub keeps its own start)', () => {

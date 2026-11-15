@@ -11,6 +11,7 @@ import {
   assignMove,
   assignWeapon,
   carriedCount,
+  clampBottles,
   createKit,
   cycleDrink,
   cycleWeapon,
@@ -211,7 +212,8 @@ describe('kit: cycling and assigning drinks', () => {
     let k = createKit();
     for (let i = 0; i < 3; i++) k = pickUpDrink(k, 'stout').kit;
     expect(topUpBeers(k, 'lightBeer').changed).toBe(false);
-    expect(topUpForLeaving(createKit(), 'stout').bottles).toBe(2);
+    expect(topUpForLeaving(createKit(), 'stout').bottles).toBe(TUNING.overhaul!.carry.minBottlesOnLeavingBar);
+    expect(topUpForLeaving({ ...createKit(), bottles: 9 }, 'stout').bottles).toBe(TUNING.overhaul!.carry.bottleLimit);
   });
 });
 
@@ -296,23 +298,33 @@ describe('kit: weapons', () => {
 
 describe('kit: bottles', () => {
   it('tops up to the minimum on leaving the bar, never down', () => {
-    expect(topUpBottles(createKit()).kit.bottles).toBe(2);
-    const k = { ...createKit(), bottles: 1 };
-    expect(topUpBottles(k).kit.bottles).toBe(2);
-    const rich = { ...createKit(), bottles: 9 };
-    expect(topUpBottles(rich).changed).toBe(false);
-    expect(topUpBottles(rich).kit.bottles).toBe(9);
+    const { minBottlesOnLeavingBar: min, bottleLimit: cap } = TUNING.overhaul!.carry;
+    expect(topUpBottles(createKit()).kit.bottles).toBe(min);
+    const full = { ...createKit(), bottles: cap };
+    expect(topUpBottles(full).changed).toBe(false);
+    expect(topUpBottles(full).kit.bottles).toBe(cap);
   });
 
   it('spends one bottle and refuses with none', () => {
-    expect(spendBottle({ ...createKit(), bottles: 3 }).kit.bottles).toBe(2);
+    expect(spendBottle({ ...createKit(), bottles: TUNING.overhaul!.carry.bottleLimit }).kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit - 1);
     expect(spendBottle(createKit()).refusal).toBe('notHeld');
   });
 
-  it('bottles are unlimited', () => {
+  it('bottles are capped: drinking a beer while holding one adds none', () => {
+    const cap = TUNING.overhaul!.carry.bottleLimit;
     let k = createKit();
     for (let i = 0; i < 50; i++) k = drinkFromInventory(pickUpDrink(k, 'lightBeer').kit, 'lightBeer').kit;
-    expect(k.bottles).toBe(50);
+    expect(k.bottles).toBe(cap);
+    const r = drinkFromInventory(pickUpDrink({ ...createKit(), bottles: cap }, 'lightBeer').kit, 'lightBeer');
+    expect(r.bottlesAdded).toBe(0);
+    expect(r.kit.bottles).toBe(cap);
+  });
+
+  it('clampBottles trims an old save and leaves a legal kit alone', () => {
+    const cap = TUNING.overhaul!.carry.bottleLimit;
+    expect(clampBottles({ ...createKit(), bottles: cap + 5 }).bottles).toBe(cap);
+    const ok = { ...createKit(), bottles: 0 };
+    expect(clampBottles(ok)).toBe(ok);
   });
 });
 

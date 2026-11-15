@@ -114,16 +114,16 @@ describe('return to the bar through the run', () => {
     expect(run.fight('c1.fight.chipper')?.active).toBe(true);
   });
 
-  it('tops bottles up to the minimum, and never takes any away', () => {
+  it('tops bottles up to the minimum, and never goes over the cap', () => {
     const min = O.carry.minBottlesOnLeavingBar;
     const low = makeRun({ save: withKit({ bottles: 0 }) });
     low.run.player.meter = createMeter(1, 0.01);
     advance(low.run, 200);
     expect(low.run.player.kit.bottles).toBe(min);
-    const rich = makeRun({ save: withKit({ bottles: min + 3 }) });
+    const rich = makeRun({ save: withKit({ bottles: O.carry.bottleLimit + 3 }) });
     rich.run.player.meter = createMeter(1, 0.01);
     advance(rich.run, 200);
-    expect(rich.run.player.kit.bottles).toBe(min + 3);
+    expect(rich.run.player.kit.bottles).toBe(O.carry.bottleLimit);
   });
 
   it('offers the free hot drink again, once per visit', () => {
@@ -268,7 +268,7 @@ describe('the kit through the run', () => {
   it('empties are bottles and food is not a thing', () => {
     const { run } = makeRun({ save: withKit({ bottles: 0 }) });
     teleport(run, 9, 2);
-    expect(run.player.kit.bottles).toBe(4);
+    expect(run.player.kit.bottles).toBe(O.carry.bottleLimit);
     teleport(run, 7, 2);
     expect(run.pickups().some((p) => p.def.id === 'sandbox.crisps')).toBe(false);
   });
@@ -451,14 +451,14 @@ describe('the throw', () => {
   });
 
   it('holding shows a preview; releasing spends one bottle and throws to the preview point', () => {
-    const { run } = makeRun({ save: withKit({ bottles: 3 }) });
+    const { run } = makeRun({ save: withKit({ bottles: O.carry.bottleLimit }) });
     run.player.meter = createMeter(1, AT.grand);
     hold(run);
     run.tick(16, frame({ held: ['aimHold'], aim }));
     const preview = run.combat.throwPreview();
     expect(preview).not.toBeNull();
     run.tick(16, frame({ released: ['aimHold'], aim }));
-    expect(run.player.kit.bottles).toBe(2);
+    expect(run.player.kit.bottles).toBe(O.carry.bottleLimit - 1);
     expect(run.combat.throwPreview()).toBeNull();
     const bottle = run.projectiles().find((p) => p.owner === 'player');
     expect(bottle).toBeDefined();
@@ -477,25 +477,26 @@ describe('the throw', () => {
   });
 
   it('a hit while aiming cancels the aim and keeps the bottle', () => {
-    const { run } = makeRun({ save: withKit({ bottles: 2 }) });
+    const { run } = makeRun({ save: withKit({ bottles: O.carry.bottleLimit }) });
     run.player.meter = createMeter(1, AT.grand);
     hold(run);
     run.hitPlayer({ ...hazard(), stunMs: 400 });
     run.tick(16, frame({ held: ['aimHold'], aim }));
     expect(run.combat.throwPreview()).toBeNull();
     run.tick(16, frame({ released: ['aimHold'], aim }));
-    expect(run.player.kit.bottles).toBe(2);
+    expect(run.player.kit.bottles).toBe(O.carry.bottleLimit);
   });
 
   it('rapid hold and release spends exactly one bottle per throw', () => {
-    const { run } = makeRun({ save: withKit({ bottles: 5 }) });
+    const { run } = makeRun({ save: withKit({ bottles: O.carry.bottleLimit }) });
     run.player.meter = createMeter(1, AT.grand);
     run.setPlayerPosition({ x: 100, y: 100 });
     for (let i = 0; i < 3; i++) {
       run.tick(16, frame({ pressed: ['aimHold'], aim }));
       run.tick(16, frame({ released: ['aimHold'], aim }));
     }
-    expect(run.player.kit.bottles).toBe(2);
+    // One bottle, one throw: the extra holds and releases find nothing to spend.
+    expect(run.player.kit.bottles).toBe(O.carry.bottleLimit - 1);
   });
 });
 

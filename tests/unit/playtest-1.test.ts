@@ -406,14 +406,14 @@ describe('Breakables', () => {
   });
 
   it('a thrown bottle breaks a breakable and uses up the bottle', () => {
-    const { run, bus } = makeRun({ save: (s) => ({ ...s, kit: { ...s.kit, bottles: 2 } }) });
+    const { run, bus } = makeRun({ save: (s) => ({ ...s, kit: { ...s.kit, bottles: TUNING.overhaul!.carry.bottleLimit } }) });
     const broken = record(bus, 'prop:broken');
     run.setPlayerPosition(T(6, 12));
     const aim = T(6, 8);
     run.tick(16, frame({ pressed: ['aimHold'], aim }));
     run.tick(16, frame({ released: ['aimHold'], aim }));
     advance(run, 1500);
-    expect(run.player.kit.bottles).toBe(1);
+    expect(run.player.kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit - 1);
     expect(broken.map((b) => b.propId)).toEqual([BARREL]);
   });
 

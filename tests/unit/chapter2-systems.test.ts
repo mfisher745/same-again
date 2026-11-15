@@ -11,14 +11,14 @@ const mk = (opts: Parameters<typeof makeRun>[0] = {}) => makeRun({ module: creat
 const at = placeAt;
 
 describe('chapter 2 sandbox: bar and kit', () => {
-  it('starts in the lean-to with a hot drink on offer and two bottles', () => {
+  it('starts in the lean-to with a hot drink on offer and a bottle', () => {
     const { run } = mk();
     expect(run.screenId).toBe('c2.sandbox');
     expect(run.hotDrinkOffered()).toBe(true);
     expect(run.takeHotDrink('tea')).toBe(true);
     expect(run.player.kit.hotDrink).toBe('tea');
     const carried = carryOver(run.snapshot(), 'grand', createChapter2Sandbox());
-    expect(carried.kit.bottles).toBeGreaterThanOrEqual(2);
+    expect(carried.kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit);
     expect(run.player.level).toBe(2);
   });
 });
