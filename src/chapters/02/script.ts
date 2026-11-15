@@ -52,8 +52,8 @@ const LURCH_MAX_PX = 112;
 const LURCH_PAST_PX = 12;
 /** A solid this close to the line (px, from its centre) blocks the lurch: the lane is 20 wide and the dog is a tile. */
 const LURCH_CLEARANCE_PX = 22;
-/** No lurch from the yard's far south end: the practice stack and the gate are there. */
-const LURCH_SOUTH_LIMIT_PX = 25 * 16;
+/** No lurch from the yard's east side: the practice stack is there. */
+const LURCH_EAST_LIMIT_PX = 6 * 16;
 
 export function createChapterScript(ctx: ChapterContext): ChapterScript {
   let disposed = false;
@@ -261,9 +261,9 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     const dx = BUCKETS_AREA.x + BUCKETS_AREA.width / 2 - p.x;
     const dy = BUCKETS_AREA.y + BUCKETS_AREA.height / 2 - p.y;
     const d = Math.hypot(dx, dy);
-    if (d < LURCH_MIN_PX || d > LURCH_MAX_PX || p.y > LURCH_SOUTH_LIMIT_PX) return;
-    // Only from inside the yard (the field fence is a wall), and only with a clear line: never a lurch at nothing.
-    if (p.x >= 9 * 16) return;
+    if (d < LURCH_MIN_PX || d > LURCH_MAX_PX) return;
+    // Only from the west of the yard (clear of the practice stack and the field fence), and only with a clear line: never a lurch at nothing.
+    if (p.x >= LURCH_EAST_LIMIT_PX) return;
     const gx = (FARM_DOG.col + 0.5) * 16 - p.x;
     const gy = (FARM_DOG.row + 0.5) * 16 - p.y;
     const along = Math.max(0, Math.min(1, (gx * dx + gy * dy) / (d * d)));

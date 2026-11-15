@@ -101,9 +101,9 @@ export function yardScreen(): ScreenLayout {
     { id: 'c1.yard.door', area: tilesArea(4, 0, 2, 2), toScreen: 'c1.pub', spawn: PUB_BACK_ARRIVAL },
     { id: 'c1.yard.gate', area: tilesArea(18, 7, 2, 1), toScreen: 'c1.street', spawn: STREET_ARRIVAL, lockedUntil: ['c1.explore.yard'] },
   ];
-  // The gate is stuck: solid across the path until The Shoulder shifts it.
+  // The gate is stuck: solid in the gateway (18,7) until The Shoulder shifts it. (17,7) stays open: it is where keg2 is pushed from.
   const dressing: ScreenDressing = {
-    props: [{ id: 'yardGate', frame: PROP.churchGate, col: 17, row: 6, solid: { dy: 1, width: 2, height: 1 } }],
+    props: [{ id: 'yardGate', frame: PROP.churchGate, col: 17, row: 6, solid: { dx: 1, dy: 1, width: 1, height: 1 } }],
   };
   const ambient: ScreenAmbient = {
     tint: 'navyDark',
