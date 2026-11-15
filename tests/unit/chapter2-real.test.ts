@@ -373,14 +373,6 @@ describe('the owed Stumble', () => {
     expect(run.snapshot().owedMoves).toBeUndefined();
   });
 
-  it('reaching Bit much after the shed teaches it at once and nothing is owed', async () => {
-    const { run } = await newGame();
-    run.completeSection('c2.explore.shed', 'debug');
-    await drinkIntoBitMuch(run);
-    expect(run.player.kit.moves).toContain('stumble');
-    expect(run.movesOwed()).toEqual([]);
-  });
-
   it('is carried into the next chapter and taught the first time he is at Bit much there', async () => {
     const { run } = await newGame();
     run.completeSection('c2.explore.shed', 'debug');

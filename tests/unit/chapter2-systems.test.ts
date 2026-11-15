@@ -197,7 +197,9 @@ describe('chapter 2 sandbox: the ram', () => {
       }
     };
     run.setPlayerPosition({ x: 22 * 16, y: 16 * 16 + 8 });
-    runTo(40);
+    // The ram now batters a shut gate open after a pause (bossBreaksAfterMs), so hold it with a bottle while Andrew tests the gate.
+    run.emitNoise({ kind: 'bottle', position: { x: ram.pos.x + 10, y: ram.pos.y }, radius: 90 });
+    for (let i = 0; i < 70; i++) run.tick(16, frame({ move: { x: 1, y: 0 } }));
     expect(run.player.pos.x).toBeLessThan(30 * 16);
     at(run, 29, 16);
     run.tick(16, frame({ pressed: ['interact'] }));
