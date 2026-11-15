@@ -5,7 +5,6 @@
 
 import { hasSequence, sequence } from '../../content/dialogue';
 import type { BossHooks, ChapterContext, ChapterScript, FightHooks } from '../../systems';
-import { TUNING } from '../../content/tuning';
 import { GameEvents } from '../../core/types';
 import type { ScreenAmbient } from '../../core/chapter';
 import type { Kit, SectionId, SpecialSlotIndex, TextId } from '../../core/types';
@@ -109,13 +108,6 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     sync();
   };
 
-  /** Bottles up to the bar's minimum on the way out (the spec: at least two when he leaves). */
-  const topUpBottles = (): void => {
-    const min = TUNING.overhaul?.carry.minBottlesOnLeavingBar ?? 0;
-    const need = min - (kit?.bottles ?? 0);
-    if (need > 0) ctx.give({ kind: 'empties', count: need });
-  };
-
   /** The objective Andrew should have, from what has happened so far. */
   const restoreObjective = (): void => {
     if (ctx.isComplete('c1.boss.bigtom')) ctx.setObjective(hasHurley() ? OBJ.road : OBJ.hurley);
@@ -191,7 +183,6 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     setStep(STEP.kit);
     clearPrompt('ui.prompt.hotDrink');
     ctx.give({ kind: 'drink', drinkId: 'stout', count: 1 });
-    topUpBottles();
     ctx.setObjective(OBJ.kit);
     setPrompt('ui.prompt.kit');
     await ctx.say('c1.pub.kit');
@@ -239,7 +230,6 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   const enteredYard = (): void => {
     clearPrompt();
     ctx.setMykoScripted(null);
-    topUpBottles();
     // The first time he leaves the pub the drain is released, and it is never held again.
     ctx.holdDrain(false);
     ctx.setPropVisible('yardGate', !gateOpen());

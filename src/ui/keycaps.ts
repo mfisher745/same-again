@@ -10,6 +10,7 @@ import type { SpecialSlotIndex, TextId } from '../core/types';
 
 export const KEY_IDS = {
   drink: 'ui.key.q',
+  spirit: 'ui.key.g',
   weapon: 'ui.key.r',
   call: 'ui.key.m',
   tab: 'ui.key.tab',

@@ -1,33 +1,33 @@
 /**
- * Kit part of the Tab screen: what Andrew carries (drinks against the carry
- * limit, the hot drink, bottles, weapons, moves), his six slots, and the two
- * things to do with an item: put it in its slot, or drink it straight away.
- * Mouse: click an item, then a slot (or a button). Keys: W/S choose, E or
- * Enter puts it in its slot, Q drinks it. DESIGN.md 7.7.
+ * Kit part of the Tab screen, in two groups. Items (beer, spirits, hot drink,
+ * bottles, weapons) sit beside the item slots that take them; Moves sit beside
+ * the four special slots. Click an entry and the kit does the right thing:
+ * a beer or the hot drink becomes Q's pick, a spirit goes in the spirit slot,
+ * a weapon is equipped, a move goes in its level's slot. There is no "put it
+ * here" step. Keys: W/S move the cursor, E or Enter clicks it. DESIGN.md 7.7.
  */
 
 import Phaser from 'phaser';
 import { PALETTE } from '../../art/palette';
-import type { ColourName } from '../../art/palette';
 import { format, hasText, text } from '../../content/dialogue';
 import type { Kit, SpecialSlotIndex, TextId } from '../../core/types';
 import type { Label, Pic } from '../gfx';
 import { iconFrames, setLabelColour, setLabelText } from '../gfx';
 import { KEY_IDS, keyText } from '../keycaps';
-import { KIT_SLOTS, SLOT_STATE_TEXT, assignItem, buildKitView, clearSlot, drinkIdOf, isDrink, itemKey, slotContent, slotFor } from '../model/kit';
+import { ITEM_SLOTS, MOVE_SLOTS, SLOT_STATE_TEXT, buildKitView, chooseItem, clearSlot, inUse, itemKey, slotContent, slotFor, slotTakesText, slotTitleText } from '../model/kit';
 import type { KitItem, KitSlotRef } from '../model/kit';
 import { wrapText } from '../model/wrap';
 import type { UiShared } from '../shared';
-import { uiTuning } from '../uiTuning';
 import { Layer } from './layer';
 
 const ROW = 11;
-const COL1 = { x: 12, width: 142, chars: 22 } as const;
-const COL2 = { x: 160, width: 150 } as const;
-const COL3 = { x: 320, width: 148 } as const;
+const COL1 = { x: 12, width: 126, chars: 18 } as const;
+const COL2 = { x: 150, width: 126, chars: 18 } as const;
+const COL3 = { x: 288, width: 180, chars: 29 } as const;
 const TOP = 28;
-const DESC = { x: COL2.x, y: 192, chars: 25, lines: 7 } as const;
-const SLOT_BOX = { height: 31, gap: 1 } as const;
+const SUB = 11;
+/** Height of a slot box: the title line, then one line of "what it takes", or two. */
+const BOX_H = { one: 21, two: 30 } as const;
 
 interface Row {
   readonly bg: Phaser.GameObjects.Rectangle;
@@ -39,8 +39,6 @@ interface Row {
 interface SlotBox {
   readonly ref: KitSlotRef;
   readonly bg: Phaser.GameObjects.Rectangle;
-  readonly title: Label;
-  readonly level: Label;
   readonly content: Label;
   readonly icon: Pic;
 }
@@ -58,55 +56,88 @@ const descOf = (item: KitItem): string => {
 const iconOf = (kind: string, id: string): string =>
   kind === 'move' ? iconFrames.move(id as never) : kind === 'weapon' ? iconFrames.weapon(id as never) : iconFrames.drink(id as never);
 
+/** The key that uses what a slot holds (Q, G, R, or a special's own number). */
+const slotKey = (ref: KitSlotRef): string =>
+  keyText(ref.kind === 'special' ? KEY_IDS.slot(ref.slot) : ref.kind === 'spirit' ? KEY_IDS.spirit : ref.kind === 'melee' ? KEY_IDS.weapon : KEY_IDS.drink);
+
+const takesLines = (ref: KitSlotRef): string[] => {
+  const values = { key: slotKey(ref), n: ref.kind === 'special' ? ref.slot : 0, state: ref.kind === 'special' ? text(SLOT_STATE_TEXT[ref.slot]) : '' };
+  return wrapText(format(slotTakesText(ref), values), COL3.chars);
+};
+
 export class KitView {
   private readonly layer: Layer;
-  private readonly drinkRows: Row[] = [];
+  private readonly beerRows: Row[] = [];
+  private readonly spiritRows: Row[] = [];
   private readonly hotRow: Row;
   private readonly weaponRows: Row[] = [];
   private readonly moveRows: Row[] = [];
   private readonly slotBoxes: SlotBox[] = [];
   private readonly places: Label;
+  private readonly beersNone: Label;
+  private readonly spiritsNone: Label;
   private readonly hotNone: Label;
   private readonly bottleLabel: Label;
-  private readonly drinksNone: Label;
   private readonly movesNone: Label;
+  private readonly picked: Label;
   private readonly desc: Label;
-  private readonly message: Label;
-  private readonly assignBtn: { bg: Phaser.GameObjects.Rectangle; label: Label };
-  private readonly drinkBtn: { bg: Phaser.GameObjects.Rectangle; label: Label };
-  private selectedKey: string | null = null;
+  /** The keyboard cursor (and what the description shows). Clicking sets it too. */
+  private cursorKey: string | null = null;
   private current: readonly KitItem[] = [];
-  private messageUntil = 0;
-  private now = 0;
+  private readonly descY: number;
 
   constructor(
     scene: Phaser.Scene,
     private readonly shared: UiShared,
   ) {
     const L = (this.layer = new Layer(scene));
-    L.rect(154, TOP, 1, 232, 'fog');
-    L.rect(314, TOP, 1, 232, 'fog');
-    L.label(COL1.x, TOP, text('ui.kit.drinks'), 'beanie');
-    this.places = L.label(COL1.x + COL1.width, TOP, '', 'slate', { anchor: 'right' });
-    for (let i = 0; i < 6; i++) this.drinkRows.push(this.makeRow(L, COL1.x, TOP + 12 + i * ROW, COL1.width));
-    this.drinksNone = L.label(COL1.x, TOP + 12, text('ui.kit.none'), 'steel');
-    this.hotRow = this.makeRow(L, COL1.x, TOP + 12 + 6 * ROW + 2, COL1.width);
-    this.hotNone = L.label(COL1.x, TOP + 12 + 6 * ROW + 2, '', 'steel');
-    L.icon(COL1.x + 1, TOP + 12 + 6 * ROW + 2 + 2 * ROW + 2).set(iconFrames.drink('bottle'), 'fog');
-    this.bottleLabel = L.label(COL1.x + 16, TOP + 12 + 6 * ROW + 2 + 2 * ROW + 4, '', 'ink');
-    const wy = TOP + 12 + 6 * ROW + 2 + 2 * ROW + 2 + 16;
-    L.label(COL1.x, wy, text('ui.kit.weapons'), 'beanie');
-    for (let i = 0; i < 7; i++) this.weaponRows.push(this.makeRow(L, COL1.x, wy + 12 + i * ROW, COL1.width));
-    L.label(COL2.x, TOP, text('ui.kit.moves'), 'beanie');
-    for (let i = 0; i < 13; i++) this.moveRows.push(this.makeRow(L, COL2.x, TOP + 12 + i * ROW, COL2.width));
-    this.movesNone = L.label(COL2.x, TOP + 12, text('ui.kit.none'), 'steel');
-    this.desc = L.label(DESC.x, DESC.y, '', 'ink');
-    L.label(COL3.x, TOP, text('ui.kit.slots'), 'beanie');
-    KIT_SLOTS.forEach((ref, i) => this.slotBoxes.push(this.makeSlot(L, ref, TOP + 12 + i * (SLOT_BOX.height + SLOT_BOX.gap))));
-    const by = TOP + 12 + 6 * (SLOT_BOX.height + SLOT_BOX.gap) + 1;
-    this.assignBtn = this.makeButton(L, COL3.x, by, 72, text('ui.kit.assign'), () => this.assignSelected());
-    this.drinkBtn = this.makeButton(L, COL3.x + 76, by, 72, text('ui.kit.drinkNow'), () => this.drinkSelected());
-    this.message = L.label(COL3.x, by + 17, '', 'alarm');
+    L.rect(144, TOP, 1, 232, 'fog');
+    L.rect(282, TOP, 1, 232, 'fog');
+    // Items: the list on the left.
+    L.label(COL1.x, TOP, text('ui.kit.section.items'), 'beanie');
+    let y = TOP + SUB;
+    L.label(COL1.x, y, text('ui.kit.beer'), 'slate');
+    this.places = L.label(COL1.x + COL1.width, y, '', 'slate', { anchor: 'right' });
+    y += SUB;
+    for (let i = 0; i < 4; i++) this.beerRows.push(this.makeRow(L, COL1.x, y + i * ROW, COL1.width));
+    this.beersNone = L.label(COL1.x, y, '', 'steel');
+    y += 4 * ROW + 3;
+    L.label(COL1.x, y, text('ui.kit.spirits'), 'slate');
+    y += SUB;
+    for (let i = 0; i < 2; i++) this.spiritRows.push(this.makeRow(L, COL1.x, y + i * ROW, COL1.width));
+    this.spiritsNone = L.label(COL1.x, y, '', 'steel');
+    y += 2 * ROW + 3;
+    L.label(COL1.x, y, text('ui.kit.hotDrink'), 'slate');
+    y += SUB;
+    this.hotRow = this.makeRow(L, COL1.x, y, COL1.width);
+    this.hotNone = L.label(COL1.x, y, '', 'steel');
+    y += 2 * ROW + 1;
+    L.icon(COL1.x + 1, y).set(iconFrames.drink('bottle'), 'fog');
+    this.bottleLabel = L.label(COL1.x + 16, y + 2, '', 'ink');
+    y += ROW + 3;
+    L.label(COL1.x, y, text('ui.kit.weapons'), 'slate');
+    y += SUB;
+    for (let i = 0; i < 7; i++) this.weaponRows.push(this.makeRow(L, COL1.x, y + i * ROW, COL1.width));
+    // Moves: the list in the middle.
+    L.label(COL2.x, TOP, text('ui.kit.section.moves'), 'beanie');
+    for (let i = 0; i < 13; i++) this.moveRows.push(this.makeRow(L, COL2.x, TOP + SUB + i * ROW, COL2.width));
+    this.movesNone = L.label(COL2.x, TOP + SUB, '', 'steel');
+    // What is picked, how to use it, and the description of what the cursor is on.
+    const iy = TOP + SUB + 13 * ROW + 4;
+    this.picked = L.label(COL2.x, iy, '', 'ink');
+    const how = wrapText(format('ui.kit.howTo', { key: keyText(KEY_IDS.drink) }), 21);
+    L.label(COL2.x, iy + 10, how.join('\n'), 'slate');
+    this.descY = iy + 10 + how.length * 9 + 4;
+    this.desc = L.label(COL2.x, this.descY, '', 'ink');
+    // Slots on the right: item slots, then move slots.
+    let sy = TOP;
+    L.label(COL3.x, sy, `${text('ui.kit.section.items')} ${text('ui.kit.slots')}`, 'beanie');
+    sy += SUB;
+    for (const ref of ITEM_SLOTS) sy = this.makeSlot(L, ref, sy);
+    sy += 2;
+    L.label(COL3.x, sy, `${text('ui.kit.section.moves')} ${text('ui.kit.slots')}`, 'beanie');
+    sy += SUB;
+    for (const ref of MOVE_SLOTS) sy = this.makeSlot(L, ref, sy);
   }
 
   private makeRow(L: Layer, x: number, y: number, width: number): Row {
@@ -118,33 +149,21 @@ export class KitView {
     return { bg, icon, name, note };
   }
 
-  private makeSlot(L: Layer, ref: KitSlotRef, y: number): SlotBox {
-    const bg = L.rect(COL3.x - 2, y, COL3.width + 2, SLOT_BOX.height, 'fog');
+  /** Draw one slot box at `y`; returns the y for the next one. */
+  private makeSlot(L: Layer, ref: KitSlotRef, y: number): number {
+    const lines = takesLines(ref);
+    const h = lines.length > 1 ? BOX_H.two : BOX_H.one;
+    const bg = L.rect(COL3.x - 2, y, COL3.width + 2, h, 'fog');
     bg.setInteractive({ useHandCursor: true }).on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonDown()) this.clear(ref);
-      else this.assignTo(ref);
     });
-    const title =
-      ref.kind === 'drink'
-        ? text('ui.kit.slot.drink')
-        : ref.kind === 'melee'
-          ? text('ui.kit.slot.melee')
-          : format('ui.kit.slot.special', { n: ref.slot });
-    const t = L.label(COL3.x + 2, y + 2, title, 'ink');
-    const level = L.label(COL3.x + 2, y + 11, ref.kind === 'special' ? format('ui.kit.slot.level', { state: text(SLOT_STATE_TEXT[ref.slot]) }) : '', 'slate');
-    const content = L.label(COL3.x + 2, y + (ref.kind === 'special' ? 20 : 11), '', 'ink');
-    const icon = L.icon(COL3.x + COL3.width - 16, y + 8);
-    if (ref.kind === 'special') L.label(COL3.x + COL3.width - 4, y + 2, keyText(KEY_IDS.slot(ref.slot)), 'slate', { anchor: 'right' });
-    else if (ref.kind === 'drink') L.label(COL3.x + COL3.width - 4, y + 2, keyText(KEY_IDS.drink), 'slate', { anchor: 'right' });
-    else L.label(COL3.x + COL3.width - 4, y + 2, keyText(KEY_IDS.weapon), 'slate', { anchor: 'right' });
-    return { ref, bg, title: t, level, content, icon };
-  }
-
-  private makeButton(L: Layer, x: number, y: number, w: number, str: string, onClick: () => void): { bg: Phaser.GameObjects.Rectangle; label: Label } {
-    const bg = L.rect(x, y, w, 14, 'slate');
-    bg.setInteractive({ useHandCursor: true }).on('pointerdown', onClick);
-    const label = L.label(x + w / 2, y + 3, str, 'white', { anchor: 'centre' });
-    return { bg, label };
+    const title = ref.kind === 'special' ? format(slotTitleText(ref), { n: ref.slot }) : text(slotTitleText(ref));
+    L.label(COL3.x + 2, y + 2, title, 'slate');
+    const content = L.label(COL3.x + 62, y + 2, '', 'ink');
+    const icon = L.icon(COL3.x + COL3.width - 14, y + 1);
+    L.label(COL3.x + 2, y + 11, lines.join('\n'), 'steel');
+    this.slotBoxes.push({ ref, bg, content, icon });
+    return y + h + 1;
   }
 
   setVisible(visible: boolean): void {
@@ -152,61 +171,43 @@ export class KitView {
   }
 
   reset(): void {
-    this.selectedKey = null;
-    this.messageUntil = 0;
+    this.cursorKey = null;
   }
 
-  private selected(): KitItem | null {
-    return this.current.find((i) => itemKey(i) === this.selectedKey) ?? null;
+  private cursor(): KitItem | null {
+    return this.current.find((i) => itemKey(i) === this.cursorKey) ?? null;
   }
 
-  private select(item: KitItem): void {
-    this.selectedKey = itemKey(item);
+  private setCursor(item: KitItem): void {
+    this.cursorKey = itemKey(item);
     this.shared.hooks.play?.('uiMove');
   }
 
-  /** W/S: move the selection through the lists in the order they are drawn. */
+  /** W/S: move the cursor through the lists in the order they are drawn. */
   move(d: 1 | -1): void {
     if (this.current.length === 0) return;
-    const i = this.current.findIndex((x) => itemKey(x) === this.selectedKey);
+    const i = this.current.findIndex((x) => itemKey(x) === this.cursorKey);
     const next = Phaser.Math.Clamp(i < 0 ? 0 : i + d, 0, this.current.length - 1);
     const item = this.current[next];
-    if (item !== undefined) this.select(item);
+    if (item !== undefined) this.setCursor(item);
   }
 
-  assignSelected(): void {
-    const item = this.selected();
-    if (item !== null) this.assignTo(slotFor(item));
+  /** E or Enter: the same as a click on the cursor's entry. */
+  chooseCursor(): void {
+    const item = this.cursor();
+    if (item !== null) this.choose(item);
   }
 
-  drinkSelected(): void {
-    const item = this.selected();
-    const id = item === null ? null : drinkIdOf(item);
-    if (id === null) return;
-    if (this.shared.source.drinkFromInventory(id)) this.shared.hooks.play?.('uiSelect');
-    else this.shared.hooks.play?.('refuse');
-  }
-
-  private assignTo(ref: KitSlotRef): void {
-    const item = this.selected();
-    if (item === null) return;
-    const r = assignItem(this.shared.source, item, ref);
-    if (r.ok) {
-      this.shared.hooks.play?.('uiSelect');
-      return;
-    }
-    this.shared.hooks.play?.('refuse');
-    if (r.refusal !== null) {
-      setLabelText(this.message, wrapText(r.refusal.n === undefined ? text(r.refusal.textId) : format(r.refusal.textId, { n: r.refusal.n }), 24).join('\n'));
-      this.messageUntil = this.now + uiTuning().refusalMs;
-    }
+  private choose(item: KitItem): void {
+    this.cursorKey = itemKey(item);
+    this.shared.hooks.play?.(chooseItem(this.shared.source, item) ? 'uiSelect' : 'uiMove');
   }
 
   private clear(ref: KitSlotRef): void {
     if (clearSlot(this.shared.source, ref)) this.shared.hooks.play?.('uiMove');
   }
 
-  private paintRow(row: Row, item: KitItem | null, note = ''): void {
+  private paintRow(row: Row, kit: Kit, item: KitItem | null, note = ''): void {
     row.bg.setVisible(item !== null);
     row.name.setVisible(item !== null);
     row.note.setVisible(item !== null);
@@ -214,68 +215,64 @@ export class KitView {
       row.icon.setVisible(false);
       return;
     }
-    const sel = itemKey(item) === this.selectedKey;
-    row.bg.setFillStyle(PALETTE[sel ? 'fog' : 'bone']);
+    row.bg.setFillStyle(PALETTE[inUse(kit, item) ? 'sand' : 'bone']);
+    if (itemKey(item) === this.cursorKey) row.bg.setStrokeStyle(1, PALETTE.slate);
+    else row.bg.setStrokeStyle();
     row.icon.set(iconOf(item.kind === 'hot' ? 'drink' : item.kind, item.id), item.kind === 'move' ? 'amberLight' : item.kind === 'weapon' ? 'steel' : 'amber');
-    setLabelText(row.name, nameOf(item).slice(0, note === '' ? COL1.chars - 1 : COL1.chars - 4));
+    setLabelText(row.name, nameOf(item).slice(0, note === '' ? COL1.chars : COL1.chars - 3));
     setLabelText(row.note, note);
     row.bg.off('pointerdown');
-    row.bg.on('pointerdown', () => this.select(item));
+    row.bg.on('pointerdown', () => this.choose(item));
   }
 
-  update(now: number): void {
-    this.now = now;
+  update(): void {
     const { source } = this.shared;
     const kit: Kit = source.kit();
     const v = buildKitView(kit);
-    this.current = v.items;
-    if (this.selectedKey !== null && !v.items.some((i) => itemKey(i) === this.selectedKey)) this.selectedKey = null;
-    if (this.selectedKey === null && v.items[0] !== undefined) this.selectedKey = itemKey(v.items[0]);
+    this.current = [...v.beers, ...v.spirits, ...(v.hot === null ? [] : [{ kind: 'hot' as const, id: v.hot }]), ...v.weapons, ...v.moves];
+    if (this.cursorKey !== null && !this.current.some((i) => itemKey(i) === this.cursorKey)) this.cursorKey = null;
+    if (this.cursorKey === null && this.current[0] !== undefined) this.cursorKey = itemKey(this.current[0]);
     setLabelText(this.places, format('ui.kit.places', { n: v.places.n, max: v.places.max }));
     setLabelColour(this.places, v.places.n >= v.places.max ? 'alarm' : 'slate');
-    this.drinksNone.setVisible(v.drinks.length === 0);
-    this.drinkRows.forEach((r, i) => {
-      const item = v.drinks[i] ?? null;
-      this.paintRow(r, item, item === null ? '' : `×${item.count}`);
+    this.beerRows.forEach((r, i) => {
+      const item = v.beers[i] ?? null;
+      this.paintRow(r, kit, item, item === null ? '' : `×${item.count}`);
     });
+    setLabelText(this.beersNone, v.beers.length === 0 ? wrapText(text('ui.kit.none'), 22).join('\n') : '');
+    this.spiritRows.forEach((r, i) => {
+      const item = v.spirits[i] ?? null;
+      this.paintRow(r, kit, item, item === null ? '' : `×${item.count}`);
+    });
+    setLabelText(this.spiritsNone, v.spirits.length === 0 ? wrapText(text('ui.kit.spirits.none'), 22).join('\n') : '');
     const hot: KitItem | null = v.hot === null ? null : { kind: 'hot', id: v.hot };
-    this.paintRow(this.hotRow, hot);
-    setLabelText(this.hotNone, hot === null ? wrapText(text('ui.kit.hotDrink.none'), 24).join('\n') : '');
-    this.hotNone.setVisible(hot === null);
+    this.paintRow(this.hotRow, kit, hot);
+    setLabelText(this.hotNone, hot === null ? wrapText(text('ui.kit.hotDrink.none'), 22).join('\n') : '');
     setLabelText(this.bottleLabel, `${text('ui.kit.bottles')} ×${v.bottles}`);
-    this.weaponRows.forEach((r, i) => this.paintRow(r, v.weapons[i] ?? null, v.weapons[i]?.id === kit.slots.melee ? keyText(KEY_IDS.weapon) : ''));
-    this.movesNone.setVisible(v.moves.length === 0);
+    this.weaponRows.forEach((r, i) => this.paintRow(r, kit, v.weapons[i] ?? null, v.weapons[i]?.id === kit.slots.melee ? keyText(KEY_IDS.weapon) : ''));
+    setLabelText(this.movesNone, v.moves.length === 0 ? wrapText(text('ui.kit.none'), 21).join('\n') : '');
     this.moveRows.forEach((r, i) => {
       const m = v.moves[i] ?? null;
-      this.paintRow(r, m, m === null ? '' : keyText(KEY_IDS.slot(m.level as SpecialSlotIndex)));
+      this.paintRow(r, kit, m, m === null ? '' : keyText(KEY_IDS.slot(m.level as SpecialSlotIndex)));
     });
-    // Slots.
+    // Slots: the one that takes the cursor's entry is lit.
+    const cur = this.cursor();
     for (const box of this.slotBoxes) {
       const c = slotContent(kit, box.ref);
-      const sel = this.selected();
-      const fits = sel !== null && JSON.stringify(slotFor(sel)) === JSON.stringify(box.ref);
+      const fits = cur !== null && JSON.stringify(slotFor(cur)) === JSON.stringify(box.ref);
       box.bg.setFillStyle(PALETTE[fits ? 'sand' : 'fog']);
       if (c === null) {
         setLabelText(box.content, text('ui.kit.slot.empty'));
         setLabelColour(box.content, 'steel');
         box.icon.setVisible(false);
       } else {
-        setLabelText(box.content, nameOf(c));
+        setLabelText(box.content, nameOf(c).slice(0, 18));
         setLabelColour(box.content, 'ink');
-        box.icon.set(iconOf(c.kind, c.id), c.kind === 'move' ? 'amberLight' : 'amber');
+        box.icon.set(iconOf(c.kind === 'hot' ? 'drink' : c.kind, c.id), c.kind === 'move' ? 'amberLight' : 'amber');
       }
     }
-    // Description of the selected item.
-    const sel = this.selected();
-    setLabelText(this.desc, sel === null ? '' : wrapText(descOf(sel), DESC.chars).slice(0, DESC.lines).join('\n'));
-    // Buttons.
-    this.setButton(this.assignBtn, sel !== null);
-    this.setButton(this.drinkBtn, sel !== null && isDrink(sel));
-    if (now >= this.messageUntil) setLabelText(this.message, '');
-  }
-
-  private setButton(b: { bg: Phaser.GameObjects.Rectangle; label: Label }, enabled: boolean): void {
-    b.bg.setFillStyle(PALETTE[enabled ? 'slate' : 'coal']);
-    setLabelColour(b.label, (enabled ? 'white' : 'steel') as ColourName);
+    // What Q will use, and the description of the cursor's entry.
+    const pickedId = kit.selectedItem ?? null;
+    setLabelText(this.picked, pickedId === null ? '' : `${text('ui.kit.selected')}: ${nameOf({ kind: 'drink', id: pickedId })}`.slice(0, 21));
+    setLabelText(this.desc, cur === null ? '' : wrapText(descOf(cur), 21).slice(0, 5).join('\n'));
   }
 }

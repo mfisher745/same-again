@@ -1,10 +1,12 @@
 /**
- * Kit tab model: what the Tab screen lists, which slot an item goes in, and
- * what assigning does. Plain TypeScript, no Phaser. DESIGN.md 7.1 "The kit", 7.7.
+ * Kit tab model: what the Tab screen lists, which slot takes which kind of
+ * entry, and what is in each slot. Plain TypeScript, no Phaser.
+ * DESIGN.md 7.1 "The kit", 7.7. Clicking an entry calls `source.selectItem`:
+ * there is no "put it here" step.
  */
 
-import type { CarriedDrinkId, HotDrinkId, Kit, MoveId, OverhaulDrinkId, SpecialLevel, SpecialSlotIndex, TextId, WeaponId } from '../../core/types';
-import { CARRIED_DRINK_ORDER, WEAPON_ORDER, carriedCount } from '../../systems/kit';
+import type { CarriedDrinkId, HotDrinkId, Kit, MoveId, SpecialLevel, SpecialSlotIndex, TextId, WeaponId } from '../../core/types';
+import { CARRIED_DRINK_ORDER, WEAPON_ORDER, carriedCount, isSpirit } from '../../systems/kit';
 import { overhaulTuning } from '../../systems/meter';
 import type { UiStateSource } from '../contract';
 
@@ -14,10 +16,21 @@ export type KitItem =
   | { readonly kind: 'weapon'; readonly id: WeaponId }
   | { readonly kind: 'move'; readonly id: MoveId; readonly level: SpecialLevel };
 
-export type KitSlotRef = { readonly kind: 'drink' } | { readonly kind: 'melee' } | { readonly kind: 'special'; readonly slot: SpecialSlotIndex };
+export type KitSlotRef =
+  | { readonly kind: 'drink' }
+  | { readonly kind: 'spirit' }
+  | { readonly kind: 'hot' }
+  | { readonly kind: 'melee' }
+  | { readonly kind: 'special'; readonly slot: SpecialSlotIndex };
 
-/** The six slots in the order they are drawn: drink, melee, specials 1 to 4. */
-export const KIT_SLOTS: readonly KitSlotRef[] = [{ kind: 'drink' }, { kind: 'melee' }, ...([1, 2, 3, 4] as const).map((slot) => ({ kind: 'special' as const, slot }))];
+/** The item slots in the order they are drawn: beer, spirit, hot drink, melee. */
+export const ITEM_SLOTS: readonly KitSlotRef[] = [{ kind: 'drink' }, { kind: 'spirit' }, { kind: 'hot' }, { kind: 'melee' }];
+
+/** The move slots: specials 1 to 4. */
+export const MOVE_SLOTS: readonly KitSlotRef[] = ([1, 2, 3, 4] as const).map((slot) => ({ kind: 'special' as const, slot }));
+
+/** Every slot, items first, then moves. */
+export const KIT_SLOTS: readonly KitSlotRef[] = [...ITEM_SLOTS, ...MOVE_SLOTS];
 
 /** Buzz state a special slot needs: slot n is lit from level n up. */
 export const SLOT_STATE_TEXT: Readonly<Record<SpecialSlotIndex, TextId>> = {
@@ -28,7 +41,10 @@ export const SLOT_STATE_TEXT: Readonly<Record<SpecialSlotIndex, TextId>> = {
 };
 
 export interface KitView {
+  /** Beers and spirits carried (against the carry limit), in carry order. */
   readonly drinks: readonly Extract<KitItem, { kind: 'drink' }>[];
+  readonly beers: readonly Extract<KitItem, { kind: 'drink' }>[];
+  readonly spirits: readonly Extract<KitItem, { kind: 'drink' }>[];
   readonly hot: HotDrinkId | null;
   readonly weapons: readonly Extract<KitItem, { kind: 'weapon' }>[];
   readonly moves: readonly Extract<KitItem, { kind: 'move' }>[];
@@ -49,6 +65,8 @@ export function buildKitView(kit: Kit): KitView {
   const hot = kit.hotDrink === null ? [] : [{ kind: 'hot' as const, id: kit.hotDrink }];
   return {
     drinks,
+    beers: drinks.filter((d) => !isSpirit(d.id)),
+    spirits: drinks.filter((d) => isSpirit(d.id)),
     hot: kit.hotDrink,
     weapons,
     moves: learned,
@@ -60,16 +78,13 @@ export function buildKitView(kit: Kit): KitView {
 
 export const itemKey = (item: KitItem): string => `${item.kind}:${item.id}`;
 
-export const isDrink = (item: KitItem): boolean => item.kind === 'drink' || item.kind === 'hot';
-
-export const drinkIdOf = (item: KitItem): OverhaulDrinkId | null => (isDrink(item) ? (item.id as OverhaulDrinkId) : null);
-
-/** The slot an item goes in when no slot is picked. */
+/** The slot that takes an item. */
 export function slotFor(item: KitItem): KitSlotRef {
   switch (item.kind) {
     case 'drink':
+      return isSpirit(item.id) ? { kind: 'spirit' } : { kind: 'drink' };
     case 'hot':
-      return { kind: 'drink' };
+      return { kind: 'hot' };
     case 'weapon':
       return { kind: 'melee' };
     case 'move':
@@ -77,36 +92,52 @@ export function slotFor(item: KitItem): KitSlotRef {
   }
 }
 
-export interface AssignResult {
-  readonly ok: boolean;
-  /** Text to show when it was refused, with its `{n}` where it has one. */
-  readonly refusal: { readonly textId: TextId; readonly n?: number } | null;
-}
+/** The `ui.kit.slot.*.takes` line for a slot. Its `{key}`, `{state}` and `{n}` are filled by the view. */
+export const slotTakesText = (slot: KitSlotRef): TextId => `ui.kit.slot.${slot.kind}.takes`;
 
-/** Put `item` in `slot`. A special slot only takes a move of its own level. */
-export function assignItem(source: UiStateSource, item: KitItem, slot: KitSlotRef): AssignResult {
-  if (slot.kind === 'special') {
-    if (item.kind !== 'move' || item.level !== slot.slot) {
-      return { ok: false, refusal: { textId: 'ui.kit.wrongLevel', n: item.kind === 'move' ? item.level : slot.slot } };
-    }
-    return { ok: source.assignMove(slot.slot, item.id), refusal: null };
+/** The slot's title text. */
+export const slotTitleText = (slot: KitSlotRef): TextId => (slot.kind === 'special' ? 'ui.kit.slot.special' : `ui.kit.slot.${slot.kind}`);
+
+/** Is the item the one currently in use: Q's selection, the spirit slot, the equipped weapon, or a move in a special slot? */
+export function inUse(kit: Kit, item: KitItem): boolean {
+  switch (item.kind) {
+    case 'drink':
+      return isSpirit(item.id) ? (kit.slots.spirit ?? null) === item.id : (kit.selectedItem ?? null) === item.id;
+    case 'hot':
+      return (kit.selectedItem ?? null) === item.id;
+    case 'weapon':
+      return kit.slots.melee === item.id;
+    case 'move':
+      return kit.slots.specials.includes(item.id);
   }
-  if (slot.kind === 'melee') return { ok: item.kind === 'weapon' && source.assignWeapon(item.id), refusal: null };
-  const id = drinkIdOf(item);
-  return { ok: id !== null && source.assignDrink(id), refusal: null };
 }
 
-/** Empty a slot (the drink and special slots; the melee slot always holds something). */
+/** Click an entry: the kit decides what that does (see `kit.selectItem`). True if anything changed. */
+export function chooseItem(source: UiStateSource, item: KitItem): boolean {
+  return source.selectItem?.(item.id) ?? false;
+}
+
+/** Empty a special slot (right click). The other slots are always filled by clicking. */
 export function clearSlot(source: UiStateSource, slot: KitSlotRef): boolean {
-  if (slot.kind === 'special') return source.assignMove(slot.slot, null);
-  if (slot.kind === 'drink') return source.assignDrink(null);
-  return false;
+  return slot.kind === 'special' ? source.assignMove(slot.slot, null) : false;
 }
 
 /** What a slot holds right now, as an item-like pair for drawing. */
-export function slotContent(kit: Kit, slot: KitSlotRef): { readonly kind: 'drink' | 'weapon' | 'move'; readonly id: string } | null {
-  if (slot.kind === 'drink') return kit.slots.drink === null ? null : { kind: 'drink', id: kit.slots.drink };
-  if (slot.kind === 'melee') return { kind: 'weapon', id: kit.slots.melee };
-  const id = kit.slots.specials[slot.slot - 1];
-  return id === null || id === undefined ? null : { kind: 'move', id };
+export function slotContent(kit: Kit, slot: KitSlotRef): { readonly kind: 'drink' | 'hot' | 'weapon' | 'move'; readonly id: string } | null {
+  switch (slot.kind) {
+    case 'drink':
+      return kit.slots.drink === null ? null : { kind: 'drink', id: kit.slots.drink };
+    case 'spirit': {
+      const s = kit.slots.spirit ?? null;
+      return s === null ? null : { kind: 'drink', id: s };
+    }
+    case 'hot':
+      return kit.hotDrink === null ? null : { kind: 'hot', id: kit.hotDrink };
+    case 'melee':
+      return { kind: 'weapon', id: kit.slots.melee };
+    case 'special': {
+      const id = kit.slots.specials[slot.slot - 1];
+      return id === null || id === undefined ? null : { kind: 'move', id };
+    }
+  }
 }

@@ -2,6 +2,7 @@
  * Chapter 2: The Bog. docs/chapters/02-the-bog.md.
  */
 
+import { hasSequence } from '../../content/dialogue';
 import type { ChapterModule } from '../../core/chapter';
 import type { ChapterDef, ObjectiveDef } from '../../core/types';
 import { createChapterScript } from './script';
@@ -26,7 +27,12 @@ import {
 const objective = (key: string, id: string): ObjectiveDef => ({
   id,
   textId: `c2.objective.${key}`,
-  hint: { objectiveId: id, nudgeDialogueId: `c2.hint.${key}.1`, answerDialogueId: `c2.hint.${key}.2` },
+  hint: {
+    objectiveId: id,
+    nudgeDialogueId: `c2.hint.${key}.1`,
+    answerDialogueId: `c2.hint.${key}.2`,
+    ...(hasSequence(`c2.hint.${key}.where`) ? { whereDialogueId: `c2.hint.${key}.where` } : {}),
+  },
 });
 
 const def: ChapterDef = {
@@ -90,12 +96,12 @@ export const chapter2: ChapterModule = {
   pickups: [{ id: 'c2.pickup.whiskey', item: { kind: 'drink', drinkId: 'whiskey', count: 1 }, screenId: 'c2.farm', position: T(17, 2), commentDialogueId: 'c2.shed.whiskey' }],
   examinables: [
     { id: 'c2.flask', screenId: 'c2.bog', position: FLASK_SPOT },
-    { id: 'c2.ring', screenId: 'c2.bog', position: CLUE_SPOTS.ring },
-    { id: 'c2.fragment', screenId: 'c2.bog', position: CLUE_SPOTS.fragment },
-    { id: 'c2.tracks', screenId: 'c2.bog', position: CLUE_SPOTS.tracks },
+    { id: 'c2.ring', screenId: 'c2.bog', position: CLUE_SPOTS.ring, objective: true, faint: true },
+    { id: 'c2.fragment', screenId: 'c2.bog', position: CLUE_SPOTS.fragment, objective: true, faint: true },
+    { id: 'c2.tracks', screenId: 'c2.bog', position: CLUE_SPOTS.tracks, objective: true, faint: true },
     { id: 'c2.frog', screenId: 'c2.bog', position: CLUE_SPOTS.frog },
     { id: 'c2.welly', screenId: 'c2.bog', position: CLUE_SPOTS.welly },
-    { id: 'c2.docket', screenId: 'c2.farm', position: T(11, 3) },
+    { id: 'c2.docket', screenId: 'c2.farm', position: T(11, 3), objective: true },
     // The three sheep gates hang at the middle of the cross; E at each swings it.
     { id: 'c2.gateA', screenId: 'c2.farm', position: T(19, 12) },
     { id: 'c2.gateB', screenId: 'c2.farm', position: T(20, 14) },

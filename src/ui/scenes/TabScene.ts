@@ -82,10 +82,7 @@ export class TabScene extends Phaser.Scene {
     this.on(['UP', 'W'], () => (this.part === 'casebook' ? this.casebook.key('up') : this.kit.move(-1)));
     this.on(['DOWN', 'S'], () => (this.part === 'casebook' ? this.casebook.key('down') : this.kit.move(1)));
     this.on(['ENTER', 'E'], () => {
-      if (this.part === 'kit') this.kit.assignSelected();
-    });
-    this.on(['Q'], () => {
-      if (this.part === 'kit') this.kit.drinkSelected();
+      if (this.part === 'kit') this.kit.chooseCursor();
     });
     this.on(['ONE'], () => this.setPart('casebook'));
     this.on(['TWO'], () => this.setPart('kit'));
@@ -118,6 +115,6 @@ export class TabScene extends Phaser.Scene {
       if (l !== undefined) setLabelColour(l, active ? 'beanie' : 'slate');
     });
     if (this.part === 'casebook') this.casebook.update();
-    else this.kit.update(this.time.now);
+    else this.kit.update();
   }
 }
