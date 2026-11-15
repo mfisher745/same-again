@@ -138,6 +138,8 @@ export const chapter2: ChapterModule = {
     { id: 'c2.trig.over2', screenId: 'c2.bog', area: tilesArea(46, 10, 2, 3), once: false },
     { id: 'c2.trig.over3', screenId: 'c2.bog', area: tilesArea(50, 10, 2, 3), once: false },
     { id: 'c2.trig.cousins', screenId: 'c2.farm', area: COUSIN_TRIGGER, once: false },
+    // The yard south of the cousins' square: where the lesson's lurch can reach the bucket stack.
+    { id: 'c2.trig.buckets', screenId: 'c2.farm', area: tilesArea(1, 14, 8, 14), once: false },
     { id: 'c2.trig.ram1', screenId: 'c2.lane', area: tilesArea(10, 2, 2, 8), once: false },
     { id: 'c2.trig.ram2', screenId: 'c2.lane', area: tilesArea(40, 2, 2, 8), once: false },
     { id: 'c2.trig.ram3', screenId: 'c2.lane', area: tilesArea(58, 2, 2, 8), once: false },

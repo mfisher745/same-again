@@ -8,7 +8,8 @@ import type { BossHooks, ChapterContext, ChapterScript, FightHooks } from '../..
 import { GameEvents } from '../../core/types';
 import type { SectionId, SpecialSlotIndex, TextId } from '../../core/types';
 import { hidePrompt, onTabOpened, openHotDrinkChoice, showPrompt, showSlotPrompt } from '../../ui/prompts';
-import { BAR_ARRIVAL, BUCKETS_AREA, KEY_CLUES, LANE_GATE_ROWS, LANE_GATE_SEAT, MYKO_CHAIR } from './maps';
+import { PROP } from '../../art/props';
+import { BAR_ARRIVAL, BUCKETS_AREA, KEY_CLUES, LANE_GATE_COL, LANE_GATE_OPEN_ROW, LANE_GATE_ROW, LANE_GATE_SEAT, MYKO_CHAIR } from './maps';
 
 const OBJ = {
   ring: 'c2.ring',
@@ -43,7 +44,11 @@ type Flag =
   | 'ram.started'
   | 'finished';
 
-const LANE_GATE_PROPS = LANE_GATE_ROWS.map((r) => `lane.gate.${r}`);
+/** The accidental lurch aims at the bucket stack from between these distances (px): far enough to look like a stumble, near enough to land. */
+const LURCH_MIN_PX = 32;
+const LURCH_MAX_PX = 112;
+/** The lurch carries this far past the middle of the stack. */
+const LURCH_PAST_PX = 12;
 
 export function createChapterScript(ctx: ChapterContext): ChapterScript {
   let disposed = false;
@@ -51,11 +56,31 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   /** Andrew's drunk level, 0 to 4. He starts every chapter at the bottom of Grand. */
   let level = 2;
   let ramStarting = false;
+  /** The lane gate: shut, opened with E, or battered through by the ram (the system hides it). Run-time only. */
+  let laneGate: 'shut' | 'open' | 'battered' = 'shut';
+  /** The accidental lurch is under way: its bucket hits are not the player's own Stumble. */
+  let lurching = false;
 
   const flag = (key: Flag): boolean => ctx.flag(key) === true;
   const setFlag = (key: Flag, value = true): void => ctx.setFlag(key, value);
   const keyCluesFound = (): boolean => KEY_CLUES.every((k) => flag(`clue.${k}`));
   const crossingOpen = (): boolean => keyCluesFound() && !ctx.isComplete('c2.stealth.bog');
+
+  // --- The lane gate: one prop, 1 x 3 and solid when shut, swung flat against the hedge when open ---
+
+  const shutGate = (visible: boolean): void => {
+    laneGate = 'shut';
+    ctx.setPropFrame('lane.gate', PROP.fieldGate.along3);
+    ctx.setPropTile('lane.gate', LANE_GATE_COL, LANE_GATE_ROW);
+    ctx.setPropVisible('lane.gate', visible);
+  };
+  const openGate = (): void => {
+    if (laneGate !== 'shut') return;
+    laneGate = 'open';
+    // The prop's solid is 1 x 3 whatever its frame, so the open gate lies against the hedge, where those tiles are walls already.
+    ctx.setPropFrame('lane.gate', PROP.fieldGate.across3);
+    ctx.setPropTile('lane.gate', LANE_GATE_COL, LANE_GATE_OPEN_ROW);
+  };
 
   // --- Tutorial prompts: one at a time, never over a scene ---
 
@@ -93,7 +118,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.setExitLocked('c2.farm.gate', !flag('concluded'));
     ctx.setPropVisible('shed.door', !ctx.isComplete('c2.puzzle.sheep'));
     ctx.setPropVisible('van', crossingOpen());
-    for (const id of LANE_GATE_PROPS) ctx.setPropVisible(id, !ctx.isComplete('c2.setpiece.ram'));
+    shutGate(!ctx.isComplete('c2.setpiece.ram'));
   };
 
   // --- The lean-to ---------------------------------------------------------
@@ -191,9 +216,14 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   };
 
   /** The first time Andrew is at Bit much after the shed. */
-  const stumbleLesson = async (): Promise<void> => {
+  const stumbleLesson = async (angleDeg: number, distance: number): Promise<void> => {
     if (flag('stumble.taught')) return;
     setFlag('stumble.taught');
+    // He lurches through the stack by accident; then Myko explains.
+    lurching = true;
+    await ctx.forceLurch(angleDeg, { distance });
+    lurching = false;
+    if (disposed) return;
     await ctx.say('c2.stumble.lesson');
     if (disposed) return;
     ctx.learnMove('stumble');
@@ -206,8 +236,21 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     maybeStumbleLesson();
   };
 
+  /**
+   * At Bit much in the yard with the bucket stack close by, and nothing else going on, he lurches into it.
+   * Anywhere else the lesson waits (and the owed-move fallback covers a chapter that ends first).
+   */
   const maybeStumbleLesson = (): void => {
-    if (ctx.isComplete('c2.explore.shed') && level >= BIT_MUCH && !flag('stumble.taught')) void stumbleLesson();
+    if (!ctx.isComplete('c2.explore.shed') || level < BIT_MUCH || flag('stumble.taught') || lurching) return;
+    if (ctx.currentScreen() !== 'c2.farm' || scenesOpen > 0) return;
+    // Never into the cousins' fight.
+    if (flag('cousins.started') && !ctx.isComplete('c2.fight.yard')) return;
+    const p = ctx.playerPosition();
+    const dx = BUCKETS_AREA.x + BUCKETS_AREA.width / 2 - p.x;
+    const dy = BUCKETS_AREA.y + BUCKETS_AREA.height / 2 - p.y;
+    const d = Math.hypot(dx, dy);
+    if (d < LURCH_MIN_PX || d > LURCH_MAX_PX) return;
+    void stumbleLesson((Math.atan2(dy, dx) * 180) / Math.PI, d + LURCH_PAST_PX);
   };
 
   // --- The cousins ----------------------------------------------------------
@@ -245,13 +288,14 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.addEvidence('c2.clue.conclusion');
     ctx.setExitLocked('c2.farm.gate', false);
     ctx.setObjective(OBJ.ram);
+    maybeStumbleLesson();
   };
 
   // --- The ram --------------------------------------------------------------
 
   const enteredLane = async (): Promise<void> => {
     clearPrompt();
-    for (const id of LANE_GATE_PROPS) ctx.setPropVisible(id, true);
+    shutGate(true);
     if (ctx.isComplete('c2.setpiece.ram') || ramStarting) return;
     ramStarting = true;
     ctx.setMykoScripted(LANE_GATE_SEAT);
@@ -293,7 +337,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
         ctx.onMoveHit(
           BUCKETS_AREA,
           (hit) => {
-            if (hit.moveId !== 'stumble' || flag('stumble.done')) return;
+            if (hit.moveId !== 'stumble' || lurching || !flag('stumble.taught') || flag('stumble.done')) return;
             setFlag('stumble.done');
             clearPrompt('ui.prompt.stumble');
             void ctx.say('c2.stumble.done');
@@ -314,6 +358,10 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
             setFlag('reflex.done');
             void ctx.say('c2.reflex.done');
           } else if (moveId === 'stumble' && slot === 3) clearPrompt('ui.prompt.stumble');
+        }),
+        ctx.bus.on(GameEvents.PropBrokenByBoss, ({ propId }) => {
+          // The ram has battered the gate: the system hides it (the sound is the audio layer's).
+          if (propId === 'lane.gate') laneGate = 'battered';
         }),
         ctx.bus.on(GameEvents.StealthNoise, ({ kind }) => {
           if (kind === 'bottle' && crossingOpen() && ctx.currentScreen() === 'c2.bog') void ctx.say('c2.suits.distracted');
@@ -394,6 +442,9 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
         case 'c2.trig.over3':
           overheard(3);
           break;
+        case 'c2.trig.buckets':
+          maybeStumbleLesson();
+          break;
         case 'c2.trig.cousins':
           if (ctx.isComplete('c2.explore.shed') && !ctx.isComplete('c2.fight.yard') && !flag('cousins.started')) void cousinsArrive();
           break;
@@ -433,7 +484,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           void takeDocket();
           return true;
         case 'c2.lane.gate':
-          for (const p of LANE_GATE_PROPS) ctx.setPropVisible(p, false);
+          openGate();
           return true;
       }
       return undefined;

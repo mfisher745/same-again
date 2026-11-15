@@ -7,6 +7,7 @@
 
 import { PROP } from '../../art/props';
 import type { ExitDef, PropPlacement, ScreenAmbient, ScreenDressing, ScreenLayout } from '../../core/chapter';
+import { TUNING } from '../../content/tuning';
 import type { StealthSectionDef } from '../../core/types';
 import type { SheepPuzzleLayout } from '../../systems/sheep';
 import { Canvas, T, tilesArea } from '../canvas';
@@ -268,8 +269,10 @@ export function farmScreen(): ScreenLayout {
 const LANE_ROWS = { top: 2, bottom: 9 } as const;
 export const LANE_GATE_COL = 52;
 export const GRID_COL = 82;
-/** The lane's rows the gate stands in: all of them between the verges. */
-export const LANE_GATE_ROWS = [2, 3, 4, 5, 6, 7, 8, 9] as const;
+/** The three-tile gap in the hedge where the gate stands (rows 4 to 6); the hedge closes the rest of the lane's width. */
+export const LANE_GATE_ROW = 4;
+/** Where the open gate lies: flat against the hedge above the gap. Its solid then sits on hedge tiles that are already walls. */
+export const LANE_GATE_OPEN_ROW = 1;
 export const LANE_EXIT_AREA = tilesArea(85, 2, 4, 8);
 
 export function laneScreen(): ScreenLayout {
@@ -278,6 +281,8 @@ export function laneScreen(): ScreenLayout {
   c.rect(1, 1, 88, 1, 'H').rect(1, 10, 88, 1, 'H');
   c.rect(1, 2, 88, 1, 'g').rect(1, 9, 88, 1, 'g');
   for (let cc = 4; cc < 86; cc += 6) c.set(cc, 5, 'r');
+  // The hedge across the lane, with a three-tile gap at the gate.
+  c.rect(LANE_GATE_COL - 1, 2, 3, 2, 'H').rect(LANE_GATE_COL - 1, 7, 3, 3, 'H');
   // Churned mud on the verge.
   c.rect(20, 2, 6, 1, 'M').rect(30, 9, 8, 1, 'M').rect(60, 2, 7, 1, 'M').rect(70, 9, 6, 1, 'M');
   const props: PropPlacement[] = [
@@ -289,8 +294,15 @@ export function laneScreen(): ScreenLayout {
     { id: 'lane.puddle3', frame: PROP.puddleLarge, col: 36, row: 3, layer: 'floor', slows: { width: 3, height: 2 } },
     { id: 'lane.puddle4', frame: PROP.puddle, col: 36, row: 5, layer: 'floor', slows: { width: 2, height: 1 } },
     { id: 'lane.wheelbarrow', frame: PROP.wheelbarrow, col: 44, row: 5, solid: { width: 1, height: 1 } },
-    // The gate across the lane, shut, one tile of it for each row. E opens it.
-    ...LANE_GATE_ROWS.map((r) => ({ id: `lane.gate.${r}`, frame: PROP.fieldGate.along, col: LANE_GATE_COL, row: r, solid: { width: 1, height: 1 } })),
+    // The gate across the gap, shut (1 x 3, solid). E opens it; the ram batters it after a pause.
+    {
+      id: 'lane.gate',
+      frame: PROP.fieldGate.along3,
+      col: LANE_GATE_COL,
+      row: LANE_GATE_ROW,
+      solid: { width: 1, height: 3 },
+      bossBreaksAfterMs: TUNING.overhaul?.ramGatePauseMs ?? 1000,
+    },
     // The dog is asleep. Go round.
     { id: 'lane.dog', frame: PROP.sleepingDog[0], frames: PROP.sleepingDog, frameRate: 1, col: 66, row: 5, solid: { width: 1, height: 1 } },
     // The cattle grid: Andrew crosses it; the ram will not. One tile each, across the lane.
