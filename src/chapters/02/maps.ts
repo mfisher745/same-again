@@ -96,6 +96,8 @@ export const SHEEP_LAYOUT: SheepPuzzleLayout = {
 
 /** Feed buckets for The Stumble. */
 export const BUCKETS_AREA = tilesArea(3, 19, 4, 3);
+/** The second, smaller stack in the south-east corner of the yard, for the player's own Stumble after the lesson. */
+export const PRACTICE_BUCKETS_AREA = tilesArea(6, 26, 3, 3);
 /** The yard the cousins come into (west strip of the farm). */
 export const COUSIN_TRIGGER = tilesArea(2, 8, 6, 6);
 
@@ -254,6 +256,10 @@ export function farmScreen(): ScreenLayout {
     { id: 'yard.bucket2', frame: PROP.feedBuckets, col: 5, row: 19, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
     { id: 'yard.bucket3', frame: PROP.feedBuckets, col: 4, row: 20, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
     { id: 'yard.bucket4', frame: PROP.feedBuckets, col: 5, row: 20, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
+    // A second stack to practise on, clear of the lurch's path.
+    { id: 'yard.practice1', frame: PROP.feedBuckets, col: 6, row: 27, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
+    { id: 'yard.practice2', frame: PROP.feedBuckets, col: 7, row: 27, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
+    { id: 'yard.practice3', frame: PROP.feedBuckets, col: 7, row: 28, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
     // The dog, asleep throughout.
     { id: 'farm.dog', frame: PROP.sleepingDog[0], frames: PROP.sleepingDog, frameRate: 1, col: 7, row: 24, solid: { width: 1, height: 1 } },
   ];

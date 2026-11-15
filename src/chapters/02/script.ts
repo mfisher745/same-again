@@ -9,7 +9,7 @@ import { GameEvents } from '../../core/types';
 import type { SectionId, SpecialSlotIndex, TextId } from '../../core/types';
 import { hidePrompt, onTabOpened, openHotDrinkChoice, showPrompt, showSlotPrompt } from '../../ui/prompts';
 import { PROP } from '../../art/props';
-import { BAR_ARRIVAL, BUCKETS_AREA, KEY_CLUES, LANE_GATE_COL, LANE_GATE_OPEN_ROW, LANE_GATE_ROW, LANE_GATE_SEAT, MYKO_CHAIR } from './maps';
+import { BAR_ARRIVAL, BUCKETS_AREA, KEY_CLUES, PRACTICE_BUCKETS_AREA, LANE_GATE_COL, LANE_GATE_OPEN_ROW, LANE_GATE_ROW, LANE_GATE_SEAT, MYKO_CHAIR } from './maps';
 
 const OBJ = {
   ring: 'c2.ring',
@@ -39,6 +39,7 @@ type Flag =
   | 'cousins.started'
   | 'concluded'
   | 'stumble.taught'
+  | 'stack1.broken'
   | 'stumble.done'
   | 'reflex.done'
   | 'ram.started'
@@ -49,6 +50,8 @@ const LURCH_MIN_PX = 32;
 const LURCH_MAX_PX = 112;
 /** The lurch carries this far past the middle of the stack. */
 const LURCH_PAST_PX = 12;
+/** No lurch from the yard's far south end: the practice stack and the gate are there. */
+const LURCH_SOUTH_LIMIT_PX = 25 * 16;
 
 export function createChapterScript(ctx: ChapterContext): ChapterScript {
   let disposed = false;
@@ -216,14 +219,16 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   };
 
   /** The first time Andrew is at Bit much after the shed. */
-  const stumbleLesson = async (angleDeg: number, distance: number): Promise<void> => {
+  const stumbleLesson = async (lurch: { angleDeg: number; distance: number } | null): Promise<void> => {
     if (flag('stumble.taught')) return;
     setFlag('stumble.taught');
-    // He lurches through the stack by accident; then Myko explains.
-    lurching = true;
-    await ctx.forceLurch(angleDeg, { distance });
-    lurching = false;
-    if (disposed) return;
+    // He lurches through the stack by accident; then Myko explains. With the stack already gone there is no lurch.
+    if (lurch) {
+      lurching = true;
+      await ctx.forceLurch(lurch.angleDeg, { distance: lurch.distance });
+      lurching = false;
+      if (disposed) return;
+    }
     await ctx.say('c2.stumble.lesson');
     if (disposed) return;
     ctx.learnMove('stumble');
@@ -245,12 +250,17 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     if (ctx.currentScreen() !== 'c2.farm' || scenesOpen > 0) return;
     // Never into the cousins' fight.
     if (flag('cousins.started') && !ctx.isComplete('c2.fight.yard')) return;
+    // The first stack is already broken: no lurch, and no distance to keep.
+    if (flag('stack1.broken')) {
+      void stumbleLesson(null);
+      return;
+    }
     const p = ctx.playerPosition();
     const dx = BUCKETS_AREA.x + BUCKETS_AREA.width / 2 - p.x;
     const dy = BUCKETS_AREA.y + BUCKETS_AREA.height / 2 - p.y;
     const d = Math.hypot(dx, dy);
-    if (d < LURCH_MIN_PX || d > LURCH_MAX_PX) return;
-    void stumbleLesson((Math.atan2(dy, dx) * 180) / Math.PI, d + LURCH_PAST_PX);
+    if (d < LURCH_MIN_PX || d > LURCH_MAX_PX || p.y > LURCH_SOUTH_LIMIT_PX) return;
+    void stumbleLesson({ angleDeg: (Math.atan2(dy, dx) * 180) / Math.PI, distance: d + LURCH_PAST_PX });
   };
 
   // --- The cousins ----------------------------------------------------------
@@ -335,7 +345,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       if (crossingOpen()) ctx.startSection('c2.stealth.bog');
       unsubs.push(
         ctx.onMoveHit(
-          BUCKETS_AREA,
+          PRACTICE_BUCKETS_AREA,
           (hit) => {
             if (hit.moveId !== 'stumble' || lurching || !flag('stumble.taught') || flag('stumble.done')) return;
             setFlag('stumble.done');
@@ -358,6 +368,9 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
             setFlag('reflex.done');
             void ctx.say('c2.reflex.done');
           } else if (moveId === 'stumble' && slot === 3) clearPrompt('ui.prompt.stumble');
+        }),
+        ctx.bus.on(GameEvents.PropBroken, ({ propId }) => {
+          if (propId.startsWith('yard.bucket')) setFlag('stack1.broken');
         }),
         ctx.bus.on(GameEvents.PropBrokenByBoss, ({ propId }) => {
           // The ram has battered the gate: the system hides it (the sound is the audio layer's).
