@@ -561,7 +561,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           break;
         case 'c1.trig.eastexit':
           // Locked for want of the hurley only: Big Tom is down. The trigger fires once per approach.
-          if (ctx.isComplete('c1.boss.bigtom') && !hasHurley()) void ctx.say('c1.exit.needHurley');
+          if (ctx.isComplete('c1.boss.bigtom') && !hasHurley()) void ctx.say('c1.exit.needHurley', { repeat: true });
           break;
         case 'c1.trig.lights':
           if (flag('road.before') && !flag('road.done')) void theLights();
