@@ -8,7 +8,9 @@ import { EventBus } from '../../src/core/events';
 import { NO_INPUT } from '../../src/core/input';
 import { seededRandom } from '../../src/core/random';
 import { createSandboxModule } from '../../src/core/sandbox';
+import { clearChapterRegistry, registerChapter } from '../../src/core/chapter';
 import type { ChapterModule } from '../../src/core/chapter';
+import { MemoryStorage, SaveStore } from '../../src/core/save';
 import type {
   GameEventBus,
   GameEventName,
@@ -23,7 +25,7 @@ import type {
 import { gridFromAscii } from '../../src/systems/grid';
 import { ChapterRun } from '../../src/systems/run';
 import type { RunEffect } from '../../src/systems/run';
-import { emptyProgress, saveAtChapterStart } from '../../src/systems/session';
+import { GameSession, emptyProgress, saveAtChapterStart } from '../../src/systems/session';
 
 export { NO_INPUT };
 
@@ -139,3 +141,38 @@ export function holdM(run: ChapterRun, ms: number, step = 100): void {
     run.tick(step, { ...NO_INPUT, held: new Set(['callMyko']), pressed: t === step ? new Set(['callMyko']) : new Set(), holdMs: { callMyko: t } });
   }
 }
+
+/** A real chapter on a real `GameSession` (in-memory storage), as the scene would start it. */
+export interface ChapterGame {
+  readonly session: GameSession;
+  readonly store: SaveStore;
+  readonly run: ChapterRun;
+}
+
+/**
+ * Registers `module` as its chapter and starts it: `new` is a fresh New Game (chapter 1 only), `chapter` is Chapter Select,
+ * and `continue` loads whatever is in `store` (a resumed run, as a page reload would).
+ */
+export function startChapterGame(module: ChapterModule, how: 'new' | 'chapter' | 'continue' = 'chapter', store = new SaveStore(new MemoryStorage())): ChapterGame {
+  clearChapterRegistry();
+  registerChapter(module);
+  const session = new GameSession({ store });
+  session.setDriver({ showTitle: () => undefined, startGame: () => undefined, pauseGame: () => undefined, resumeGame: () => undefined });
+  if (how === 'new') session.newGame();
+  else if (how === 'continue') session.continueGame();
+  else session.startChapter(module.def.number);
+  const run = session.createRun();
+  if (!run) throw new Error('the session made no run');
+  return { session, store, run };
+}
+
+/** Finishes every queued line, letting the scripts' awaited chains run between passes. */
+export async function settleDialogue(run: { dialogue: { finishAll(): void } }, passes = 8): Promise<void> {
+  for (let i = 0; i < passes; i++) {
+    run.dialogue.finishAll();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
+
+/** Moves Andrew to the centre of a tile without ticking. */
+export const placeAt = (run: ChapterRun, col: number, row: number): void => run.setPlayerPosition({ x: col * 16 + 8, y: row * 16 + 8 });
