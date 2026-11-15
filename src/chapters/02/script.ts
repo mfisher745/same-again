@@ -9,7 +9,7 @@ import { GameEvents } from '../../core/types';
 import type { SectionId, SpecialSlotIndex, TextId } from '../../core/types';
 import { hidePrompt, onTabOpened, openHotDrinkChoice, showPrompt, showSlotPrompt } from '../../ui/prompts';
 import { PROP } from '../../art/props';
-import { BAR_ARRIVAL, BUCKETS_AREA, KEY_CLUES, PRACTICE_BUCKETS_AREA, LANE_GATE_COL, LANE_GATE_OPEN_ROW, LANE_GATE_ROW, LANE_GATE_SEAT, MYKO_CHAIR } from './maps';
+import { BAR_ARRIVAL, BUCKETS_AREA, FARM_DOG, KEY_CLUES, PRACTICE_BUCKETS_AREA, LANE_GATE_COL, LANE_GATE_OPEN_ROW, LANE_GATE_ROW, LANE_GATE_SEAT, MYKO_CHAIR } from './maps';
 
 const OBJ = {
   ring: 'c2.ring',
@@ -50,6 +50,8 @@ const LURCH_MIN_PX = 32;
 const LURCH_MAX_PX = 112;
 /** The lurch carries this far past the middle of the stack. */
 const LURCH_PAST_PX = 12;
+/** A solid this close to the line (px, from its centre) blocks the lurch: the lane is 20 wide and the dog is a tile. */
+const LURCH_CLEARANCE_PX = 22;
 /** No lurch from the yard's far south end: the practice stack and the gate are there. */
 const LURCH_SOUTH_LIMIT_PX = 25 * 16;
 
@@ -260,6 +262,12 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     const dy = BUCKETS_AREA.y + BUCKETS_AREA.height / 2 - p.y;
     const d = Math.hypot(dx, dy);
     if (d < LURCH_MIN_PX || d > LURCH_MAX_PX || p.y > LURCH_SOUTH_LIMIT_PX) return;
+    // Only from inside the yard (the field fence is a wall), and only with a clear line: never a lurch at nothing.
+    if (p.x >= 9 * 16) return;
+    const gx = (FARM_DOG.col + 0.5) * 16 - p.x;
+    const gy = (FARM_DOG.row + 0.5) * 16 - p.y;
+    const along = Math.max(0, Math.min(1, (gx * dx + gy * dy) / (d * d)));
+    if (Math.hypot(gx - dx * along, gy - dy * along) < LURCH_CLEARANCE_PX) return;
     void stumbleLesson({ angleDeg: (Math.atan2(dy, dx) * 180) / Math.PI, distance: d + LURCH_PAST_PX });
   };
 
@@ -398,6 +406,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           }
         }),
       );
+      // The lesson waits for a clear line to the buckets: look again as he moves.
+      unsubs.push(ctx.every(500, maybeStumbleLesson));
       if (!flag('intro.done')) void opening();
       else restoreObjective();
     },

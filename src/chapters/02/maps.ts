@@ -98,6 +98,8 @@ export const SHEEP_LAYOUT: SheepPuzzleLayout = {
 export const BUCKETS_AREA = tilesArea(3, 19, 4, 3);
 /** The second, smaller stack in the south-east corner of the yard, for the player's own Stumble after the lesson. */
 export const PRACTICE_BUCKETS_AREA = tilesArea(6, 26, 3, 3);
+/** The sleeping dog in the yard: solid, so it can block a straight line to the bucket stack. */
+export const FARM_DOG = { col: 7, row: 24 } as const;
 /** The yard the cousins come into (west strip of the farm). */
 export const COUSIN_TRIGGER = tilesArea(2, 8, 6, 6);
 
@@ -261,7 +263,7 @@ export function farmScreen(): ScreenLayout {
     { id: 'yard.practice2', frame: PROP.feedBuckets, col: 7, row: 27, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
     { id: 'yard.practice3', frame: PROP.feedBuckets, col: 7, row: 28, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
     // The dog, asleep throughout.
-    { id: 'farm.dog', frame: PROP.sleepingDog[0], frames: PROP.sleepingDog, frameRate: 1, col: 7, row: 24, solid: { width: 1, height: 1 } },
+    { id: 'farm.dog', frame: PROP.sleepingDog[0], frames: PROP.sleepingDog, frameRate: 1, col: FARM_DOG.col, row: FARM_DOG.row, solid: { width: 1, height: 1 } },
   ];
   const dressing: ScreenDressing = { props };
   const ambient: ScreenAmbient = { ...MIST, strength: 0.3 };
