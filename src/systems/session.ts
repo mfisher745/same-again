@@ -52,7 +52,8 @@ import type {
   SpecialSlotIndex,
   TabMode,
 } from '../core/types';
-import { gainWeapon, createKit, learnMove, pickUpDrink, topUpBottles } from './kit';
+import { gainWeapon, createKit, learnMove, pickUpDrink, topUpBottles, topUpForLeaving } from './kit';
+import { barBeerOf } from './drops';
 import { createMeter, levelTable, snapshot } from './meter';
 import type { ActionRefusal } from './playerCombat';
 import type { DialogueLookup } from './dialogue';
@@ -131,7 +132,8 @@ export function kitForChapterStart(n: ChapterNumber): Kit {
   for (const w of weapons) kit = gainWeapon(kit, w.id).kit;
   // Chapter 1 hands Andrew his first pint itself.
   if (n > 1) for (let i = 0; i < 3; i++) kit = pickUpDrink(kit, 'stout').kit;
-  return topUpBottles(kit).kit;
+  // Chapter 1 hands Andrew his first pint itself; the beers are topped up when he leaves the bar.
+  return n > 1 ? topUpForLeaving(kit, 'stout') : topUpBottles(kit).kit;
 }
 
 /** Chapter Select start state. docs/chapters/README.md "Carry-over rules". */
@@ -172,7 +174,7 @@ export function carryOver(snap: OverhaulSaveState, _endState: DrunkState, next: 
   const finished = snap.finishedChapters.includes(ended) ? snap.finishedChapters : [...snap.finishedChapters, ended];
   // Buzz does not carry over: every chapter starts at the bottom of Grand in its bar (DESIGN.md 7.1).
   // Every chapter starts in its bar, and leaving the bar means at least two bottles (DESIGN.md 7.1).
-  return saveAtChapterStart(next, { ...snap, kit: topUpBottles(snap.kit).kit, finishedChapters: finished });
+  return saveAtChapterStart(next, { ...snap, kit: topUpForLeaving(snap.kit, barBeerOf(next.def)), finishedChapters: finished });
 }
 
 export interface SessionOptions {

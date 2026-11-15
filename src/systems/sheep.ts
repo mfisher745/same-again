@@ -17,7 +17,9 @@
 
 import { TUNING } from '../content/tuning';
 import { GameEvents } from '../core/types';
-import type { GameEventBus, PuzzleDef, Reward, SheepTuning, TileCoord, TileGrid, Vec2 } from '../core/types';
+import { seededRandom } from '../core/random';
+import type { Random } from '../core/random';
+import type { GameEventBus, PuzzleDef, Reward, SheepTuning, SheepWanderTuning, TileCoord, TileGrid, Vec2 } from '../core/types';
 import { distance, normalize, scale, sub } from './geometry';
 import { moveBox, tileCentre, TILE } from './grid';
 import { PuzzleBase } from './investigation';
@@ -75,6 +77,13 @@ export interface LiveSheep {
   moving: boolean;
 }
 
+/** A sheep's wander: the wait until its next walk, and the walk under way. */
+interface Wander {
+  waitMs: number;
+  walkMs: number;
+  dir: Vec2;
+}
+
 export interface GateState {
   readonly id: string;
   readonly position: 0 | 1;
@@ -84,6 +93,7 @@ const rectOf = (r: TileRect): { x: number; y: number; width: number; height: num
 
 export class SheepPuzzle extends PuzzleBase {
   private flock: LiveSheep[];
+  private wander = new Map<string, Wander>();
   private readonly gatePos = new Map<string, 0 | 1>();
   private penMs = 0;
   /** The pen the whole flock is standing in now, and for how long. */
@@ -106,11 +116,63 @@ export class SheepPuzzle extends PuzzleBase {
     private readonly events: GameEventBus,
     reward?: Reward,
     private readonly tuning: SheepTuning | undefined = TUNING.overhaul?.sheep,
+    private readonly wanderTuning: SheepWanderTuning | undefined = TUNING.overhaul?.sheepWander,
+    private readonly rng: Random = seededRandom(0x5eed5),
   ) {
     super(def, host, events, reward);
     if (!this.tuning) throw new Error('TUNING.overhaul.sheep is missing');
     this.flock = layout.sheep.map((s) => ({ id: s.id, pos: tileCentre(s), facingDeg: 0, moving: false }));
     for (const g of layout.gates) this.gatePos.set(g.id, g.start ?? 0);
+    for (const s of this.flock) this.wander.set(s.id, { waitMs: this.nextWait(), walkMs: 0, dir: { x: 0, y: 0 } });
+  }
+
+  private between(lo: number, hi: number): number {
+    return lo + this.rng.next() * Math.max(0, hi - lo);
+  }
+
+  private nextWait(): number {
+    const w = this.wanderTuning;
+    return w ? this.between(w.intervalMsMin, w.intervalMsMax) : Infinity;
+  }
+
+  /** The pen (a listed pen or the far pen) a point is in, or null on open ground. */
+  private penAt(p: Vec2): { x: number; y: number; width: number; height: number } | null {
+    for (const r of [...(this.layout.pens ?? []), this.layout.targetPen].map(rectOf)) {
+      if (p.x >= r.x && p.x < r.x + r.width && p.y >= r.y && p.y < r.y + r.height) return r;
+    }
+    return null;
+  }
+
+  /**
+   * One sheep's wander, when Andrew is out of flee range: after a random wait it walks a short way at a random
+   * angle, then stands again. It never leaves the pen it is in (a step that would is dropped and the walk ends).
+   */
+  private wanderStep(s: LiveSheep, dtMs: number, t: SheepTuning): void {
+    const w = this.wanderTuning;
+    const st = this.wander.get(s.id);
+    if (!w || !st) return;
+    if (st.walkMs <= 0) {
+      st.waitMs -= dtMs;
+      if (st.waitMs > 0) return;
+      const a = this.rng.next() * Math.PI * 2;
+      st.dir = { x: Math.cos(a), y: Math.sin(a) };
+      st.walkMs = this.between(w.walkMsMin, w.walkMsMax);
+    }
+    st.walkMs -= dtMs;
+    if (st.walkMs <= 0) st.waitMs = this.nextWait();
+    const pen = this.penAt(s.pos);
+    const before = s.pos;
+    const to = moveBox(this.grid, s.pos, t.bodySize, t.bodySize, scale(st.dir, (w.speed * dtMs) / 1000), this.tileBlocked).position;
+    const inside = (p: Vec2): boolean => pen === null || (p.x >= pen.x && p.x < pen.x + pen.width && p.y >= pen.y && p.y < pen.y + pen.height);
+    if (!inside(to) || distance(before, to) <= 0.01) {
+      // Hit the pen wall or a gate: the walk ends here.
+      st.walkMs = 0;
+      st.waitMs = this.nextWait();
+      return;
+    }
+    s.pos = to;
+    s.moving = true;
+    s.facingDeg = (Math.atan2(st.dir.y, st.dir.x) * 180) / Math.PI;
   }
 
   sheep(): readonly LiveSheep[] {
@@ -193,7 +255,16 @@ export class SheepPuzzle extends PuzzleBase {
     for (const s of this.flock) {
       s.moving = false;
       const away = sub(s.pos, playerPos);
-      if (distance(s.pos, playerPos) >= t.fleeRadius) continue;
+      if (distance(s.pos, playerPos) >= t.fleeRadius) {
+        this.wanderStep(s, dtMs, t);
+        continue;
+      }
+      // Fleeing wins over a wander: drop the walk and wait afresh.
+      const wd = this.wander.get(s.id);
+      if (wd) {
+        wd.walkMs = 0;
+        wd.waitMs = this.nextWait();
+      }
       const dir = normalize(away);
       if (dir.x === 0 && dir.y === 0) continue;
       const before = s.pos;

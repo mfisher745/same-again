@@ -66,6 +66,8 @@ function isKit(v: unknown): boolean {
   const slots = v['slots'];
   if (!isObject(slots) || typeof slots['melee'] !== 'string') return false;
   if (slots['drink'] !== null && typeof slots['drink'] !== 'string') return false;
+  if (slots['spirit'] !== null && typeof slots['spirit'] !== 'string') return false;
+  if (v['selectedItem'] !== null && typeof v['selectedItem'] !== 'string') return false;
   const specials = slots['specials'];
   return Array.isArray(specials) && specials.length === 4 && specials.every((x) => x === null || typeof x === 'string');
 }
@@ -93,6 +95,32 @@ export function isSaveState(v: unknown): v is OverhaulSaveState {
   return true;
 }
 
+const BEERS: readonly string[] = ['stout', 'lager', 'lightBeer', 'craftIpa'];
+const SPIRITS: readonly string[] = ['whiskey', 'tequila'];
+
+/**
+ * Bring a save written before the use model (no `slots.spirit`, no `selectedItem`, any drink in `slots.drink`)
+ * up to date: a spirit in the old drink slot moves to the spirit slot, a hot drink there is dropped, and the
+ * selection starts empty. The save version does not change; saves with the new shape pass through untouched.
+ */
+export function migrateSave(v: unknown): unknown {
+  if (!isObject(v) || !isObject(v['kit'])) return v;
+  const kit = v['kit'];
+  const slots = kit['slots'];
+  if (!isObject(slots)) return v;
+  const old = slots['drink'];
+  const drinks = isObject(kit['drinks']) ? kit['drinks'] : {};
+  const held = (id: string): boolean => typeof drinks[id] === 'number' && (drinks[id] as number) > 0;
+  const beer = typeof old === 'string' && BEERS.includes(old) ? old : (BEERS.find(held) ?? null);
+  const spirit =
+    typeof slots['spirit'] === 'string' ? slots['spirit'] : typeof old === 'string' && SPIRITS.includes(old) ? old : (SPIRITS.find(held) ?? null);
+  const sel = kit['selectedItem'];
+  // Q's selection is a held beer or the held hot drink; anything else (or nothing) falls back to the beer slot.
+  const hot = typeof kit['hotDrink'] === 'string' ? kit['hotDrink'] : null;
+  const selected = typeof sel === 'string' && ((BEERS.includes(sel) && held(sel)) || sel === hot) ? sel : (beer ?? hot);
+  return { ...v, kit: { ...kit, slots: { ...slots, drink: beer, spirit }, selectedItem: selected } };
+}
+
 function clamp01(n: unknown, fallback: number): number {
   return typeof n === 'number' && Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : fallback;
 }
@@ -105,7 +133,8 @@ export class SaveStore {
     if (raw === null) return null;
     try {
       const parsed: unknown = JSON.parse(raw);
-      return isSaveState(parsed) ? parsed : null;
+      const migrated = migrateSave(parsed);
+      return isSaveState(migrated) ? migrated : null;
     } catch {
       return null;
     }

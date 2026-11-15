@@ -8,7 +8,7 @@
 import { TUNING } from '../content/tuning';
 import { seededRandom } from '../core/random';
 import type { Random } from '../core/random';
-import type { BeerId, CarriedDrinkId, ChapterNumber, OverhaulTuning, RegionId } from '../core/types';
+import type { BeerId, CarriedDrinkId, ChapterDef, ChapterNumber, OverhaulTuning, RegionId } from '../core/types';
 
 function tun(tuning?: OverhaulTuning): OverhaulTuning {
   const o = tuning ?? TUNING.overhaul;
@@ -22,6 +22,17 @@ function tun(tuning?: OverhaulTuning): OverhaulTuning {
  */
 export function regionBeer(region: RegionId): BeerId {
   return region === 'kilnamoe' ? 'stout' : 'lightBeer';
+}
+
+/** The beer of the region the chapter's bar is in (its start screen if it has no bar). */
+export function barBeerOf(def: ChapterDef): BeerId {
+  const id = def.bar?.screenId ?? def.startScreenId;
+  return regionBeer(def.screens.find((s) => s.id === id)?.region ?? 'kilnamoe');
+}
+
+/** The extra beer chance in a chapter (`dropBeerBonusByChapter`); 0 when there is none or no chapter is given. */
+function beerBonus(o: OverhaulTuning, chapter?: ChapterNumber): number {
+  return chapter === undefined ? 0 : (o.dropBeerBonusByChapter?.[chapter] ?? 0);
 }
 
 /** What a thing held. Null is nothing. The type cannot hold food or a hot drink. */
@@ -39,19 +50,21 @@ function roll(rng: Random, table: readonly (readonly [CarriedDrinkId, number])[]
 }
 
 /** A broken object: usually the region's beer, now and then a whiskey, else nothing. */
-export function rollBreakableDrop(rng: Random, regionBeer: BeerId, tuning?: OverhaulTuning): Drop {
-  const d = tun(tuning).drops.breakable;
+export function rollBreakableDrop(rng: Random, regionBeer: BeerId, chapter?: ChapterNumber, tuning?: OverhaulTuning): Drop {
+  const o = tun(tuning);
+  const d = o.drops.breakable;
   return roll(rng, [
-    [regionBeer, d.beer],
+    [regionBeer, d.beer + beerBonus(o, chapter)],
     ['whiskey', d.whiskey],
   ]);
 }
 
 /** A defeated enemy: the region's beer, rarely a whiskey, and from chapter 7 very rarely a tequila. */
 export function rollEnemyDrop(rng: Random, regionBeer: BeerId, chapter: ChapterNumber, tuning?: OverhaulTuning): Drop {
-  const d = tun(tuning).drops.enemy;
+  const o = tun(tuning);
+  const d = o.drops.enemy;
   const table: (readonly [CarriedDrinkId, number])[] = [
-    [regionBeer, d.beer],
+    [regionBeer, d.beer + beerBonus(o, chapter)],
     ['whiskey', d.whiskey],
   ];
   if (chapter >= d.tequilaFromChapter) table.push(['tequila', d.tequila]);

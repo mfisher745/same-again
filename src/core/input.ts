@@ -15,6 +15,7 @@ export type Bindings = Readonly<Record<BindingName, readonly InputBinding[]>>;
 const ACTIONS: readonly InputAction[] = [
   'melee',
   'drink',
+  'useSpirit',
   'sneak',
   'interact',
   'hint',
