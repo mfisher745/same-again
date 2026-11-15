@@ -833,9 +833,11 @@ const overhaul: OverhaulTuning = {
   },
   // Degrees of aim sway. None until Bit much (DESIGN.md 7.2, thrown bottles).
   swayByLevel: { 0: 0, 1: 0, 2: 0, 3: 8, 4: 18 },
+  // Playtest 4 (owner): too much beer rather than too little. These are the floor for every chapter;
+  // `PLAYTEST4.dropBeerBonusByChapter` below adds to the beer chance in the early chapters.
   drops: {
-    breakable: { beer: 0.35, whiskey: 0.04 },
-    enemy: { beer: 0.3, whiskey: 0.03, tequila: 0.01, tequilaFromChapter: 7 },
+    breakable: { beer: 0.5, whiskey: 0.04 },
+    enemy: { beer: 0.4, whiskey: 0.03, tequila: 0.01, tequilaFromChapter: 7 },
   },
   // Same gap as the old `myko.commentCooldownMs`. For creative-director review.
   mykoLineCooldownMs: 12000,
@@ -859,6 +861,37 @@ const overhaul: OverhaulTuning = {
   // stand-in: creative director to set. The chapter 2 sheep: slower than Andrew, shy of him at about two tiles.
   sheep: { speed: 60, fleeRadius: 40, bodySize: 10, settleMs: 600 },
 };
+
+/**
+ * Playtest 4 stand-ins (owner rulings on the alpha). The numbers are the creative director's; the keys
+ * are a holding place until systems-dev gives them a home in `OverhaulTuning` (`drops`, `sheep`, `glint`),
+ * at which point this block is folded in and deleted. Nothing else should read it after that.
+ */
+export const PLAYTEST4 = {
+  /**
+   * Added to `overhaul.drops.breakable.beer` and `overhaul.drops.enemy.beer` in that chapter; absent is 0.
+   * Chapter 1: a breakable holds a beer three times in four, an enemy drops one two times in three.
+   */
+  dropBeerBonusByChapter: { 1: 0.25, 2: 0.2, 3: 0.1, 4: 0.05 } as Readonly<Partial<Record<number, number>>>,
+  /**
+   * The chapter 2 sheep, when Andrew is outside `fleeRadius`: every so often (a fresh random wait each time,
+   * per sheep) one takes a short walk in a random direction, any angle, then stands again. Fleeing always wins.
+   * A wander never takes a sheep out of the pen it is in, so a settled flock stays settled.
+   */
+  sheepWander: { intervalMsMin: 2500, intervalMsMax: 5000, speed: 30, walkMsMin: 500, walkMsMax: 900 },
+  /**
+   * The glint on an unexamined clue or the current objective's target (DESIGN.md 7.4). Seen only when Andrew
+   * is within `radiusTiles`; a fresh random wait between glints. `faint` is for clues marked hard to see
+   * (the chapter 2 ring clues): a wider radius and a shorter wait.
+   */
+  glint: {
+    radiusTiles: 4,
+    intervalMsMin: 3500,
+    intervalMsMax: 6000,
+    durationMs: 450,
+    faint: { radiusTiles: 6, intervalMsMin: 2000, intervalMsMax: 3500 },
+  },
+} as const;
 
 export const TUNING: Tuning = {
   audioDefaults: { musicVolume: 0.7, effectsVolume: 0.8 },

@@ -150,8 +150,9 @@ Locations are small. Each chapter uses two to four connected screens, counting t
 | Left click | Melee attack with the weapon in the melee slot |
 | Right click (hold, then release) | Aim a bottle, with its path shown, then throw it |
 | R | Cycle to the next melee weapon |
-| Q | Drink what is in the drink slot |
-| Mouse wheel | Change what is in the drink slot |
+| Q | Use the picked item: a beer or the hot drink. Does nothing if the picked item is not a drink. |
+| G | Drink what is in the spirit slot (whiskey or tequila), at once |
+| Mouse wheel | Move the pick to the next kind of beer he has. The hot drink is picked in the kit. |
 | 1, 2, 3, 4 | Special moves, one for each drunk level |
 | Shift | Sneak (hold) |
 | E | Interact, talk, examine |
@@ -186,13 +187,13 @@ There is no health. The one thing the player manages is how drunk Andrew is. Dri
 
 - **Sober.** At 0 the music stops and the colours go flat. Andrew stands still and looks at where he is and what he is doing. Myko says nothing. The screen fades and they are at the bar.
 - **On the floor.** At the top of the meter Andrew falls over. Myko runs over, which he does nowhere else, and blows out a cloud of smoke that fills the screen. The screen goes to black and they are at the bar.
-- Either way Buzz is at the bottom of Grand, a hot drink is on offer again and Andrew has at least two bottles. Myko has a line about it, drawn from a pool: one pool for sober, one for the floor.
+- Either way Buzz is at the bottom of Grand, a hot drink is on offer again, and Andrew is topped up to at least two beers and at least two bottles (see "The bar's top-up" below). Myko has a line about it, drawn from a pool: one pool for sober, one for the floor.
 - **Progress is kept.** Clues, solved puzzles, stealth sections already passed, opened doors and beaten encounters all stay as they were. Guards from a section Andrew has passed are gone. A fight or boss he was in the middle of starts again from its beginning. The punishment is the walk back.
 - This replaces death and checkpoints. Nothing else sends Andrew back.
 
 **The kit**
 
-Drinks are not drunk when they are picked up. They go into Andrew's kit (7.7), and he drinks from the drink slot with Q or straight from the kit screen. The kit carries over from chapter to chapter; Buzz does not.
+Drinks are not drunk when they are picked up. They go into Andrew's kit (7.7). He drinks the picked beer or hot drink with Q and the spirit in the spirit slot with G. The kit carries over from chapter to chapter; Buzz does not.
 
 Andrew carries six drinks at most, in any mix. The hot drink and his bottles do not count towards the six. When he is full, a drink stays where it is on the ground. Six is a starting number, to be settled by playing chapter 1.
 
@@ -207,11 +208,13 @@ Andrew carries six drinks at most, in any mix. The hot drink and his bottles do 
 | Coffee | The bar only | Sets Buzz to the bottom of Grand at once, from above or below. |
 | Tea | The bar only | Brings Buzz to the bottom of Grand over about 10 seconds, then holds it there with no drain for 20 more. |
 
+- **Three kinds of drink, three slots.** Beer goes in the drink slot (Q). Whiskey and tequila go in the spirit slot (G). Coffee and tea go in the hot drink slot (pick it, then Q). Nothing goes in a slot of another kind.
+- **The bar's top-up.** At every chapter start and every return to the bar, Andrew is topped up to at least two beers of the region and at least two bottles (`carry.minBottlesOnLeavingBar`, 2, is the number for both). If he has more of either he keeps them. Nothing is taken away.
 - **Beer** is anything in the first four rows. More kinds can be added by region, each with its own strength. Every beer does the same thing apart from the number.
 - **The hot drink.** Each visit to the bar, at the start of a chapter and after every return, Andrew is offered one free coffee or tea and takes it with him. He carries one at a time. Coffee and tea are not found anywhere else: not in breakables, not on enemies, not as a reward.
 - **Bottles.** A beer has to be drunk before it can be thrown. Every beer Andrew drinks adds one bottle to his count, whatever the beer was. Bottles are the only thing he throws, there is no limit on how many he carries, and every thrown bottle looks the same. He leaves the bar with at least two. Whiskey and tequila do not leave a bottle.
-- **Breakables.** Most loose objects in the world can be broken with a melee hit or a thrown bottle: crates, barrels, bins, boxes, flowerpots, vending machines and their like. If Andrew can walk up to it and it is not part of a puzzle or the plot, he should be able to break it. A broken object holds a drink or nothing: usually the beer of the region, now and then a whiskey. Never food, never a hot drink.
-- **Enemies** drop drink the same way when they go down: usually the regional beer, rarely a whiskey, and from chapter 7 very rarely a tequila.
+- **Breakables.** Most loose objects in the world can be broken with a melee hit or a thrown bottle: crates, barrels, bins, boxes, flowerpots, vending machines and their like. If Andrew can walk up to it and it is not part of a puzzle or the plot, he should be able to break it. A broken object holds a drink or nothing: usually the beer of the region, now and then a whiskey. Never food, never a hot drink. There should be too much beer rather than too little, most of all early: a breakable holds a beer half the time, and more often than that in chapters 1 to 4 (three times in four in chapter 1, falling to the usual half by chapter 5). Chapters are dressed with plenty of things to break. The numbers are in `tuning.ts`.
+- **Enemies** drop drink the same way when they go down: usually the regional beer (two times in five, more in chapters 1 to 4), rarely a whiskey, and from chapter 7 very rarely a tequila.
 - There is no food, no hangover and no second meter.
 - **Heat (chapter 8).** While Andrew is out in the sun the meter drains twice as fast, and drink goes half as far again: a beer adds one and a half times its number, and a whiskey or tequila lasts one and a half times as long. In the shade both are normal.
 
@@ -277,6 +280,7 @@ When Andrew ends up sober or on the floor he goes back to the bar (7.1). There i
 
 ### 7.4 Investigation and puzzles
 
+- **The glint.** A clue that has not been examined, and the thing the current objective points at, gives a small soft glint every few seconds while Andrew is within about four tiles of it. From further away there is nothing to see. It is two or three pixels of light for under half a second: enough to catch the eye, never a marker or an arrow. A chapter spec may mark a clue as hard to see (the three ring clues in chapter 2 are), and those glint a little more often and from six tiles. Radius and timing are in `tuning.ts`.
 - Examining things with E adds clues to the **casebook**, written in Andrew's words with Myko's notes in the margin. The notes are in a different pen. The handwriting is not very different. The casebook is on the Tab screen beside the kit (7.7).
 - Most chapters end their investigation with a **deduction board**: the player links three clues to name the next lead. A wrong answer costs nothing except a remark from Myko.
 - Each chapter has one physical puzzle (crates, redacted files, the crop-circle maze, telling aliens from people, gravity switches). Each must be solvable in under two minutes.
@@ -286,7 +290,7 @@ When Andrew ends up sober or on the floor he goes back to the bar (7.1). There i
 
 - He walks behind Andrew outside combat and stealth. During those he waits at the entrance and talks by phone, unless he is called in.
 - He cannot be hurt and never needs protecting. Enemies do not look at him.
-- H asks for a hint about the current objective. The first hint is a nudge, the second is the answer, and both arrive wrapped in an insult.
+- H asks for a hint about the current objective. The first hint is a nudge, the second is the answer, and both arrive wrapped in an insult. The first hint is followed by one more line that names where the objective is: the screen and the part of it (`<chapter>.hint.<objective>.where`). Every objective has one.
 - He comments without being asked on clues, drinks, returns to the bar and long periods of the player doing nothing. Nobody but Andrew hears any of it (section 3).
 - Commentary must never block play. Lines appear in a box at the bottom of the screen and play continues, except in scripted scenes.
 - Nothing is said twice. A scripted scene, a lesson or a remark tied to a place plays once per save and never again, even after a return to the bar or a reload. Only three kinds of line may repeat: hints the player asks for, lines drawn from a pool (back at the bar, idle, tangents), and the line for an object the player deliberately examines again. A remark that has been waiting behind other lines is dropped if Andrew has left the screen or the moment it was about.
@@ -312,9 +316,21 @@ Tab opens one screen with two parts, the casebook and the kit. The game is pause
 
 **Kit**
 
-- **Inventory.** Every drink Andrew is carrying with its count and how many of the six places are used, the hot drink if he has one, his bottle count, the weapons he owns and the moves he has learned, grouped by level.
-- **Slots.** One drink slot, four special slots (1 to 4) and one melee slot. The player assigns to a slot by picking it and then picking something that fits: a drink, a move of that slot's level, or a weapon.
-- **Using things.** Any drink, including the hot drink, can be drunk straight from the inventory. It takes effect at once and the meter on the screen shows it.
+The kit has two halves, **Items** and **Moves**. In each, the things Andrew has sit beside the slot that takes them, and every slot carries a label saying what it takes and which key works it.
+
+| Half | Row | What is listed | Its slot | Key |
+|---|---|---|---|---|
+| Items | Beer | Each kind with its count, and how many of the six places are used | Drink slot | Q; the wheel changes it |
+| Items | Spirits | Whiskey and tequila with their counts | Spirit slot | G |
+| Items | Hot drink | The coffee or tea, if he has one | Hot drink slot | Pick it, then Q |
+| Items | Weapons | The weapons he owns | Melee slot | Left click; R swaps |
+| Items | Bottles | The count. Nothing to pick. | None | Right click |
+| Moves | Level 1 to 4, one row each | The moves he has learned at that level | Special slot 1 to 4 | 1 to 4 |
+
+- **Picking.** There are no buttons. Clicking a thing picks it, and one thing is picked at a time. The pick is shown in the kit and on the HUD, and it is saved.
+- **Picking fills the slot.** A picked beer is the drink slot. Clicking a spirit puts it in the spirit slot, a weapon in the melee slot, and a move in the special slot of its level. Every thing fits exactly one slot, so the player never chooses a slot.
+- **Q uses the pick.** On a beer or the hot drink, Q drinks it, in the kit or out of it; it takes effect at once and the meter shows it. On a weapon or a move, Q does nothing and Andrew says so, briefly. When the picked beer runs out, or the hot drink has been drunk, the pick moves to the next beer he has.
+- **G drinks the spirit.** Whatever is in the spirit slot is drunk at once, with no aiming and no pause, in the kit or out of it. The effect is as in 7.1. When that spirit runs out the slot takes the other kind if he has one.
 
 ## 8. Art direction
 

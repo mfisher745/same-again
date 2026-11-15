@@ -226,6 +226,13 @@ export const C02: DialogueFile = {
     box('c2.hint.yard.2', ['myko', 'Step off the charge and hit him in the back. A tap under the knee stops the other one swinging.', 'by phone']),
     box('c2.hint.ram.1', ['myko', "It's a lane. There's two directions and he's in one of them.", 'by phone']),
     box('c2.hint.ram.2', ['myko', 'Keep right, go round the puddles, E for the gate, bottle behind you if he gets close. Cattle grid at the end.', 'by phone']),
+    // Where the objective is (playtest 4). Myko says this after the nudge on the first H; see DESIGN.md 7.5.
+    box('c2.hint.ring.where', ['myko', 'Middle of the bog. The ring itself, the east edge of it, and the tracks going east out of it.']),
+    box('c2.hint.cross.where', ['myko', "East across the bog, along the tyre tracks. The farm's at the end of them.", 'by phone']),
+    box('c2.hint.sheep.where', ['myko', "Brennan's yard. The three gates between you and the hay shed."]),
+    box('c2.hint.shed.where', ['myko', 'The hay shed, in Brennan’s yard. The door the sheep were leaning on.']),
+    box('c2.hint.yard.where', ['myko', "In the yard, outside the shed. They've come to you. Saves the walk.", 'by phone']),
+    box('c2.hint.ram.where', ['myko', "The lane out of the farm. The far end of it. He's at the near end.", 'by phone']),
 
     // --- Myko calls ---
     scene(
