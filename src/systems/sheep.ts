@@ -21,7 +21,7 @@ import { seededRandom } from '../core/random';
 import type { Random } from '../core/random';
 import type { GameEventBus, PuzzleDef, Reward, SheepTuning, SheepWanderTuning, TileCoord, TileGrid, Vec2 } from '../core/types';
 import { distance, normalize, scale, sub } from './geometry';
-import { moveBox, tileCentre, TILE } from './grid';
+import { moveBox, rectBlocked, tileCentre, TILE } from './grid';
 import { PuzzleBase } from './investigation';
 import type { SectionHost } from './sections';
 
@@ -175,6 +175,80 @@ export class SheepPuzzle extends PuzzleBase {
     s.facingDeg = (Math.atan2(st.dir.y, st.dir.x) * 180) / Math.PI;
   }
 
+  /** Every tile any gate blocks in either position: the gateways. A sheep does not rest on one. */
+  private gatewayTiles(): Set<number> {
+    const set = new Set<number>();
+    for (const g of this.layout.gates) for (const pos of g.positions) for (const c of pos) set.add(c.row * 4096 + c.col);
+    return set;
+  }
+
+  private bodyRect(p: Vec2): { x: number; y: number; width: number; height: number } {
+    const b = (this.tuning as SheepTuning).bodySize;
+    return { x: p.x - b / 2, y: p.y - b / 2, width: b, height: b };
+  }
+
+  /** Whether the sheep's body at `p` touches a wall, the area's edge or a closed gate. */
+  private bodyBlocked(p: Vec2): boolean {
+    return rectBlocked(this.grid, this.bodyRect(p), this.tileBlocked);
+  }
+
+  /** Whether the sheep's body at `p` touches a gateway tile (open or shut). */
+  private inGateway(p: Vec2): boolean {
+    const r = this.bodyRect(p);
+    const gw = this.gatewayTiles();
+    for (let row = Math.floor(r.y / TILE); row <= Math.floor((r.y + r.height - 0.001) / TILE); row++) {
+      for (let col = Math.floor(r.x / TILE); col <= Math.floor((r.x + r.width - 0.001) / TILE); col++) {
+        if (gw.has(row * 4096 + col)) return true;
+      }
+    }
+    return false;
+  }
+
+  /** The nearest tile centre where a sheep body is clear of walls, gates and gateways, or null. */
+  private nearestClear(from: Vec2): Vec2 | null {
+    const c0 = Math.floor(from.x / TILE);
+    const r0 = Math.floor(from.y / TILE);
+    let best: Vec2 | null = null;
+    let bestD = Infinity;
+    for (let dr = -4; dr <= 4; dr++) {
+      for (let dc = -4; dc <= 4; dc++) {
+        const p = tileCentre({ col: c0 + dc, row: r0 + dr });
+        if (this.bodyBlocked(p) || this.inGateway(p)) continue;
+        const d = distance(from, p);
+        if (d < bestD) {
+          bestD = d;
+          best = p;
+        }
+      }
+    }
+    return best;
+  }
+
+  /** Move a sheep to the nearest clear spot (the nearer side of the gate). */
+  private nudgeOut(s: LiveSheep): void {
+    const to = this.nearestClear(s.pos);
+    if (to) s.pos = to;
+  }
+
+  /**
+   * A sheep standing in a gateway walks out to the nearer side instead of resting there (so a gate can always
+   * close). True while it is doing so.
+   */
+  private leaveGateway(s: LiveSheep, dtMs: number): boolean {
+    if (!this.inGateway(s.pos)) return false;
+    const to = this.nearestClear(s.pos);
+    if (!to) return false;
+    const t = this.tuning as SheepTuning;
+    const dir = normalize(sub(to, s.pos));
+    const step = Math.min(distance(to, s.pos), (t.speed * dtMs) / 1000);
+    const next = moveBox(this.grid, s.pos, t.bodySize, t.bodySize, scale(dir, step), this.tileBlocked).position;
+    if (distance(next, s.pos) <= 0.01) return false;
+    s.pos = next;
+    s.moving = true;
+    s.facingDeg = (Math.atan2(dir.y, dir.x) * 180) / Math.PI;
+    return true;
+  }
+
   sheep(): readonly LiveSheep[] {
     return this.flock;
   }
@@ -209,8 +283,9 @@ export class SheepPuzzle extends PuzzleBase {
   };
 
   /**
-   * Swing a gate to its other position. Refused (false) if a sheep, or Andrew at `playerPos`, is standing on a
-   * tile the gate would close, or the puzzle is finished.
+   * Swing a gate to its other position. Refused (false) if Andrew at `playerPos` is standing on a tile the gate
+   * would close, or the puzzle is finished. A sheep in the way is nudged out to the nearer side, never a reason
+   * to refuse.
    */
   toggleGate(id: string, playerPos?: Vec2): boolean {
     const g = this.layout.gates.find((x) => x.id === id);
@@ -218,9 +293,10 @@ export class SheepPuzzle extends PuzzleBase {
     const to: 0 | 1 = (this.gatePos.get(id) ?? 0) === 0 ? 1 : 0;
     const closing = g.positions[to];
     const occupied = (p: Vec2): boolean => closing.some((t) => Math.floor(p.x / TILE) === t.col && Math.floor(p.y / TILE) === t.row);
-    if (this.flock.some((s) => occupied(s.pos)) || (playerPos !== undefined && occupied(playerPos))) return false;
+    if (playerPos !== undefined && occupied(playerPos)) return false;
     this.markUsed();
     this.gatePos.set(id, to);
+    for (const s of this.flock) if (this.bodyBlocked(s.pos)) this.nudgeOut(s);
     this.gateChanges++;
     this.onGate?.(id);
     return true;
@@ -254,9 +330,11 @@ export class SheepPuzzle extends PuzzleBase {
     const t = this.tuning as SheepTuning;
     for (const s of this.flock) {
       s.moving = false;
+      // Never stalled for good: a body wedged in a blocked tile (a gate swung onto it) is lifted out.
+      if (this.bodyBlocked(s.pos)) this.nudgeOut(s);
       const away = sub(s.pos, playerPos);
       if (distance(s.pos, playerPos) >= t.fleeRadius) {
-        this.wanderStep(s, dtMs, t);
+        if (!this.leaveGateway(s, dtMs)) this.wanderStep(s, dtMs, t);
         continue;
       }
       // Fleeing wins over a wander: drop the walk and wait afresh.

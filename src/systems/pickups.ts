@@ -8,6 +8,7 @@
 
 import type { CarriedDrinkId, DrinkId, Kit, PickupItem, PickupRefusal } from '../core/types';
 import { pickUpDrink } from './kit';
+import { overhaulTuning } from './meter';
 
 /**
  * The carried drink an old `DrinkId` stands for. The overhaul has six carried
@@ -50,8 +51,20 @@ export function takeItem(kit: Kit, item: PickupItem): PickupTake {
   switch (item.kind) {
     case 'food':
       return INERT(kit);
-    case 'empties':
-      return { kit: { ...kit, bottles: kit.bottles + item.count }, taken: item, leftover: null, refusal: null, inert: false };
+    case 'empties': {
+      // At the bottle cap an empty stays where it is, with no message (there is no refusal text for it).
+      const room = Math.max(0, overhaulTuning().carry.bottleLimit - kit.bottles);
+      const n = Math.min(room, item.count);
+      if (n <= 0) return { kit, taken: null, leftover: item, refusal: null, inert: false };
+      const left = item.count - n;
+      return {
+        kit: { ...kit, bottles: kit.bottles + n },
+        taken: { ...item, count: n },
+        leftover: left > 0 ? { ...item, count: left } : null,
+        refusal: null,
+        inert: false,
+      };
+    }
     case 'drink': {
       const id = carriedFromDrinkId(item.drinkId);
       if (id === null) return INERT(kit);

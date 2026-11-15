@@ -293,7 +293,7 @@ describe('the sheep puzzle in the real farm', () => {
     const puzzle = sheepOf(run);
     const gateId = puzzle.layout.gates[0]!.id;
     expect(puzzle.toggleGate(gateId, { x: 0, y: 0 })).toBe(true);
-    puzzle.sheep()[0]!.pos = { x: 20 * 16, y: 12 * 16 };
+    puzzle.sheep()[0]!.pos = { x: 23 * 16 + 8, y: 10 * 16 + 8 };
     const sheepBefore = puzzle.sheep().map((s) => ({ ...s.pos }));
     const startPositions = sheepOf(run).layout.sheep.map((sh) => ({ x: sh.col * 16 + 8, y: sh.row * 16 + 8 }));
     const gateBefore = puzzle.gatePosition(gateId);

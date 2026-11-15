@@ -1570,7 +1570,7 @@ export interface GameEventPayloads {
   'stealth:alertChanged': { readonly instanceId: string; readonly from: AlertState; readonly to: AlertState };
   'stealth:alarm': { readonly sectionId: StealthSectionId; readonly fightId: AlarmFightId };
   'stealth:cleanRun': { readonly sectionId: StealthSectionId };
-  'evidence:found': { readonly evidenceId: EvidenceId };
+  'evidence:found': { readonly evidenceId: EvidenceId; /** True when the casebook held no evidence before this one. */ readonly first: boolean };
   'casebook:entryAdded': { readonly entry: CasebookEntry };
   'deduction:submitted': {
     readonly deductionId: DeductionSectionId;
@@ -1581,7 +1581,7 @@ export interface GameEventPayloads {
   'section:completed': { readonly sectionId: SectionId; readonly kind: SectionKind; readonly by: CompletionSource };
   'myko:hintRequested': { readonly objectiveId: ObjectiveId; readonly level: 1 | 2; readonly areaTextId?: TextId };
   /** Q or G did nothing; the HUD may flash `textId` (`ui.use.nothing`, `ui.use.notADrink`, `ui.spirit.none`). */
-  'kit:useRefused': { readonly action: 'drink' | 'useSpirit'; readonly textId: TextId };
+  'kit:useRefused': { readonly action: 'drink' | 'useSpirit'; readonly textId: TextId; /** Set to 'meterHidden' when drinking is refused until the first pint (`ui.use.notYet`). */ readonly reason?: 'meterHidden' };
   /** An unfinished objective mark sparkles: Andrew is near it. The view draws a soft glint at `position` on `screenId`. */
   'objective:glint': { readonly markId: string; readonly screenId: ScreenId; readonly position: Vec2; readonly faint?: true };
   'myko:callStarted': { readonly sectionId: CompletableSectionId; readonly kind: MykoCallKind; readonly callsLeft: number };
@@ -2155,6 +2155,8 @@ export interface CarryTuning {
   readonly minBottlesOnLeavingBar: number;
   /** Beers (the region's beer) Andrew has on leaving the bar, at least (2). Chapter start and every return. */
   readonly minBeersOnLeavingBar: number;
+  /** Empties Andrew carries at most (1). Drinking at the cap adds none; a floor bottle stays put. */
+  readonly bottleLimit: number;
 }
 
 /** Aim sway for a level, degrees. 0 at levels 1 and 2. DESIGN.md 7.2. */
