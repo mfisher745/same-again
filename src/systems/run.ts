@@ -45,6 +45,7 @@ import type {
   CompletableSectionId,
   CompletionSource,
   DialogueId,
+  DrunkLevel,
   EnemyId,
   EvidenceId,
   ExaminableDef,
@@ -72,6 +73,7 @@ import type {
   SaveReason,
   GameSettings,
   OverhaulSaveState,
+  OwedMove,
   ScreenId,
   SpecialSlotIndex,
   SectionId,
@@ -171,6 +173,8 @@ interface SectionEntry {
 
 /** How far past where a blocked lurch ends it still touches (px): the blocker itself, not what lies behind it. */
 const HOOK_TOUCH = 4;
+/** Buzz level 3 is Bit much (DESIGN.md 7.1). */
+const BIT_MUCH_LEVEL = 3;
 
 export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   readonly bus: GameEventBus;
@@ -194,6 +198,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private readonly flags: Record<string, ChapterFlagValue>;
   private callsLeft: number;
   private readonly calls: MykoCallRecord[];
+  /** Move lessons a script has promised (`oweMove`); saved. */
+  private owedMoves: OwedMove[];
+  /** A lesson scene is playing now (the fallback runs once at a time). */
+  private owedPlaying = false;
   private readonly finished: readonly ChapterNumber[];
   /** The script flags as the last save held them; a return to the bar puts them back. */
   private savedFlags: Record<string, ChapterFlagValue>;
@@ -255,6 +263,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.flags = { ...save.flags };
     this.callsLeft = save.mykoCallsLeft;
     this.calls = [...save.mykoCalls];
+    this.owedMoves = [...(save.owedMoves ?? [])];
     this.finished = save.finishedChapters;
     this.savedFlags = { ...save.flags };
     this.settings = save.settings;
@@ -438,6 +447,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       lootSeed: this.lootSeed,
       ...(this.player.meterHidden ? { meterHidden: true } : {}),
       ...(this.player.drainHeld ? { drainHeld: true } : {}),
+      ...(this.owedMoves.length > 0 ? { owedMoves: [...this.owedMoves] } : {}),
     };
   }
 
@@ -920,8 +930,45 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.deduction?.closeBoard();
   }
 
+  onFlockSettled(puzzleId: SectionId, fn: (pen: string) => void): () => void {
+    return this.bus.on(GameEvents.SheepFlockSettled, (e) => {
+      if (e.puzzleId === puzzleId) fn(e.pen);
+    });
+  }
+
+  oweMove(moveId: MoveId, sceneId: DialogueId): void {
+    if (this.player.kit.moves.includes(moveId) || this.owedMoves.some((o) => o.moveId === moveId)) return;
+    this.owedMoves.push({ moveId, sceneId, chapter: this.chapter });
+  }
+
+  movesOwed(): readonly MoveId[] {
+    return this.owedMoves.map((o) => o.moveId);
+  }
+
+  /**
+   * Andrew has reached Bit much: pay the first lesson owed from an earlier chapter. The scene plays, then the move
+   * is learned and no longer owed. If the scene never finishes (the run ends first) it is still owed next time.
+   */
+  private payOwedMove(level: DrunkLevel): void {
+    if (level < BIT_MUCH_LEVEL || this.owedPlaying || this.ended) return;
+    const owed = this.owedMoves.find((o) => o.chapter < this.chapter);
+    if (!owed) return;
+    if (this.player.kit.moves.includes(owed.moveId)) {
+      this.owedMoves = this.owedMoves.filter((o) => o !== owed);
+      return;
+    }
+    this.owedPlaying = true;
+    void this.say(owed.sceneId).then(() => {
+      this.owedPlaying = false;
+      if (this.ended || !this.owedMoves.includes(owed)) return;
+      this.owedMoves = this.owedMoves.filter((o) => o !== owed);
+      this.learnMove(owed.moveId);
+    });
+  }
+
   /** Learn a move; it goes into its slot if that slot is empty (DESIGN.md 7.7). */
   learnMove(id: MoveId): void {
+    this.owedMoves = this.owedMoves.filter((o) => o.moveId !== id);
     const r = learnMove(this.player.kit, id, { autoAssign: true });
     if (!r.learned) return;
     this.player.setKit(r.kit);
@@ -1374,11 +1421,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       stealthUncaught: () => [...this.stealthRunners.values()].some((s) => s.runner.active),
       callsLeft: () => this.callsLeft,
       callLines: (kind: MykoCallKind): MykoCallLineSet | null => this.module.def.mykoCallLines[kind] ?? null,
+      callId: (sectionId) => this.bossCallId(sectionId),
       callsThisChapter: () => this.calls.filter((c) => c.chapter === this.chapter).length,
       spendCall: (sectionId, kind) => {
         this.callsLeft = Math.max(0, this.callsLeft - 1);
         this.calls.push({ chapter: this.chapter, sectionId, kind });
-        this.casebook.addMykoCall(sectionId, kind, this.chapter);
+        this.casebook.addMykoCall(sectionId, kind, this.chapter, kind === 'setpiece' ? this.bossCallId(sectionId) : undefined);
         this.saveHere();
       },
       saveAfterCall: () => this.saveHere(),
@@ -1394,6 +1442,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       playerPos: () => this.player.pos,
       tangentPools: () => this.module.mykoTangentPools ?? {},
     };
+  }
+
+  private bossCallId(sectionId: CompletableSectionId): string | undefined {
+    return this.module.bosses.find((b) => b.bossId === sectionId)?.callId;
   }
 
   /** A Myko call saves on the spot. */
@@ -1820,7 +1872,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   }
 
   private wireBus(): void {
-    this.scope.on(GameEvents.BuzzLevelChanged, ({ from, to, value }) => this.mykoVoice.trigger({ kind: 'levelChanged', from, to }, value));
+    this.scope.on(GameEvents.BuzzLevelChanged, ({ from, to, value }) => {
+      this.mykoVoice.trigger({ kind: 'levelChanged', from, to }, value);
+      this.payOwedMove(to);
+    });
     this.scope.on(GameEvents.SpiritStarted, ({ drinkId }) => this.mykoVoice.trigger({ kind: 'spiritStarted', drinkId }, this.player.meter.value));
     this.scope.on(GameEvents.DialogueShow, ({ sequenceId }) => {
       if (!this.dialogue.hasPlayed(sequenceId)) return;

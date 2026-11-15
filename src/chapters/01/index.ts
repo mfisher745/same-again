@@ -137,6 +137,8 @@ export const chapter1: ChapterModule = {
     { id: 'c1.trig.call', screenId: 'c1.street', area: tilesArea(43, 5, 2, 9), once: false },
     { id: 'c1.trig.bins', screenId: 'c1.street', area: tilesArea(22, 5, 7, 3), once: false },
     { id: 'c1.trig.boss', screenId: 'c1.street', area: tilesArea(47, 5, 2, 9), once: false },
+    // Just short of the east exit: the hurley reminder.
+    { id: 'c1.trig.eastexit', screenId: 'c1.street', area: tilesArea(65, 8, 3, 5), once: false },
     { id: 'c1.trig.lights', screenId: 'c1.road', area: tilesArea(22, 7, 2, 3), once: false },
   ],
   createScript: createChapterScript,

@@ -67,8 +67,8 @@ export class Casebook {
     this.bus.emit(GameEvents.CasebookEntryAdded, { entry });
   }
 
-  addMykoCall(sectionId: CompletableSectionId, callKind: MykoCallKind, chapter: ChapterNumber): void {
-    const entry: CasebookEntry = { kind: 'mykoCall', sectionId, callKind, chapter };
+  addMykoCall(sectionId: CompletableSectionId, callKind: MykoCallKind, chapter: ChapterNumber, callId?: string): void {
+    const entry: CasebookEntry = { kind: 'mykoCall', sectionId, callKind, chapter, ...(callId ? { callId } : {}) };
     this.list.push(entry);
     this.bus.emit(GameEvents.CasebookEntryAdded, { entry });
   }
