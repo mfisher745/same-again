@@ -54,8 +54,8 @@ export function toItem(entry: CasebookEntry): CasebookItem {
         tab: 'clues',
         chapter: entry.chapter,
         titleId: 'ui.casebook.callTitle',
-        bodyId: `c${entry.chapter}.call.${entry.callKind}.casebook`,
-        marginId: `c${entry.chapter}.call.${entry.callKind}.margin`,
+        bodyId: `c${entry.chapter}.call.${entry.callId ?? entry.callKind}.casebook`,
+        marginId: `c${entry.chapter}.call.${entry.callId ?? entry.callKind}.margin`,
       };
   }
 }
