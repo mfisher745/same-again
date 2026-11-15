@@ -20,6 +20,7 @@ interface Run {
   completeBarReturn(): void;
   hitPlayer(hit: object): boolean;
   myko: { mode: string };
+  holdDrain(held: boolean): void;
 }
 interface HudInternals {
   returnPhase: 'none' | 'live' | 'covered';
@@ -101,6 +102,8 @@ async function trigger(page: Page, reason: 'sober' | 'floor'): Promise<void> {
   await page.evaluate((r) => {
     const run = (window as unknown as GameWindow).__game.session.run as Run;
     run.player.pos = { x: run.screenLayout.playerStart.x + 40, y: run.screenLayout.playerStart.y };
+    // A fresh chapter 1 holds the drain until the yard, so a sober return needs it released first.
+    run.holdDrain(false);
     // Same ways the unit tests use: the meter at the bottom, or a hit from the top of Fecked.
     if (r === 'sober') run.player.meter = { ...run.player.meter, value: 0.01 };
     else {
@@ -167,7 +170,8 @@ test.describe('in the game', () => {
     await page.waitForFunction(() => (window as unknown as GameWindow).__game.session.run?.barReturning != null, undefined, { polling: 10 });
     expect(await page.evaluate(() => ((window as unknown as GameWindow).__game.session.run as Run).myko.mode)).toBe('scripted');
     await waitPhase(page, 'none');
-    expect(await page.evaluate(() => ((window as unknown as GameWindow).__game.session.run as Run).myko.mode)).not.toBe('scripted');
+    // Released for the walk, then placed again at his corner table: chapter 1's bar script keeps him there (spec beat 1).
+    expect(await page.evaluate(() => ((window as unknown as GameWindow).__game.session.run as Run).myko.mode)).toBe('scripted');
   });
 
   test('a return completed without the scene (the failsafe path) jumps to black and the scene does not complete it again', async ({ page }) => {

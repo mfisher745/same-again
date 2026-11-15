@@ -1,24 +1,25 @@
 /**
- * Chapter 1 playthrough against the built game at ?chapter=1.
+ * Chapter 1 playthrough against the built game at ?chapter=1, written for the overhaul (hidden meter until the first pint,
+ * the kit and four slots, Tab, the Shoulder, the hurley; no health, food, hangover or checkpoints).
  *
- * Real keyboard and mouse input where the brief asks for it. Everything waits on
- * game state read through window.__game, never on fixed sleeps (apart from
- * short polling intervals). Positions come from the running game (its grid,
- * its examinables, its puzzle), not from copies of the level data.
+ * Real keyboard and mouse input where the brief asks for it. Everything waits on game state read through window.__game,
+ * never on fixed sleeps (apart from short polling intervals). Positions come from the running game (its grid, its
+ * examinables, its puzzle), not from copies of the level data.
  */
 
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 interface Vec { x: number; y: number }
+interface Kit { drinks: Record<string, number | undefined>; hotDrink: string | null; bottles: number; weapons: string[]; moves: string[] }
 interface GameWindow {
   __game: {
     session: {
       run: Run | null;
-      store: { load(): { finishedChapters: number[]; mykoCallsLeft: number } | null };
+      store: { load(): { finishedChapters: number[]; mykoCallsLeft: number; meterHidden?: boolean; drainHeld?: boolean } | null };
       bus: { on(ev: string, fn: (p: unknown) => void): () => void };
     };
-    state(): { screenId: string | null; player: { x: number; y: number; health: number; buzz: number }; currentSection: string | null; completed: string[]; mykoCallsLeft: number; missingDialogue: string[] } | null;
+    state(): { screenId: string | null; player: { x: number; y: number; buzz: number }; currentSection: string | null; completed: string[]; mykoCallsLeft: number; missingDialogue: string[] } | null;
     walkChapter(): void;
     startSection(id: string): void;
     completeCurrent(): string | null;
@@ -32,7 +33,7 @@ interface Run {
   screenId: string;
   grid: { widthTiles: number; heightTiles: number; blocked: boolean[] };
   dialogue: { blocking: boolean };
-  player: { pos: Vec; health: { current: number; max: number }; inventory: { slots(): ({ drinkId: string; count: number } | null)[]; empties: number }; buzz: { value: number } };
+  player: { pos: Vec; kit: Kit; level: number; meterHidden: boolean; drainHeld: boolean; meter: { value: number } };
   pushPuzzlesHere(): { puzzle: { piecePositions(): { id: string; col: number; row: number }[]; layout: { fixed: { col: number; row: number }[] }; isComplete(): boolean } }[];
   callsRemaining(): number;
   setPlayerPosition(p: Vec): void;
@@ -41,8 +42,10 @@ interface Run {
   examinablesHere(): { id: string; position: Vec }[];
   dressing: { interactPoints(screen: string, examinables: unknown): { examinableId: string; position: Vec; kind: string }[] };
   module: { examinables: unknown };
-  enemies(): { pos: Vec; down: boolean; health: number }[];
-  give(item: object): void;
+  enemies(): { pos: Vec; down: boolean }[];
+  takeHotDrink(id: string): boolean;
+  learnMove(id: string): void;
+  gainWeapon(id: string): void;
 }
 
 const TILE = 16;
@@ -206,17 +209,28 @@ async function aimAt(page: Page, world: Vec): Promise<void> {
 
 // ---------------------------------------------------------------------------
 
-test('(a) the pub: bar, Dympna, the pint, the fruit machine, out the back door', async ({ page }) => {
+const meterState = (page: Page): Promise<{ hidden: boolean; held: boolean; value: number }> =>
+  page.evaluate(() => {
+    const p = ((window as unknown as GameWindow).__game.session.run as Run).player;
+    return { hidden: p.meterHidden, held: p.drainHeld, value: p.meter.value };
+  });
+const kitOf = (page: Page): Promise<Kit> => page.evaluate(() => ((window as unknown as GameWindow).__game.session.run as Run).player.kit);
+
+test('(a) the pub: meter hidden, Dympna, the pint reveals the meter, the hot drink, Tab, the fruit machine, out the back door', async ({ page }) => {
   await start(page);
   expect(await screenId(page)).toBe('c1.pub');
+  const fresh = await meterState(page);
+  expect(fresh.hidden).toBe(true);
+  expect(fresh.held).toBe(true);
   await until(page, 'the opening to finish', async () => (await flag(page, 'intro.done')) === true, 40_000); // title card, then Myko's opening scene
 
   // Walk to the end of the bar: the "bar" trigger.
   await walkTo(page, { x: 20 * TILE + 8, y: 4 * TILE + 8 });
   await until(page, 'bar trigger', async () => (await flag(page, 'pub.step')) === 1);
   await dismissScenes(page);
+  expect((await meterState(page)).hidden).toBe(true);
 
-  // E beside Dympna.
+  // E beside Dympna: she puts a pint down.
   const dympna = await page.evaluate(() => {
     const r = (window as unknown as GameWindow).__game.session.run as Run;
     return r.dressing.interactPoints(r.screenId, r.module.examinables).find((e) => e.examinableId === 'c1.dympna')?.position;
@@ -227,14 +241,27 @@ test('(a) the pub: bar, Dympna, the pint, the fruit machine, out the back door',
   await page.keyboard.press('KeyE');
   await until(page, 'pint given', async () => ((await flag(page, 'pub.step')) as number) >= 2);
   await dismissScenes(page);
-  await until(page, 'a stout in the slots', () =>
-    page.evaluate(() => (window as unknown as GameWindow).__game.session.run?.player.inventory.slots().some((s) => s?.drinkId === 'stout') === true),
-  );
+  await until(page, 'a stout in the kit', async () => ((await kitOf(page)).drinks['stout'] ?? 0) >= 1);
+  expect((await meterState(page)).hidden).toBe(true); // still hidden: nothing drunk yet
 
-  // Q to drink it.
+  // Q drinks it: the meter appears, but the drain is still held until he leaves the pub.
   await page.keyboard.press('KeyQ');
-  await until(page, 'Buzz up', async () => (await page.evaluate(() => (window as unknown as GameWindow).__game.state()?.player.buzz ?? 0)) > 10);
-  await until(page, 'machine step', async () => ((await flag(page, 'pub.step')) as number) >= 4, 20_000);
+  await until(page, 'the meter shown', async () => (await meterState(page)).hidden === false);
+  expect((await meterState(page)).held).toBe(true);
+  await until(page, 'the hot drink step', async () => ((await flag(page, 'pub.step')) as number) >= 4, 20_000);
+  await dismissScenes(page);
+
+  // The hot drink (the urn's choice is a menu; take it through the run, as the menu does).
+  expect(await page.evaluate(() => ((window as unknown as GameWindow).__game.session.run as Run).takeHotDrink('tea'))).toBe(true);
+  await until(page, 'the kit step', async () => ((await flag(page, 'pub.step')) as number) >= 5);
+  await dismissScenes(page);
+  expect((await kitOf(page)).hotDrink).toBe('tea');
+  expect((await kitOf(page)).bottles).toBeGreaterThanOrEqual(2);
+
+  // Tab opens the kit, and the list moves on to the fruit machine.
+  await page.keyboard.press('Tab');
+  await until(page, 'the machine step', async () => ((await flag(page, 'pub.step')) as number) >= 6, 15_000);
+  await page.keyboard.press('Tab'); // toggle it shut again
   await dismissScenes(page);
 
   // Walk to the fruit machine (west wall) and punch it, aiming with the mouse.
@@ -243,9 +270,9 @@ test('(a) the pub: bar, Dympna, the pint, the fruit machine, out the back door',
   await until(page, 'machine intro', async () => (await flag(page, 'machine.intro')) === true);
   await dismissScenes(page);
   await aimAt(page, machineWorld); // the haymaker has to touch the machine, so aim at it
-  for (let i = 0; i < 12 && ((await flag(page, 'pub.step')) as number) < 5; i++) {
+  for (let i = 0; i < 12 && ((await flag(page, 'pub.step')) as number) < 7; i++) {
     // Three clicks inside the combo window, then give the combo time to lapse and look again.
-    for (let n = 0; n < 3 && ((await flag(page, 'pub.step')) as number) < 5; n++) {
+    for (let n = 0; n < 3 && ((await flag(page, 'pub.step')) as number) < 7; n++) {
       await page.mouse.down();
       await page.waitForTimeout(50);
       await page.mouse.up();
@@ -253,15 +280,16 @@ test('(a) the pub: bar, Dympna, the pint, the fruit machine, out the back door',
     }
     await page.waitForTimeout(700);
   }
-  await until(page, 'machine paid out', async () => ((await flag(page, 'pub.step')) as number) >= 5);
+  await until(page, 'machine paid out', async () => ((await flag(page, 'pub.step')) as number) >= 7);
   await dismissScenes(page);
 
-  // Out the back door.
+  // Out the back door: the drain is released as he leaves the pub.
   const exit = await page.evaluate(() => (window as unknown as GameWindow).__game.session.run?.screenLayout.exits.find((e) => e.id === 'c1.pub.backdoor')?.area);
   expect(exit).toBeTruthy();
   const a = exit as { x: number; y: number; width: number; height: number };
   await walkTo(page, { x: a.x + a.width / 2, y: a.y + a.height / 2 });
   await until(page, 'yard screen', async () => (await screenId(page)) === 'c1.yard');
+  await until(page, 'the drain released', async () => (await meterState(page)).held === false);
   expect(errors).toEqual([]);
 });
 
@@ -391,12 +419,15 @@ test('(e) yard gate to Main Street, then along the street to the chipper', async
   await start(page);
   await arrive(page, 'c1.yard', tile(5, 3));
   expect(await currentSection(page)).toBe('c1.puzzle.kegs');
-  // The gate is locked until the kegs are shifted.
+  // The gate is stuck: shut with the kegs in the way, and still shut once they are cleared (the Shoulder opens it).
   await walkTo(page, await exitCentre(page, 'c1.yard.gate'));
   expect(await screenId(page)).toBe('c1.yard');
   expect(await debugComplete(page)).toBe('c1.puzzle.kegs');
-  // Standing in the gate, the exit opens under him; if not, step back in.
-  if ((await screenId(page)) === 'c1.yard') await walkTo(page, await exitCentre(page, 'c1.yard.gate'));
+  await dismissScenes(page);
+  expect(await complete(page, 'c1.explore.yard')).toBe(false);
+  // The Shoulder's section is what opens it; finish it as the move would, then walk out.
+  await page.evaluate(() => (window as unknown as { __game: { session: { run: { completeSection(id: string, by: string): void } } } }).__game.session.run.completeSection('c1.explore.yard', 'debug'));
+  await walkTo(page, await exitCentre(page, 'c1.yard.gate'));
   await until(page, 'Main Street', async () => (await screenId(page)) === 'c1.street');
   await dismissScenes(page);
   expect(await complete(page, 'c1.puzzle.kegs')).toBe(true);
@@ -406,144 +437,24 @@ test('(e) yard gate to Main Street, then along the street to the chipper', async
   expect(errors).toEqual([]);
 });
 
-test('(f) boss checkpoint, the boss, and out the east exit to the bog road', async ({ page }) => {
+test('(f) Big Tom, then the east exit stays shut until the hurley is taken', async ({ page }) => {
   await start(page);
   await arrive(page, 'c1.street', tile(3, 8));
   await walkTo(page, tile(32, 6));
   await until(page, 'the chipper fight', async () => (await currentSection(page)) === 'c1.fight.chipper', 30_000);
   expect(await debugComplete(page)).toBe('c1.fight.chipper');
   await dismissScenes(page);
-  await walkTo(page, tile(43, 9));
-  await until(page, 'the boss checkpoint', async () => (await flag(page, 'cp.done')) === true, 30_000);
-  await dismissScenes(page);
   await walkTo(page, tile(47, 9));
   await until(page, 'Big Tom', async () => (await currentSection(page)) === 'c1.boss.bigtom', 30_000);
   await dismissScenes(page);
   expect(await debugComplete(page)).toBe('c1.boss.bigtom');
   await dismissScenes(page);
+  // Without the hurley the east exit holds him.
+  await walkTo(page, await exitCentre(page, 'c1.street.east'));
+  expect(await screenId(page)).toBe('c1.street');
+  await page.evaluate(() => (window as unknown as GameWindow).__game.session.run?.gainWeapon('hurley'));
+  await walkTo(page, tile(60, 10));
   await walkTo(page, await exitCentre(page, 'c1.street.east'));
   await until(page, 'the bog road', async () => (await screenId(page)) === 'c1.road');
   expect(errors).toEqual([]);
 });
-
-// ---------------------------------------------------------------------------
-// BALANCE PROBE. Logs numbers, asserts nothing about difficulty. Off unless PROBE=1:
-//   PROBE=1 pnpm exec playwright test chapter1 -g "BALANCE PROBE" --workers=1
-// A simple bot: stay next to the nearest enemy, aim the mouse at it, click on cooldown, never dodge.
-// ---------------------------------------------------------------------------
-
-interface BotLook {
-  px: number;
-  py: number;
-  hp: number;
-  maxHp: number;
-  buzz: number;
-  blocking: boolean;
-  foes: { x: number; y: number }[];
-  cam: { sx: number; sy: number; zoom: number; left: number; top: number; scale: number };
-  deaths: number;
-  done: boolean;
-}
-
-async function botFight(page: Page, sectionId: string): Promise<{ seconds: number; hpLeft: number; lowestHp: number; maxHp: number; died: boolean; swings: number; buzzEnd: number }> {
-  const t0 = Date.now();
-  let lowestHp = Infinity; // a completion reward (the spice bag) can heal him, so the end figure alone hides damage taken
-  let lastClick = 0;
-  let swings = 0;
-  const held = new Set<string>();
-  const set = async (want: Set<string>): Promise<void> => {
-    for (const k of [...held]) if (!want.has(k)) { await page.keyboard.up(k); held.delete(k); }
-    for (const k of want) if (!held.has(k)) { await page.keyboard.down(k); held.add(k); }
-  };
-  try {
-    for (;;) {
-      const look: BotLook = await page.evaluate((id) => {
-        const w = window as unknown as GameWindow & { __deaths?: number };
-        const r = w.__game.session.run as Run;
-        const cam = w.__phaserGame.scene.getScene('Game').cameras.main;
-        const rect = document.querySelector('canvas')?.getBoundingClientRect();
-        return {
-          px: r.player.pos.x,
-          py: r.player.pos.y,
-          hp: r.player.health.current,
-          maxHp: r.player.health.max,
-          buzz: r.player.buzz.value,
-          blocking: r.dialogue.blocking,
-          foes: r.enemies().filter((e) => !e.down).map((e) => ({ x: e.pos.x, y: e.pos.y })),
-          cam: { sx: cam.scrollX, sy: cam.scrollY, zoom: cam.zoom, left: rect?.left ?? 0, top: rect?.top ?? 0, scale: (rect?.width ?? 480) / 480 },
-          deaths: w.__deaths ?? 0,
-          done: r.isComplete(id),
-        };
-      }, sectionId);
-      const seconds = (Date.now() - t0) / 1000;
-      lowestHp = Math.min(lowestHp, look.hp);
-      if (look.deaths > 0) return { seconds, hpLeft: 0, lowestHp: 0, maxHp: look.maxHp, died: true, swings, buzzEnd: look.buzz };
-      if (look.done) return { seconds, hpLeft: look.hp, lowestHp, maxHp: look.maxHp, died: false, swings, buzzEnd: look.buzz };
-      if (seconds > 150) throw new Error('bot gave up after 150 s');
-      if (look.blocking) {
-        await set(new Set());
-        await page.keyboard.press('KeyE');
-        await page.waitForTimeout(40);
-        continue;
-      }
-      const foe = [...look.foes].sort((a, b) => Math.hypot(a.x - look.px, a.y - look.py) - Math.hypot(b.x - look.px, b.y - look.py))[0];
-      if (!foe) {
-        await set(new Set());
-        await page.waitForTimeout(50);
-        continue;
-      }
-      const dx = foe.x - look.px;
-      const dy = foe.y - look.py;
-      const dist = Math.hypot(dx, dy);
-      const want = new Set<string>();
-      if (dist > 16) {
-        if (Math.abs(dx) > 4) want.add(dx > 0 ? KEYS.right : KEYS.left);
-        if (Math.abs(dy) > 4) want.add(dy > 0 ? KEYS.down : KEYS.up);
-      }
-      await set(want);
-      const c = look.cam;
-      await page.mouse.move(c.left + (foe.x - c.sx) * c.zoom * c.scale, c.top + (foe.y - c.sy) * c.zoom * c.scale);
-      if (Date.now() - lastClick >= 190 && dist < 40) {
-        await page.mouse.down();
-        await page.mouse.up();
-        lastClick = Date.now();
-        swings++;
-      }
-      await page.waitForTimeout(15);
-    }
-  } finally {
-    await set(new Set());
-  }
-}
-
-for (const n of [1, 2, 3]) {
-  test(`BALANCE PROBE run ${n}: chipper fight then Big Tom, logs numbers only`, async ({ page }) => {
-    test.skip(!process.env['PROBE'], 'set PROBE=1 to run the balance probe');
-    test.setTimeout(420_000);
-    await start(page);
-    await until(page, 'the opening to finish', async () => (await flag(page, 'intro.done')) === true, 40_000);
-    await page.evaluate(() => {
-      const w = window as unknown as GameWindow & { __deaths?: number };
-      w.__deaths = 0;
-      w.__game.session.bus.on('player:died', () => void (w.__deaths = (w.__deaths ?? 0) + 1));
-      (w.__game.session.run as Run).give({ kind: 'drink', drinkId: 'stout', count: 1 });
-    });
-    await page.keyboard.press('KeyQ'); // the first pint
-    await dismissScenes(page);
-    await page.evaluate(() => (window as unknown as GameWindow).__game.session.run?.goToScreen('c1.street', { x: 3 * 16 + 8, y: 8 * 16 + 8 }));
-    await until(page, 'street', async () => (await screenId(page)) === 'c1.street');
-    await page.evaluate(() => (window as unknown as GameWindow).__game.session.run?.setPlayerPosition({ x: 31 * 16 + 8, y: 6 * 16 + 8 }));
-    await until(page, 'the chipper fight', async () => (await currentSection(page)) === 'c1.fight.chipper', 30_000);
-    const chipper = await botFight(page, 'c1.fight.chipper');
-    console.log(`PROBE run ${n} chipper ${JSON.stringify(chipper)}`);
-    if (chipper.died) return;
-    await dismissScenes(page);
-    await page.evaluate(() => (window as unknown as GameWindow).__game.session.run?.setPlayerPosition({ x: 43 * 16 + 8, y: 9 * 16 + 8 }));
-    await until(page, 'the boss checkpoint', async () => (await flag(page, 'cp.done')) === true, 30_000);
-    await dismissScenes(page);
-    await page.evaluate(() => (window as unknown as GameWindow).__game.session.run?.setPlayerPosition({ x: 47 * 16 + 8, y: 9 * 16 + 8 }));
-    await until(page, 'Big Tom', async () => (await currentSection(page)) === 'c1.boss.bigtom', 30_000);
-    const tom = await botFight(page, 'c1.boss.bigtom');
-    console.log(`PROBE run ${n} bigtom ${JSON.stringify(tom)}`);
-  });
-}
