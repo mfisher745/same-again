@@ -91,15 +91,58 @@ describe('the keg puzzle through a return to the bar', () => {
 });
 
 describe('the keg puzzle by walking', () => {
-  // BUG (level-builder, src/chapters/01/maps.ts yardScreen): the stuck gate prop is solid on (17,7) and (18,7). Keg2 (16,7) can only
-  // be pushed left from (17,7); up and down are shut by the fixed crate at (16,8). So no walk can ever move keg2 and the
-  // puzzle cannot be solved while the gate is shut. The unit search in chapter1.test.ts ignores props. Remove `.fails` when fixed.
-  it.fails('Andrew can reach the tile east of keg2 and push it left', async () => {
+  /** Tiles Andrew can stand on from the yard door: the grid (stuck gate prop included) minus the kegs and the fixed crate. */
+  const reachable = (run: ChapterRun, to: { col: number; row: number }): boolean => {
+    const g = run.grid;
+    const p = kegs(run);
+    const open = (c: number, r: number) => c >= 0 && r >= 0 && c < g.widthTiles && r < g.heightTiles && !g.blocked[r * g.widthTiles + c] && !p.occupies(c, r);
+    const seen = new Set<number>([3 * g.widthTiles + 5]);
+    const queue = [{ c: 5, r: 3 }];
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      if (cur.c === to.col && cur.r === to.row) return true;
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const n = { c: cur.c + dc, r: cur.r + dr };
+        const k = n.r * g.widthTiles + n.c;
+        if (!open(n.c, n.r) || seen.has(k)) continue;
+        seen.add(k);
+        queue.push(n);
+      }
+    }
+    return false;
+  };
+
+  /** Stands on `from` (which must be reachable), holds `dir` for a second, and returns where the pieces are. */
+  const pushBy = (run: ChapterRun, from: { col: number; row: number }, dir: 'up' | 'left'): void => {
+    expect(reachable(run, from), `can walk to ${from.col},${from.row}`).toBe(true);
+    placeAt(run, from.col, from.row);
+    const move = dir === 'up' ? { x: 0, y: -1 } : { x: -1, y: 0 };
+    const before = JSON.stringify(kegs(run).piecePositions());
+    // Hold until the keg has moved one tile, then let go, so a second push cannot follow.
+    for (let i = 0; i < 120 && JSON.stringify(kegs(run).piecePositions()) === before; i++) run.tick(16, frame({ move }));
+    for (let i = 0; i < 30; i++) run.tick(16, NO_INPUT);
+  };
+
+  it('is solved by walking: keg1 up, keg1 left, keg2 left (from the tile east of it), keg2 up', async () => {
     const { run } = await inYard();
     const p = kegs(run);
-    run.setPlayerPosition(T(19, 7)); // the street side of the gate: the only way to the east of the kegs
-    for (let i = 0; i < 400; i++) run.tick(16, frame({ move: { x: -1, y: 0 } }));
-    expect(p.piecePositions().find((k) => k.id === 'keg2')?.col).toBe(15);
+    const start = p.piecePositions();
+    expect(start.map((k) => `${k.id}@${k.col},${k.row}`)).toEqual(['keg1@15,7', 'keg2@16,7']);
+    pushBy(run, { col: 15, row: 8 }, 'up');
+    expect(at(p.piecePositions())).toContain('keg1@15,6');
+    pushBy(run, { col: 16, row: 6 }, 'left');
+    expect(at(p.piecePositions())).toContain('keg1@14,6');
+    pushBy(run, { col: 17, row: 7 }, 'left');
+    expect(at(p.piecePositions())).toContain('keg2@15,7');
+    pushBy(run, { col: 15, row: 8 }, 'up');
+    expect(p.piecePositions().map((k) => `${k.id}@${k.col},${k.row}`)).toEqual(['keg1@14,6', 'keg2@15,6']);
+    expect(p.isComplete()).toBe(true);
+  });
+
+  it('the tile east of keg2 can be reached from the yard while the gate is shut', async () => {
+    const { run } = await inYard();
+    expect(reachable(run, { col: 17, row: 7 })).toBe(true);
+    expect(run.grid.blocked[7 * run.grid.widthTiles + 18]).toBe(true); // the gateway itself is still shut
   });
 });
 
@@ -245,10 +288,7 @@ describe('the east exit', () => {
       expect(count()).toBe(1);
     });
 
-    // BUG (level-builder, src/chapters/01/script.ts onTrigger 'c1.trig.eastexit'): the line is played with ctx.say(id) and no
-    // `{ repeat: true }`, so the dialogue runner treats the second approach as already played and stays silent. The spec
-    // (docs/chapters/01-a-quiet-pint.md beat 11) and the script's own comment say the line plays once per approach.
-    it.fails('plays again on a second approach after walking away', async () => {
+    it('plays again on a second approach after walking away', async () => {
       const { run, count } = await setUp();
       run.completeSection('c1.boss.bigtom', 'debug');
       await settleDialogue(run);
