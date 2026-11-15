@@ -79,6 +79,7 @@ const def: ChapterDef = {
   mykoCallLines: {
     fight: { sequenceId: 'c2.call.fight', casebookBodyTextId: 'c2.call.fight.casebook', casebookMarginTextId: 'c2.call.fight.margin' },
     puzzle: { sequenceId: 'c2.call.puzzle', casebookBodyTextId: 'c2.call.puzzle.casebook', casebookMarginTextId: 'c2.call.puzzle.margin' },
+    setpiece: { sequenceId: 'c2.call.ram', casebookBodyTextId: 'c2.call.ram.casebook', casebookMarginTextId: 'c2.call.ram.margin' },
   },
   finaleSectionId: 'c2.setpiece.ram',
 };
@@ -113,6 +114,7 @@ export const chapter2: ChapterModule = {
   bosses: [
     {
       bossId: 'c2.setpiece.ram',
+      callId: 'ram',
       screenId: 'c2.lane',
       trigger: { kind: 'script' },
       bodies: [{ tag: 'ram', position: T(1, 5), invulnerable: true }],

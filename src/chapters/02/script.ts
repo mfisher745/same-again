@@ -8,7 +8,7 @@ import type { BossHooks, ChapterContext, ChapterScript, FightHooks } from '../..
 import { GameEvents } from '../../core/types';
 import type { SectionId, SpecialSlotIndex, TextId } from '../../core/types';
 import { hidePrompt, onTabOpened, openHotDrinkChoice, showPrompt, showSlotPrompt } from '../../ui/prompts';
-import { BAR_ARRIVAL, BUCKETS_AREA, KEY_CLUES, LANE_GATE_SEAT, MYKO_CHAIR } from './maps';
+import { BAR_ARRIVAL, BUCKETS_AREA, KEY_CLUES, LANE_GATE_ROWS, LANE_GATE_SEAT, MYKO_CHAIR } from './maps';
 
 const OBJ = {
   ring: 'c2.ring',
@@ -43,7 +43,7 @@ type Flag =
   | 'ram.started'
   | 'finished';
 
-const LANE_GATE_PROPS = ['lane.gate.2', 'lane.gate.4', 'lane.gate.6', 'lane.gate.8'] as const;
+const LANE_GATE_PROPS = LANE_GATE_ROWS.map((r) => `lane.gate.${r}`);
 
 export function createChapterScript(ctx: ChapterContext): ChapterScript {
   let disposed = false;
@@ -200,6 +200,12 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     setPrompt('ui.prompt.stumble', PROMPT_LINGER_MS);
   };
 
+  /** The shed is done: the lesson is promised for the next time he is at Bit much, in this chapter or a later one. */
+  const shedDone = (): void => {
+    if (!flag('stumble.taught')) ctx.oweMove('stumble', 'c2.stumble.lesson');
+    maybeStumbleLesson();
+  };
+
   const maybeStumbleLesson = (): void => {
     if (ctx.isComplete('c2.explore.shed') && level >= BIT_MUCH && !flag('stumble.taught')) void stumbleLesson();
   };
@@ -262,6 +268,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     if (flag('finished')) return;
     setFlag('finished');
     ctx.setCameraLead(null);
+    // A call skips the ram's own ending; Myko's call is the beat, then the closing.
     if (by !== 'myko') await ctx.say('c2.ram.end');
     await ctx.say('c2.closing');
     if (disposed) return;
@@ -293,6 +300,10 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           },
           'c2.farm',
         ),
+        // The flock has gone back to the first pen, the one Andrew must walk through to reach the shed.
+        ctx.onFlockSettled('c2.puzzle.sheep', (pen) => {
+          if (pen === 'pen1' && !ctx.isComplete('c2.puzzle.sheep')) void ctx.say('c2.sheep.wrong');
+        }),
         onTabOpened(() => clearPrompt('ui.prompt.casebook')),
         ctx.bus.on(GameEvents.BuzzLevelChanged, ({ to }) => {
           level = to;
@@ -437,7 +448,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
         ctx.setPropVisible('van', false);
         if (!ctx.isComplete('c2.puzzle.sheep')) ctx.setObjective(OBJ.sheep);
       } else if (sectionId === 'c2.puzzle.sheep') void sheepDone();
-      else if (sectionId === 'c2.explore.shed') maybeStumbleLesson();
+      else if (sectionId === 'c2.explore.shed') shedDone();
       else if (sectionId === 'c2.fight.yard') void cousinsDone();
     },
 

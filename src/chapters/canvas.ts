@@ -47,6 +47,8 @@ const LEGEND: Readonly<Record<string, string>> = {
   E: 'doorLit',
   f: 'fence',
   q: 'water',
+  B: 'turfBank',
+  M: 'mud',
 };
 
 export interface Extras {

@@ -76,6 +76,12 @@ export const SHEEP_LAYOUT: SheepPuzzleLayout = {
     { id: 'gateB', positions: [D2, D3], examinableId: 'c2.gateB' },
     { id: 'gateC', positions: [D3, []], examinableId: 'c2.gateC' },
   ],
+  // The three pens before the far one, for `sheep:flockSettled`.
+  pens: [
+    { id: 'pen1', col: 10, row: 7, width: 9, height: 7 },
+    { id: 'pen2', col: 20, row: 7, width: 9, height: 7 },
+    { id: 'pen3', col: 20, row: 15, width: 9, height: 7 },
+  ],
   targetPen: FAR_PEN,
   solution: {
     sheep: [
@@ -150,7 +156,9 @@ export function bogScreen(): ScreenLayout {
   // The gate off the road, west side, with a strip of path inside it.
   c.rect(0, 28, 1, 2, 'G').rect(1, 28, 3, 2, 'p');
   // Turf banks: rough ground in long bands.
-  for (const [r, c0, n] of [[4, 5, 12], [8, 4, 8], [20, 8, 10], [23, 30, 6], [30, 24, 14], [6, 42, 6]] as const) c.rect(c0, r, n, 1, 'r');
+  for (const [r, c0, n] of [[8, 4, 8], [20, 8, 10], [23, 30, 6], [6, 42, 6]] as const) c.rect(c0, r, n, 1, 'r');
+  // Two cut banks along the edges, away from every route: too high to step up, low enough to see over.
+  c.rect(5, 4, 12, 1, 'B').rect(24, 30, 14, 1, 'B');
   // Drains: not walkable, but a man can see over them. One long cut with a gap, between the ring and the field.
   c.rect(38, 2, 1, 8, 'q').rect(38, 21, 1, 11, 'q').rect(12, 24, 9, 1, 'q').rect(24, 3, 1, 5, 'q').rect(8, 14, 1, 6, 'q');
   // The scorched ring.
@@ -176,17 +184,24 @@ export function bogScreen(): ScreenLayout {
     { id: 'c2.bog.east', area: tilesArea(58, 10, 2, 3), toScreen: 'c2.farm', spawn: FARM_ARRIVAL, lockedUntil: ['c2.stealth.bog'] },
   ];
   const props: PropPlacement[] = [
-    // The crate of stout, the honesty box and the flask.
+    // The lean-to's back wall and roof, with the crate of stout, the flask, the coffee jar and the honesty box in front.
+    { id: 'bar.leanTo.1', frame: PROP.leanTo, col: 3, row: 24 },
+    { id: 'bar.leanTo.2', frame: PROP.leanTo, col: 6, row: 24 },
     { id: 'bar.crate', frame: PROP.bottleCrate, col: 4, row: 26, solid: { width: 1, height: 1 } },
-    { id: 'bar.box', frame: PROP.cardboardBox, col: 8, row: 26, solid: { width: 1, height: 1 } },
+    { id: 'bar.box', frame: PROP.honestyBox, col: 8, row: 26, solid: { width: 1, height: 1 } },
     { id: 'bar.flask', frame: PROP.flask, col: 6, row: 26 },
-    { id: 'bar.jar', frame: PROP.coffeePot, col: 7, row: 26 },
-    // The ring's contents.
-    { id: 'ring.fragment', frame: PROP.debris[0], col: 29, row: 13 },
-    { id: 'ring.frog', frame: PROP.debris[1], col: 28, row: 10 },
-    { id: 'ring.welly', frame: PROP.sack, col: 32, row: 16 },
-    // The van is not here until it arrives.
-    { id: 'van', frame: PROP.tractor, col: VAN_TILE.col, row: VAN_TILE.row, solid: { width: 3, height: 2 }, hidden: true },
+    { id: 'bar.jar', frame: PROP.coffeeJar, col: 7, row: 26 },
+    // The scorched ring, nine tiles across, and what is in it.
+    { id: 'ring.scorch', frame: PROP.scorchRing, col: RING.col - 4, row: RING.row - 4, layer: 'floor' },
+    { id: 'ring.fragment', frame: PROP.metalFragment, col: 29, row: 13 },
+    { id: 'ring.frog', frame: PROP.boiledFrog, col: 28, row: 10 },
+    { id: 'ring.welly', frame: PROP.burntWelly, col: 32, row: 16 },
+    // The tyre tracks: from the ring, east past the turf, to the farm.
+    ...Array.from({ length: 5 }, (_, i) => ({ id: `tracks.a${i}`, frame: PROP.tyreTracks.across, col: 34 + i, row: 14, layer: 'floor' as const })),
+    ...Array.from({ length: 4 }, (_, i) => ({ id: `tracks.b${i}`, frame: PROP.tyreTracks.along, col: 39, row: 11 + i, layer: 'floor' as const })),
+    ...Array.from({ length: 19 }, (_, i) => ({ id: `tracks.c${i}`, frame: PROP.tyreTracks.across, col: 40 + i, row: 11, layer: 'floor' as const })),
+    // The van is not here until it arrives. Solid on its bottom row only.
+    { id: 'van', frame: PROP.van.left, col: VAN_TILE.col, row: VAN_TILE.row, solid: { dy: 1, width: 3, height: 1 }, hidden: true },
   ];
   const dressing: ScreenDressing = { props };
   const ambient: ScreenAmbient = {
@@ -218,6 +233,8 @@ export function farmScreen(): ScreenLayout {
   c.rect(9, 10, 1, 3, 'g');
   c.rect(19, 7, 1, 15, 'f').rect(10, 14, 19, 1, 'f');
   for (const t of [...D1, ...D2, ...D3]) c.set(t.col, t.row, 'g');
+  // Churned mud by the buckets and at the gate.
+  c.rect(2, 22, 5, 2, 'M').rect(2, 25, 6, 3, 'M');
   // The gate out of the yard, at the bottom.
   c.rect(3, 29, 3, 1, 'G');
   const exits: ExitDef[] = [
@@ -227,17 +244,17 @@ export function farmScreen(): ScreenLayout {
   const props: PropPlacement[] = [
     // The shed door: a gate across it until the flock is out of the way.
     { id: 'shed.door', frame: PROP.churchGate, col: 13, row: 4, solid: { dy: 1, width: 2, height: 1 } },
-    // Hay (behind it, the whiskey) and the bench with the docket.
-    { id: 'shed.hay1', frame: PROP.sack, col: 16, row: 3, solid: { width: 1, height: 1 } },
-    { id: 'shed.hay2', frame: PROP.sack, col: 17, row: 3, solid: { width: 1, height: 1 } },
-    { id: 'shed.bench', frame: PROP.crate, col: 11, row: 3, solid: { width: 1, height: 1 } },
+    // Hay (behind it, the whiskey) and the bench, with the docket on it.
+    { id: 'shed.hay1', frame: PROP.hayBale, col: 16, row: 3, solid: { width: 1, height: 1 } },
+    { id: 'shed.hay2', frame: PROP.hayBale, col: 17, row: 3, solid: { width: 1, height: 1 } },
+    { id: 'shed.docket', frame: PROP.docket, col: 11, row: 3, solid: { width: 1, height: 1 } },
     // Feed buckets: a stack that breaks to a lurch.
-    { id: 'yard.bucket1', frame: PROP.barrel, col: 4, row: 19, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
-    { id: 'yard.bucket2', frame: PROP.barrel, col: 5, row: 19, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
-    { id: 'yard.bucket3', frame: PROP.barrel, col: 4, row: 20, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
-    { id: 'yard.bucket4', frame: PROP.barrel, col: 5, row: 20, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
+    { id: 'yard.bucket1', frame: PROP.feedBuckets, col: 4, row: 19, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
+    { id: 'yard.bucket2', frame: PROP.feedBuckets, col: 5, row: 19, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
+    { id: 'yard.bucket3', frame: PROP.feedBuckets, col: 4, row: 20, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
+    { id: 'yard.bucket4', frame: PROP.feedBuckets, col: 5, row: 20, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
     // The dog, asleep throughout.
-    { id: 'farm.dog', frame: PROP.sack, col: 7, row: 24, solid: { width: 1, height: 1 } },
+    { id: 'farm.dog', frame: PROP.sleepingDog[0], frames: PROP.sleepingDog, frameRate: 1, col: 7, row: 24, solid: { width: 1, height: 1 } },
   ];
   const dressing: ScreenDressing = { props };
   const ambient: ScreenAmbient = { ...MIST, strength: 0.3 };
@@ -251,14 +268,9 @@ export function farmScreen(): ScreenLayout {
 const LANE_ROWS = { top: 2, bottom: 9 } as const;
 export const LANE_GATE_COL = 52;
 export const GRID_COL = 82;
+/** The lane's rows the gate stands in: all of them between the verges. */
+export const LANE_GATE_ROWS = [2, 3, 4, 5, 6, 7, 8, 9] as const;
 export const LANE_EXIT_AREA = tilesArea(85, 2, 4, 8);
-
-/** One logical floor prop with a footprint, drawn over its whole area with plain frames. */
-function floorPatch(id: string, frame: string, c0: number, r0: number, w: number, h: number, extra: Partial<PropPlacement>): PropPlacement[] {
-  const out: PropPlacement[] = [{ id, frame, col: c0, row: r0, layer: 'floor', ...extra }];
-  for (let r = 0; r < h; r++) for (let cc = 0; cc < w; cc++) if (r !== 0 || cc !== 0) out.push({ id: `${id}.${cc}.${r}`, frame, col: c0 + cc, row: r0 + r, layer: 'floor' });
-  return out;
-}
 
 export function laneScreen(): ScreenLayout {
   const c = new Canvas(90, 12, 'p');
@@ -266,20 +278,30 @@ export function laneScreen(): ScreenLayout {
   c.rect(1, 1, 88, 1, 'H').rect(1, 10, 88, 1, 'H');
   c.rect(1, 2, 88, 1, 'g').rect(1, 9, 88, 1, 'g');
   for (let cc = 4; cc < 86; cc += 6) c.set(cc, 5, 'r');
+  // Churned mud on the verge.
+  c.rect(20, 2, 6, 1, 'M').rect(30, 9, 8, 1, 'M').rect(60, 2, 7, 1, 'M').rect(70, 9, 6, 1, 'M');
   const props: PropPlacement[] = [
     // The yard gate, behind Andrew where the lane starts.
     { id: 'lane.yardgate', frame: PROP.churchGate, col: 1, row: 2 },
     // Puddles slow Andrew and nobody else.
-    ...floorPatch('lane.puddle1', PROP.debris[1], 14, 3, 3, 2, { slows: { width: 3, height: 2 } }),
-    ...floorPatch('lane.puddle2', PROP.debris[1], 26, 6, 3, 2, { slows: { width: 3, height: 2 } }),
-    ...floorPatch('lane.puddle3', PROP.debris[1], 36, 3, 3, 3, { slows: { width: 3, height: 3 } }),
-    { id: 'lane.wheelbarrow', frame: PROP.crate, col: 44, row: 5, solid: { width: 1, height: 1 } },
-    // The gate across the lane. E opens it.
-    ...[2, 4, 6, 8].map((r) => ({ id: `lane.gate.${r}`, frame: PROP.churchGate, col: LANE_GATE_COL - 1, row: r, solid: { dx: 1, width: 1, height: 2 } })),
+    { id: 'lane.puddle1', frame: PROP.puddleLarge, col: 14, row: 3, layer: 'floor', slows: { width: 3, height: 2 } },
+    { id: 'lane.puddle2', frame: PROP.puddleLarge, col: 26, row: 6, layer: 'floor', slows: { width: 3, height: 2 } },
+    { id: 'lane.puddle3', frame: PROP.puddleLarge, col: 36, row: 3, layer: 'floor', slows: { width: 3, height: 2 } },
+    { id: 'lane.puddle4', frame: PROP.puddle, col: 36, row: 5, layer: 'floor', slows: { width: 2, height: 1 } },
+    { id: 'lane.wheelbarrow', frame: PROP.wheelbarrow, col: 44, row: 5, solid: { width: 1, height: 1 } },
+    // The gate across the lane, shut, one tile of it for each row. E opens it.
+    ...LANE_GATE_ROWS.map((r) => ({ id: `lane.gate.${r}`, frame: PROP.fieldGate.along, col: LANE_GATE_COL, row: r, solid: { width: 1, height: 1 } })),
     // The dog is asleep. Go round.
-    { id: 'lane.dog', frame: PROP.sack, col: 66, row: 5, solid: { width: 1, height: 1 } },
-    // The cattle grid: Andrew crosses it; the ram will not.
-    ...floorPatch('lane.grid', PROP.debris[0], GRID_COL, LANE_ROWS.top, 2, 8, { blocksEnemies: { width: 2, height: 8 } }),
+    { id: 'lane.dog', frame: PROP.sleepingDog[0], frames: PROP.sleepingDog, frameRate: 1, col: 66, row: 5, solid: { width: 1, height: 1 } },
+    // The cattle grid: Andrew crosses it; the ram will not. One tile each, across the lane.
+    ...Array.from({ length: 16 }, (_, i) => ({
+      id: `lane.grid.${i}`,
+      frame: PROP.cattleGrid,
+      col: GRID_COL + (i % 2),
+      row: LANE_ROWS.top + Math.floor(i / 2),
+      layer: 'floor' as const,
+      blocksEnemies: { width: 1, height: 1 },
+    })),
   ];
   return c.build('c2.lane', [], LANE_ARRIVAL, { dressing: { props }, ambient: { ...MIST, strength: 0.25 } });
 }
