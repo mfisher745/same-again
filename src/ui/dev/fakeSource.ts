@@ -32,7 +32,7 @@ import type {
   Vec2,
 } from '../../core/types';
 import { GameEvents } from '../../core/types';
-import { assignDrink, assignMove, assignWeapon, drinkFromInventory, gainWeapon, learnMove, takeHotDrink } from '../../systems/kit';
+import { assignMove, assignWeapon, gainWeapon, holds, learnMove, selectItem, takeHotDrink, useSelected, useSpirit } from '../../systems/kit';
 import type { KitChange } from '../../systems/kit';
 import { levelFor, overhaulTuning, stateFor } from '../../systems/meter';
 import type { UiStateSource } from '../contract';
@@ -70,7 +70,8 @@ export class FakeSource implements UiStateSource {
     bottles: 4,
     weapons: ['fists'],
     moves: [],
-    slots: { drink: 'stout', specials: [null, null, null, null], melee: 'fists' },
+    slots: { drink: 'stout', spirit: null, specials: [null, null, null, null], melee: 'fists' },
+    selectedItem: null,
   };
   slots: MoveSlotView[] = [
     { slot: 1, moveId: 'shoulder', lit: true, cooldownLeftMs: 0, cooldownMs: 5000 },
@@ -175,11 +176,14 @@ export class FakeSource implements UiStateSource {
     this.bus.emit(GameEvents.BarReturned, { reason: r.reason });
   }
   barReturning = (): { readonly reason: BarReturnReason; readonly andrew: Vec2 } | null => this.waitingReturn;
-  assignDrink = (id: OverhaulDrinkId | null): boolean => this.apply(assignDrink(this.kitState, id));
+  selectItem = (id: string | null): boolean => this.apply(selectItem(this.kitState, id));
   assignMove = (slot: SpecialSlotIndex, id: MoveId | null): boolean => this.apply(assignMove(this.kitState, slot, id));
   assignWeapon = (id: WeaponId): boolean => this.apply(assignWeapon(this.kitState, id));
+  /** Dev and test helper: pick it, then use it (Q, or G for a spirit). */
   drinkFromInventory(id: OverhaulDrinkId): boolean {
-    const r = drinkFromInventory(this.kitState, id);
+    if (!holds(this.kitState, id)) return false;
+    this.selectItem(id);
+    const r = id === 'whiskey' || id === 'tequila' ? useSpirit(this.kitState) : useSelected(this.kitState);
     if (r.consumed === null) return false;
     this.apply(r);
     this.bus.emit(GameEvents.DrinkConsumed, { drinkId: r.consumed });

@@ -12,7 +12,7 @@ import { createSandboxModule } from '../../src/core/sandbox';
 import { createChapter2Sandbox } from '../../src/core/sandbox2';
 import { carryOver } from '../../src/systems/session';
 import type { ChapterRun } from '../../src/systems/run';
-import { NO_INPUT, advance, frame, makeRun, placeAt, record, settleDialogue, startChapterGame } from './helpers';
+import { NO_INPUT, advance, frame, makeRun, placeAt, record, settleDialogue, startChapterGame, drinkItem } from './helpers';
 
 const px = (c: number, r: number) => ({ x: c * 16 + 8, y: r * 16 + 8 });
 const settled = async (run: ChapterRun, ticks = 6): Promise<void> => {
@@ -208,7 +208,7 @@ describe('the carried-over lesson fallback', () => {
   const drinkIntoBitMuch = (run: ChapterRun): void => {
     run.give({ kind: 'drink', drinkId: 'stout', count: 1 });
     run.player.meter = { ...run.player.meter, value: 60 };
-    run.drinkFromInventory('stout');
+    drinkItem(run, 'stout');
   };
 
   it('plays at once when nothing else is going on, learns the move, and announces move:taughtByFallback with its slot', async () => {
@@ -299,7 +299,7 @@ describe('the Stumble lesson in the real farm', () => {
     run.setPlayerPosition(pos);
     run.give({ kind: 'drink', drinkId: 'stout', count: 1 });
     run.player.meter = { ...run.player.meter, value: 60 };
-    run.drinkFromInventory('stout');
+    drinkItem(run, 'stout');
     await settled(run, 8);
   };
   const lessonShown = (shown: { sequenceId: string }[]) => shown.some((s) => s.sequenceId === 'c2.stumble.lesson');
@@ -520,7 +520,7 @@ describe('the practice stack', () => {
       run.setPlayerPosition(spot);
       run.give({ kind: 'drink', drinkId: 'stout', count: 1 });
       run.player.meter = { ...run.player.meter, value: 60 };
-      run.drinkFromInventory('stout');
+      drinkItem(run, 'stout');
       await settled(run, 6);
       for (const id of PRACTICE) expect(run.dressing.prop(id)?.broken, `${id} after the lurch from ${spot.x},${spot.y}`).toBeFalsy();
     }

@@ -11,7 +11,7 @@ import { createSandboxModule } from '../../src/core/sandbox';
 import { createChapter2Sandbox } from '../../src/core/sandbox2';
 import type { ChapterRun } from '../../src/systems/run';
 import { carryOver } from '../../src/systems/session';
-import { NO_INPUT, advance, frame, makeRun, placeAt, record, settleDialogue, startChapterGame } from './helpers';
+import { NO_INPUT, advance, frame, makeRun, placeAt, record, settleDialogue, startChapterGame, drinkItem } from './helpers';
 
 async function newGame(how: 'chapter' | 'continue' = 'chapter', store?: Parameters<typeof startChapterGame>[2]) {
   const g = startChapterGame(chapter2, how, store);
@@ -39,7 +39,7 @@ async function drinkIntoBitMuch(run: ChapterRun): Promise<void> {
   run.give({ kind: 'drink', drinkId: 'stout', count: 1 });
   run.player.meter = { ...run.player.meter, value: 60 };
   expect(run.player.level).toBe(2);
-  expect(run.drinkFromInventory('stout')).toBe(true);
+  expect(drinkItem(run, 'stout')).toBe(true);
   for (let i = 0; i < 6; i++) {
     run.tick(50, NO_INPUT);
     await settleDialogue(run);

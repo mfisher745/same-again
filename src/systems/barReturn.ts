@@ -6,13 +6,13 @@
  *
  * Kept: finished sections (clues, puzzles, passed stealth, beaten encounters,
  * bosses) and everything else on the progress object. Reset: the encounter
- * under way. Buzz goes to the bottom of Grand, bottles are topped up to the
- * leave-the-bar minimum, and one free hot drink is on offer again.
+ * under way. Buzz goes to the bottom of Grand, beers and bottles are topped up to the
+ * leave-the-bar minimums, and one free hot drink is on offer again.
  * Not wired in yet.
  */
 
-import type { BarReturnReason, HotDrinkId, Kit, OverhaulSaveState, OverhaulTuning, SectionId } from '../core/types';
-import { topUpBottles as kitTopUpBottles } from './kit';
+import type { BarReturnReason, BeerId, HotDrinkId, Kit, OverhaulSaveState, OverhaulTuning, SectionId } from '../core/types';
+import { topUpBottles as kitTopUpBottles, topUpForLeaving } from './kit';
 import { createMeter, overhaulTuning } from './meter';
 import type { MeterState } from './meter';
 
@@ -42,10 +42,10 @@ export interface BarArrival<P extends BarProgress> {
 /** Bottles Andrew has on leaving the bar: what he had, or the minimum. The rule lives in `kit.ts`. */
 export const topUpBottles = (kit: Kit, t: OverhaulTuning = overhaulTuning()): Kit => kitTopUpBottles(kit, t).kit;
 
-export function arriveAtBar<P extends BarProgress>(progress: P, reason: BarReturnReason | null, t: OverhaulTuning = overhaulTuning()): BarArrival<P> {
+export function arriveAtBar<P extends BarProgress>(progress: P, reason: BarReturnReason | null, t: OverhaulTuning = overhaulTuning(), beer: BeerId = 'stout'): BarArrival<P> {
   const finished = progress.underWaySectionId !== null && progress.completedSectionIds.includes(progress.underWaySectionId);
   return {
-    progress: { ...progress, kit: topUpBottles(progress.kit, t), underWaySectionId: null },
+    progress: { ...progress, kit: topUpForLeaving(progress.kit, beer, t), underWaySectionId: null },
     meter: createMeter(progress.chapter, undefined, t),
     hotDrinkOffer: { available: true },
     resetSectionId: finished ? null : progress.underWaySectionId,
@@ -54,11 +54,11 @@ export function arriveAtBar<P extends BarProgress>(progress: P, reason: BarRetur
 }
 
 /** Andrew went back to the bar at 0 or at the floor. */
-export const returnToBar = <P extends BarProgress>(progress: P, reason: BarReturnReason, t?: OverhaulTuning): BarArrival<P> =>
-  arriveAtBar(progress, reason, t);
+export const returnToBar = <P extends BarProgress>(progress: P, reason: BarReturnReason, t?: OverhaulTuning, beer?: BeerId): BarArrival<P> =>
+  arriveAtBar(progress, reason, t, beer);
 
 /** A chapter start or a loaded save: the same arrival, no return. DESIGN.md 7.6. */
-export const loadIntoBar = <P extends BarProgress>(progress: P, t?: OverhaulTuning): BarArrival<P> => arriveAtBar(progress, null, t);
+export const loadIntoBar = <P extends BarProgress>(progress: P, t?: OverhaulTuning, beer?: BeerId): BarArrival<P> => arriveAtBar(progress, null, t, beer);
 
 export interface HotDrinkTaken {
   readonly taken: boolean;

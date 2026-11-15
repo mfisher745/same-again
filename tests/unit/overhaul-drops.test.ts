@@ -26,7 +26,7 @@ describe('drops: breakables', () => {
     expect(seen).toEqual(new Set([null, 'lightBeer', 'whiskey']));
   });
 
-  it('is roughly 35% beer, 4% whiskey, rest nothing', () => {
+  it('is roughly 50% beer, 4% whiskey, rest nothing (no chapter bonus)', () => {
     const rng = seededRandom(42);
     const n = 20000;
     let beer = 0;
@@ -36,8 +36,8 @@ describe('drops: breakables', () => {
       if (d === 'stout') beer++;
       if (d === 'whiskey') whiskey++;
     }
-    expect(beer / n).toBeGreaterThan(0.33);
-    expect(beer / n).toBeLessThan(0.37);
+    expect(beer / n).toBeGreaterThan(0.48);
+    expect(beer / n).toBeLessThan(0.52);
     expect(whiskey / n).toBeGreaterThan(0.025);
     expect(whiskey / n).toBeLessThan(0.055);
   });
@@ -52,9 +52,17 @@ describe('drops: enemies', () => {
   });
 
   it('beer, then whiskey, then nothing', () => {
-    expect(rollEnemyDrop(fixed(0), 'lager', 1)).toBe('lager');
-    expect(rollEnemyDrop(fixed(D.enemy.beer), 'lager', 1)).toBe('whiskey');
-    expect(rollEnemyDrop(fixed(D.enemy.beer + D.enemy.whiskey), 'lager', 1)).toBeNull();
+    // Chapter 5 has no beer bonus.
+    expect(rollEnemyDrop(fixed(0), 'lager', 5)).toBe('lager');
+    expect(rollEnemyDrop(fixed(D.enemy.beer), 'lager', 5)).toBe('whiskey');
+    expect(rollEnemyDrop(fixed(D.enemy.beer + D.enemy.whiskey), 'lager', 5)).toBeNull();
+  });
+
+  it('the early chapters add their beer bonus to breakables and enemies', () => {
+    const bonus = TUNING.overhaul!.dropBeerBonusByChapter!;
+    expect(rollBreakableDrop(fixed(D.breakable.beer + bonus[1]! - 0.001), 'stout', 1)).toBe('stout');
+    expect(rollBreakableDrop(fixed(D.breakable.beer + bonus[1]! - 0.001), 'stout', 5)).toBeNull();
+    expect(rollEnemyDrop(fixed(D.enemy.beer + bonus[2]! - 0.001), 'lager', 2)).toBe('lager');
   });
 
   it('tequila is rarer than whiskey', () => {

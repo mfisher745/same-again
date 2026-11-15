@@ -805,7 +805,7 @@ const overhaul: OverhaulTuning = {
     coffee: { kind: 'hot', id: 'coffee', nameTextId: 'drink.coffee.name', pickupTextId: 'drink.coffee.pickup', reset: { kind: 'instant' } },
     tea: { kind: 'hot', id: 'tea', nameTextId: 'drink.tea.name', pickupTextId: 'drink.tea.pickup', reset: { kind: 'ease', easeMs: 10000, holdMs: 20000 } },
   },
-  carry: { limit: 6, hotDrinkLimit: 1, minBottlesOnLeavingBar: 2 },
+  carry: { limit: 6, hotDrinkLimit: 1, minBottlesOnLeavingBar: 2, minBeersOnLeavingBar: 2 },
   moveCooldownMsByLevel,
   moves: {
     shoulder: move('shoulder', 1, 1, { kind: 'charge', distance: 40, knockback: 140 }),
@@ -833,9 +833,11 @@ const overhaul: OverhaulTuning = {
   },
   // Degrees of aim sway. None until Bit much (DESIGN.md 7.2, thrown bottles).
   swayByLevel: { 0: 0, 1: 0, 2: 0, 3: 8, 4: 18 },
+  // Playtest 4 (owner): too much beer rather than too little. These are the floor for every chapter;
+  // `dropBeerBonusByChapter` adds to the beer chance in the early chapters.
   drops: {
-    breakable: { beer: 0.35, whiskey: 0.04 },
-    enemy: { beer: 0.3, whiskey: 0.03, tequila: 0.01, tequilaFromChapter: 7 },
+    breakable: { beer: 0.5, whiskey: 0.04 },
+    enemy: { beer: 0.4, whiskey: 0.03, tequila: 0.01, tequilaFromChapter: 7 },
   },
   // Same gap as the old `myko.commentCooldownMs`. For creative-director review.
   mykoLineCooldownMs: 12000,
@@ -857,7 +859,25 @@ const overhaul: OverhaulTuning = {
   // stand-in: creative director to set. The camera looks this far ahead of Andrew down the ram lane.
   cameraLeadPx: 96,
   // stand-in: creative director to set. The chapter 2 sheep: slower than Andrew, shy of him at about two tiles.
-  sheep: { speed: 60, fleeRadius: 40, bodySize: 10, settleMs: 600 },
+  sheep: {
+    speed: 60,
+    fleeRadius: 40,
+    bodySize: 10,
+    settleMs: 600,
+  },
+  // Playtest 4 (creative director, DESIGN.md 7.4). The chapter 2 sheep, outside the flee radius: a fresh random wait
+  // per sheep, then a short walk at a random angle. Fleeing wins; a wander never leaves the sheep's pen.
+  sheepWander: { intervalMsMin: 2500, intervalMsMax: 5000, speed: 30, walkMsMin: 500, walkMsMax: 900 },
+  // Seen only within `radiusTiles`; `faint` is for clues marked hard to see (the chapter 2 ring clues).
+  glint: {
+    radiusTiles: 4,
+    intervalMsMin: 3500,
+    intervalMsMax: 6000,
+    durationMs: 450,
+    faint: { radiusTiles: 6, intervalMsMin: 2000, intervalMsMax: 3500 },
+  },
+  // Added to `drops.breakable.beer` and `drops.enemy.beer` in that chapter; absent is 0.
+  dropBeerBonusByChapter: { 1: 0.25, 2: 0.2, 3: 0.1, 4: 0.05 },
 };
 
 export const TUNING: Tuning = {

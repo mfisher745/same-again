@@ -74,6 +74,15 @@ export function pubScreen(): ScreenLayout {
       { frame: PROP.fruitMachine, col: 1, row: 6 },
       { frame: PROP.teamPhoto, col: 1, row: 4 },
       { frame: PROP.dartboard, col: 1, row: 10 },
+      // Things to break while waiting on the pint.
+      { id: 'pub.p1', frame: PROP.barrel, col: 28, row: 4, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'pub.p2', frame: PROP.bottleCrate, col: 28, row: 6, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'pub.p3', frame: PROP.cardboardBox, col: 28, row: 11, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'pub.p4', frame: PROP.barrel, col: 23, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'pub.p5', frame: PROP.bottleCrate, col: 10, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'pub.p6', frame: PROP.sack, col: 17, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'pub.p7', frame: PROP.barrel, col: 2, row: 15, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'pub.p8', frame: PROP.sack, col: 24, row: 10, solid: { width: 1, height: 1 }, breakable: {} },
     ],
     npcs: [
       { id: 'dympna', npc: 'dympna', col: 21, row: 2, facing: 'down', examinableId: 'c1.dympna' },
@@ -103,7 +112,22 @@ export function yardScreen(): ScreenLayout {
   ];
   // The gate is stuck: solid in the gateway (18,7) until The Shoulder shifts it. (17,7) stays open: it is where keg2 is pushed from.
   const dressing: ScreenDressing = {
-    props: [{ id: 'yardGate', frame: PROP.churchGate, col: 17, row: 6, solid: { dx: 1, dy: 1, width: 1, height: 1 } }],
+    props: [
+      { id: 'yardGate', frame: PROP.churchGate, col: 17, row: 6, solid: { dx: 1, dy: 1, width: 1, height: 1 } },
+      // Spare kit lying about the yard, clear of the kegs and the gate path.
+      { id: 'yard.p1', frame: PROP.barrel, col: 2, row: 8, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p2', frame: PROP.bottleCrate, col: 2, row: 10, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p3', frame: PROP.sack, col: 6, row: 10, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p4', frame: PROP.cardboardBox, col: 7, row: 15, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p5', frame: PROP.barrel, col: 12, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p6', frame: PROP.bottleCrate, col: 14, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p7', frame: PROP.barrel, col: 17, row: 12, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p8', frame: PROP.sack, col: 17, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p9', frame: PROP.bottleCrate, col: 17, row: 3, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p10', frame: PROP.cardboardBox, col: 13, row: 2, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p11', frame: PROP.barrel, col: 9, row: 3, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p12', frame: PROP.sack, col: 7, row: 2, solid: { width: 1, height: 1 }, breakable: {} },
+    ],
   };
   const ambient: ScreenAmbient = {
     tint: 'navyDark',
@@ -160,6 +184,25 @@ export function streetScreen(): ScreenLayout {
       { id: 'street.crate1', frame: PROP.bottleCrate, col: 21, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'street.box1', frame: PROP.cardboardBox, col: 38, row: 13, solid: { width: 1, height: 1 }, breakable: { loot: 'none' } },
       { id: 'street.sack1', frame: PROP.sack, col: 52, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      // More along both pavements.
+      { id: 'street.p1', frame: PROP.barrel, col: 6, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p2', frame: PROP.bottleCrate, col: 10, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p3', frame: PROP.sack, col: 18, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p4', frame: PROP.cardboardBox, col: 26, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p5', frame: PROP.barrel, col: 30, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p6', frame: PROP.bottleCrate, col: 34, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p7', frame: PROP.sack, col: 44, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p8', frame: PROP.barrel, col: 48, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p9', frame: PROP.bottleCrate, col: 56, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p10', frame: PROP.cardboardBox, col: 60, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p11', frame: PROP.barrel, col: 64, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p12', frame: PROP.sack, col: 3, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p13', frame: PROP.bottleCrate, col: 13, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p14', frame: PROP.barrel, col: 23, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p15', frame: PROP.cardboardBox, col: 38, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p16', frame: PROP.bottleCrate, col: 45, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p17', frame: PROP.sack, col: 50, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p18', frame: PROP.barrel, col: 58, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
       // Tom leaves his hurley against the tractor when he sits down.
       { id: 'hurley', frame: PROP.weapon.hurley, col: HURLEY_TILE.col, row: HURLEY_TILE.row, hidden: true },
       { frame: PROP.chipperSign, col: 33, row: 3 },

@@ -101,6 +101,7 @@ import type {
   ScreenId,
   SectionId,
   StealthSectionId,
+  TextId,
   TileGrid,
   Vec2,
 } from './types';
@@ -111,6 +112,18 @@ export interface AreaRect {
   readonly y: number;
   readonly width: number;
   readonly height: number;
+}
+
+/** One thing worth finding. */
+export interface ObjectiveMark {
+  readonly id: string;
+  readonly screenId: ScreenId;
+  /** Pixels, where the sparkle sits. */
+  readonly position: Vec2;
+  /** Names the area of this mark for the H hint. */
+  readonly areaTextId?: TextId;
+  /** Hard to see (the chapter 2 ring clues): glints from further off and more often (`glint.faint`). */
+  readonly faint?: true;
 }
 
 /** A way off a screen. */
@@ -174,6 +187,12 @@ export interface PropPlacement {
   readonly bossBreaksAfterMs?: number;
   /** Starts hidden (shown later with `ctx.setPropVisible`). */
   readonly hidden?: boolean;
+  /** An objective: it glints softly while Andrew is near, until the prop is hidden or broken. Names the mark `prop.<id>`. */
+  readonly objective?: true;
+  /** Names the area of this objective for the H hint. */
+  readonly areaTextId?: TextId;
+  /** Hard to see: glints from further off and more often. */
+  readonly faint?: true;
   /** 'floor' draws under every character (rugs, puddles, markings); default 'sorted'. */
   readonly layer?: 'sorted' | 'floor';
   /**
@@ -432,6 +451,17 @@ export interface ChapterContext {
   say(id: DialogueId, opts?: { readonly repeat?: boolean }): Promise<void>;
   setObjective(id: ObjectiveId | null): void;
   objective(): ObjectiveId | null;
+  /**
+   * Marks an objective or clue that glints softly while Andrew is within `TUNING.overhaul.glint.radiusTiles` of
+   * it, until `completeMark(id)`. Examinables and props flagged `objective` are marked for you. No-op if `id` exists.
+   */
+  markObjective(mark: ObjectiveMark): void;
+  /** Stops a mark glinting (the objective is done). Saved with the flags. */
+  completeMark(id: string): void;
+  /** Marks not yet finished, on every screen. */
+  objectiveMarks(): readonly ObjectiveMark[];
+  /** The area text for the H hint (the current objective's `areaTextId`, else the first unfinished mark's), or null. */
+  hintArea(): TextId | null;
 
   // Flags (saved when a section is finished; a return to the bar puts them back)
   flag(key: string): ChapterFlagValue | undefined;

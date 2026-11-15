@@ -10,7 +10,7 @@ import { DialogueQueue } from '../../src/ui/model/dialogue';
 import { FakeSource } from '../../src/ui/dev/fakeSource';
 import { buildHudModel, flatness, meterWidth, perimeterSegments } from '../../src/ui/model/hud';
 import { levelTable } from '../../src/systems/meter';
-import { KIT_SLOTS, assignItem, buildKitView, clearSlot, itemKey, slotContent, slotFor } from '../../src/ui/model/kit';
+import { KIT_SLOTS, buildKitView, clearSlot, itemKey, slotContent, slotFor } from '../../src/ui/model/kit';
 import { returnDuration, returnFrame } from '../../src/ui/model/returns';
 import { TUNING } from '../../src/content/tuning';
 import { promptKey, promptParts } from '../../src/ui/model/promptText';
@@ -411,16 +411,16 @@ describe('HUD model', () => {
   });
 
   it('the drink slot shows the selected drink and its count; bottles are the throw count', () => {
-    const kit = kitWith({ drinks: { stout: 2, whiskey: 1, lager: 3 }, bottles: 4, slots: { drink: 'whiskey', specials: [null, null, null, null], melee: 'fists' } });
+    const kit = kitWith({ drinks: { stout: 2, whiskey: 1, lager: 3 }, bottles: 4, selectedItem: 'lager', slots: { drink: 'lager', spirit: 'whiskey', specials: [null, null, null, null], melee: 'fists' } });
     const m = buildHudModel(source({ kitState: kit }));
-    expect(m.drink).toEqual({ drinkId: 'whiskey', count: 1 });
+    expect(m.drink).toEqual({ drinkId: 'lager', count: 3 });
     expect(m.bottles).toBe(4);
-    const none = buildHudModel(source({ kitState: kitWith({ drinks: {}, slots: { drink: null, specials: [null, null, null, null], melee: 'fists' } }) }));
+    const none = buildHudModel(source({ kitState: kitWith({ drinks: {}, slots: { drink: null, spirit: null, specials: [null, null, null, null], melee: 'fists' } }) }));
     expect(none.drink).toEqual({ drinkId: null, count: 0 });
   });
 
   it('a hot drink in the slot counts one', () => {
-    const m = buildHudModel(source({ kitState: kitWith({ drinks: { stout: 1 }, hotDrink: 'tea', slots: { drink: 'tea', specials: [null, null, null, null], melee: 'fists' } }) }));
+    const m = buildHudModel(source({ kitState: kitWith({ drinks: { stout: 1 }, hotDrink: 'tea', selectedItem: 'tea', slots: { drink: 'stout', spirit: null, specials: [null, null, null, null], melee: 'fists' } }) }));
     expect(m.drink).toEqual({ drinkId: 'tea', count: 1 });
   });
 
@@ -504,14 +504,14 @@ describe('Kit tab model', () => {
   });
 
   it('every kit tab text ID exists', () => {
-    for (const id of ['ui.tab.casebook', 'ui.tab.kit', 'ui.kit.drinks', 'ui.kit.hotDrink', 'ui.kit.bottles', 'ui.kit.weapons', 'ui.kit.moves', 'ui.kit.slots', 'ui.kit.slot.drink', 'ui.kit.slot.melee', 'ui.kit.slot.special', 'ui.kit.slot.level', 'ui.kit.slot.empty', 'ui.kit.assign', 'ui.kit.drinkNow', 'ui.kit.none', 'ui.kit.hotDrink.none', 'ui.kit.wrongLevel', 'ui.settings.tab', 'ui.settings.tab.toggle', 'ui.settings.tab.hold']) {
+    for (const id of ['ui.tab.casebook', 'ui.tab.kit', 'ui.kit.drinks', 'ui.kit.hotDrink', 'ui.kit.bottles', 'ui.kit.weapons', 'ui.kit.moves', 'ui.kit.slots', 'ui.kit.slot.drink', 'ui.kit.slot.melee', 'ui.kit.slot.special', 'ui.kit.slot.level', 'ui.kit.slot.empty', 'ui.kit.section.items', 'ui.kit.section.moves', 'ui.kit.howTo', 'ui.kit.selected', 'ui.kit.beer', 'ui.kit.spirits', 'ui.kit.spirits.none', 'ui.kit.slot.spirit', 'ui.kit.slot.hot', 'ui.kit.slot.drink.takes', 'ui.kit.slot.spirit.takes', 'ui.kit.slot.hot.takes', 'ui.kit.slot.melee.takes', 'ui.kit.slot.special.takes', 'ui.kit.none', 'ui.kit.hotDrink.none', 'ui.kit.wrongLevel', 'ui.settings.tab', 'ui.settings.tab.toggle', 'ui.settings.tab.hold']) {
       expect(hasText(id), id).toBe(true);
     }
   });
 
   it('six slots: drink, melee, then specials 1 to 4', () => {
-    expect(KIT_SLOTS).toHaveLength(6);
-    expect(KIT_SLOTS.map((s) => (s.kind === 'special' ? s.slot : s.kind))).toEqual(['drink', 'melee', 1, 2, 3, 4]);
+    expect(KIT_SLOTS).toHaveLength(8);
+    expect(KIT_SLOTS.map((s) => (s.kind === 'special' ? s.slot : s.kind))).toEqual(['drink', 'spirit', 'hot', 'melee', 1, 2, 3, 4]);
   });
 
   it('an item goes in the slot of its kind; a move in its level', () => {
@@ -521,29 +521,37 @@ describe('Kit tab model', () => {
     expect(slotFor(v.items[6]!)).toEqual({ kind: 'special', slot: 2 });
   });
 
-  it('a special slot only takes a move of its own level, with the wrong-level line', () => {
+  it('a move always goes in the special slot of its own level', () => {
     const s = richKit();
-    const slam = buildKitView(s.kit()).moves.find((m) => m.id === 'stoutSlam')!;
-    const bad = assignItem(s, slam, { kind: 'special', slot: 1 });
-    expect(bad.ok).toBe(false);
-    expect(bad.refusal).toEqual({ textId: 'ui.kit.wrongLevel', n: 2 });
+    expect(s.selectItem('stoutSlam')).toBe(true);
     expect(s.kit().slots.specials[0]).toBeNull();
-    expect(assignItem(s, slam, { kind: 'special', slot: 2 }).ok).toBe(true);
     expect(s.kit().slots.specials[1]).toBe('stoutSlam');
     expect(slotContent(s.kit(), { kind: 'special', slot: 2 })).toEqual({ kind: 'move', id: 'stoutSlam' });
     expect(clearSlot(s, { kind: 'special', slot: 2 })).toBe(true);
     expect(s.kit().slots.specials[1]).toBeNull();
   });
 
-  it('assigning a weapon and a drink changes the melee and drink slots', () => {
+  it('clicking an entry selects or equips it into the one slot it fits', () => {
     const s = richKit();
-    const v = buildKitView(s.kit());
-    expect(assignItem(s, v.weapons[1]!, { kind: 'melee' }).ok).toBe(true);
-    expect(s.weapon()).toBe('fists'); // the fake keeps its own weapon id; the kit is what the Tab screen changes
+    // A weapon is equipped; Q's pick does not change.
+    expect(s.selectItem('hurley')).toBe(true);
     expect(s.kit().slots.melee).toBe('hurley');
-    expect(assignItem(s, v.drinks[1]!, { kind: 'drink' }).ok).toBe(true);
-    expect(s.kit().slots.drink).toBe('whiskey');
-    expect(assignItem(s, v.drinks[0]!, { kind: 'melee' }).ok).toBe(false);
+    expect(s.kit().selectedItem ?? null).toBeNull();
+    // A spirit goes in the spirit slot; Q's pick does not change.
+    expect(s.selectItem('whiskey')).toBe(true);
+    expect(s.kit().slots.spirit).toBe('whiskey');
+    expect(s.kit().selectedItem ?? null).toBeNull();
+    // A beer becomes Q's pick and the beer slot; the hot drink becomes Q's pick only.
+    expect(s.selectItem('stout')).toBe(true);
+    expect(s.kit().slots.drink).toBe('stout');
+    expect(s.kit().selectedItem).toBe('stout');
+    expect(s.selectItem('tea')).toBe(true);
+    expect(s.kit().selectedItem).toBe('tea');
+    expect(s.kit().slots.drink).toBe('stout');
+    // A move goes in the special slot of its level; something not held is refused.
+    expect(s.selectItem('stoutSlam')).toBe(true);
+    expect(s.kit().slots.specials[1]).toBe('stoutSlam');
+    expect(s.selectItem('tequila')).toBe(false);
   });
 
   it('drink straight from the inventory, and the hot drink is taken once per visit', () => {

@@ -23,17 +23,18 @@ export const CELL = { width: 6, height: 9 } as const;
 
 /**
  * Bottom strip layout, x positions left to right. Each cell is 22 px tall at
- * `cellY`. Left: the drink (Q), bottles (right click) and weapon (R). Middle:
+ * `cellY`. Left: the drink Q uses, bottles (right click), weapon (R) and the spirit (G). Middle:
  * the Buzz meter, state word over it, in the free space between `buzz.left`
  * and `buzz.right`. Right: the four special slots (keys 1 to 4), then Myko's calls.
  */
 export const STRIP = {
   cellY: HUD_STRIP.y + 1,
   cellHeight: 22,
-  drink: { x: 4, width: 46 },
-  bottles: { x: 52, width: 32 },
-  weapon: { x: 86, width: 32 },
-  buzz: { left: 122, right: 330 },
+  drink: { x: 4, width: 38 },
+  bottles: { x: 44, width: 30 },
+  weapon: { x: 76, width: 28 },
+  spirit: { x: 106, width: 30 },
+  buzz: { left: 140, right: 330 },
   special: { x: 334, width: 24, gap: 1 },
   calls: { x: 438, leafGap: 13 },
 } as const;

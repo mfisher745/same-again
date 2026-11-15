@@ -3,24 +3,33 @@
 import { describe, expect, it } from 'vitest';
 import { TUNING } from '../../src/content/tuning';
 import {
-  assignDrink,
+  beerCount,
+  selectItem,
+  topUpBeers,
+  topUpForLeaving,
+  useSpirit,
   assignMove,
   assignWeapon,
   carriedCount,
   createKit,
   cycleDrink,
   cycleWeapon,
-  drinkFromInventory,
-  drinkSelected,
+  assignSpirit,
+  useSelected,
   gainWeapon,
-  heldDrinks,
   learnMove,
   pickUpDrink,
   spendBottle,
   takeHotDrink,
   topUpBottles,
 } from '../../src/systems/kit';
-import type { Kit } from '../../src/core/types';
+import type { Kit, OverhaulDrinkId } from '../../src/core/types';
+
+/** Drink a held drink as the player does: click it in the Tab, then Q (G for a spirit). */
+function drinkFromInventory(kit: Kit, id: OverhaulDrinkId) {
+  if (id === 'whiskey' || id === 'tequila') return useSpirit(assignSpirit(kit, id).kit);
+  return useSelected(selectItem(kit, id).kit);
+}
 
 const full = (): Kit => {
   let k = createKit();
@@ -80,7 +89,7 @@ describe('kit: drinking', () => {
 
   it('a beer leaves one bottle and returns what was consumed', () => {
     const k = pickUpDrink(createKit(), 'stout').kit;
-    const r = drinkSelected(k);
+    const r = useSelected(k);
     expect(r.consumed).toBe('stout');
     expect(r.bottlesAdded).toBe(1);
     expect(r.kit.bottles).toBe(1);
@@ -112,37 +121,44 @@ describe('kit: drinking', () => {
     expect(r.kit.drinks.whiskey).toBe(1);
   });
 
-  it('an emptied slot moves to the next held drink', () => {
+  it('an emptied selection moves to the next held beer, then the hot drink', () => {
     let k = pickUpDrink(createKit(), 'stout').kit;
-    k = pickUpDrink(k, 'whiskey').kit;
-    expect(drinkSelected(k).kit.slots.drink).toBe('whiskey');
+    k = pickUpDrink(k, 'lager').kit;
+    k = takeHotDrink(k, 'tea').kit;
+    expect(k.selectedItem).toBe('stout');
+    k = useSelected(k).kit;
+    expect(k.selectedItem).toBe('lager');
+    k = useSelected(k).kit;
+    expect(k.selectedItem).toBe('tea');
+    expect(useSelected(k).kit.selectedItem).toBeNull();
   });
 
   it('refuses a drink not held, and drinking with an empty slot', () => {
     const k = createKit();
     expect(drinkFromInventory(k, 'stout')).toMatchObject({ consumed: null, changed: false, refusal: 'notHeld' });
-    expect(drinkSelected(k)).toMatchObject({ consumed: null, refusal: 'notHeld' });
+    expect(useSelected(k)).toMatchObject({ consumed: null, refusal: 'notHeld' });
   });
 
   it('drinking frees room to pick up again', () => {
-    const r = drinkSelected(full());
+    const r = useSelected(full());
     expect(pickUpDrink(r.kit, 'lager').changed).toBe(true);
   });
 });
 
 describe('kit: cycling and assigning drinks', () => {
-  it('cycles through held drinks including the hot drink, and wraps', () => {
+  it('the wheel cycles beers only (never the spirit or the hot drink) and wraps; Q follows it', () => {
     let k = pickUpDrink(createKit(), 'stout').kit;
     k = pickUpDrink(k, 'whiskey').kit;
+    k = pickUpDrink(k, 'lager').kit;
     k = takeHotDrink(k, 'tea').kit;
-    expect(heldDrinks(k)).toEqual(['stout', 'whiskey', 'tea']);
     const seen: (string | null)[] = [k.slots.drink];
     for (let i = 0; i < 3; i++) {
       k = cycleDrink(k).kit;
       seen.push(k.slots.drink);
     }
-    expect(seen).toEqual(['stout', 'whiskey', 'tea', 'stout']);
-    expect(cycleDrink(k, -1).kit.slots.drink).toBe('tea');
+    expect(seen).toEqual(['stout', 'lager', 'stout', 'lager']);
+    expect(k.selectedItem).toBe('lager');
+    expect(cycleDrink(k, -1).kit.slots.drink).toBe('stout');
   });
 
   it('cycling with one drink or none changes nothing', () => {
@@ -150,10 +166,52 @@ describe('kit: cycling and assigning drinks', () => {
     expect(cycleDrink(pickUpDrink(createKit(), 'stout').kit).refusal).toBe('unchanged');
   });
 
-  it('assigns only held drinks', () => {
-    const k = pickUpDrink(createKit(), 'stout').kit;
-    expect(assignDrink(k, 'whiskey').refusal).toBe('notHeld');
-    expect(assignDrink(k, null).kit.slots.drink).toBeNull();
+  it('clicking: a held beer or the hot drink is what Q drinks; a spirit goes in the spirit slot and Q ignores it', () => {
+    let k = pickUpDrink(createKit(), 'stout').kit;
+    k = pickUpDrink(k, 'lager').kit;
+    k = pickUpDrink(k, 'whiskey').kit;
+    k = takeHotDrink(k, 'coffee').kit;
+    expect(selectItem(k, 'tequila').refusal).toBe('notHeld');
+    k = selectItem(k, 'lager').kit;
+    expect(k.selectedItem).toBe('lager');
+    k = selectItem(k, 'coffee').kit;
+    expect(useSelected(k).consumed).toBe('coffee');
+    // A spirit click does not move Q's selection.
+    k = selectItem(k, 'lager').kit;
+    k = selectItem(pickUpDrink(k, 'tequila').kit, 'tequila').kit;
+    expect(k.slots.spirit).toBe('tequila');
+    expect(k.selectedItem).toBe('lager');
+    expect(useSelected(k).consumed).toBe('lager');
+  });
+
+  it('G drinks the spirit slot at once; an empty slot does nothing; Q never drinks a spirit', () => {
+    expect(useSpirit(createKit())).toMatchObject({ consumed: null, changed: false, refusal: 'notHeld' });
+    let k = pickUpDrink(createKit(), 'whiskey').kit;
+    expect(useSelected(k)).toMatchObject({ consumed: null, refusal: 'notHeld' });
+    const r = useSpirit(k);
+    expect(r.consumed).toBe('whiskey');
+    k = r.kit;
+    expect(k.slots.spirit).toBeNull();
+    expect(carriedCount(k)).toBe(0);
+  });
+
+  it('clicking a weapon equips it and a move fills its level slot, without touching Q', () => {
+    let k = pickUpDrink(createKit(), 'stout').kit;
+    k = gainWeapon(k, 'hurley').kit;
+    k = learnMove(k, 'shoulder').kit;
+    k = selectItem(k, 'hurley').kit;
+    expect(k.slots.melee).toBe('hurley');
+    k = selectItem(k, 'shoulder').kit;
+    expect(k.slots.specials[0]).toBe('shoulder');
+    expect(k.selectedItem).toBe('stout');
+  });
+
+  it('tops beers up to the minimum with the region beer, keeping more', () => {
+    expect(beerCount(topUpBeers(createKit(), 'lightBeer').kit)).toBe(2);
+    let k = createKit();
+    for (let i = 0; i < 3; i++) k = pickUpDrink(k, 'stout').kit;
+    expect(topUpBeers(k, 'lightBeer').changed).toBe(false);
+    expect(topUpForLeaving(createKit(), 'stout').bottles).toBe(2);
   });
 });
 

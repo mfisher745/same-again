@@ -2,6 +2,7 @@
  * Chapter 1: A Quiet Pint. docs/chapters/01-a-quiet-pint.md.
  */
 
+import { hasSequence } from '../../content/dialogue';
 import type { ChapterModule } from '../../core/chapter';
 import type { ChapterDef, ObjectiveDef } from '../../core/types';
 import { createChapterScript } from './script';
@@ -10,7 +11,12 @@ import { HURLEY_TILE, KEG_AREA, PUB_ARRIVAL, T, URN_SPOT, kegTile, pubScreen, ro
 const objective = (key: string, id: string): ObjectiveDef => ({
   id,
   textId: `c1.objective.${key}`,
-  hint: { objectiveId: id, nudgeDialogueId: `c1.hint.${key}.1`, answerDialogueId: `c1.hint.${key}.2` },
+  hint: {
+    objectiveId: id,
+    nudgeDialogueId: `c1.hint.${key}.1`,
+    answerDialogueId: `c1.hint.${key}.2`,
+    ...(hasSequence(`c1.hint.${key}.where`) ? { whereDialogueId: `c1.hint.${key}.where` } : {}),
+  },
 });
 
 const def: ChapterDef = {
@@ -82,8 +88,8 @@ export const chapter1: ChapterModule = {
   ],
   examinables: [
     { id: 'c1.dympna', screenId: 'c1.pub', position: T(21, 3) },
-    { id: 'c1.urn', screenId: 'c1.pub', position: URN_SPOT },
-    { id: 'c1.hurley', screenId: 'c1.street', position: T(HURLEY_TILE.col, HURLEY_TILE.row) },
+    { id: 'c1.urn', screenId: 'c1.pub', position: URN_SPOT, objective: true },
+    { id: 'c1.hurley', screenId: 'c1.street', position: T(HURLEY_TILE.col, HURLEY_TILE.row), objective: true },
     { id: 'c1.trophies', screenId: 'c1.pub', position: { x: 25 * 16, y: 24 }, dialogueId: 'c1.pub.trophies' },
     { id: 'c1.telly', screenId: 'c1.pub', position: T(27, 1), dialogueId: 'c1.pub.telly' },
     { id: 'c1.photo', screenId: 'c1.pub', position: T(1, 4), dialogueId: 'c1.pub.photo' },

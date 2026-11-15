@@ -29,6 +29,7 @@ import {
 } from '../gfx';
 import { BOSS_BAR, DIALOGUE_BOX, DIALOGUE_TEXT, NOTICE_MS, PORTRAIT, SCREEN } from '../layout';
 import { HudStrip } from '../hud/strip';
+import { KEY_IDS, keyText } from '../keycaps';
 import { PromptStack } from '../hud/prompts';
 import { ReturnDirector } from '../returns/director';
 import { ThrowPreview } from '../returns/throwPreview';
@@ -75,6 +76,7 @@ export class HudScene extends Phaser.Scene {
   private returnPhase: 'none' | 'live' | 'covered' = 'none';
   private lastRefusalSeq = -1;
   private refusalNotice!: Notice;
+  private spiritPromptShown = false;
   private bossBacking!: Phaser.GameObjects.Rectangle;
   private bossName!: Label;
   private bossBack!: Phaser.GameObjects.Rectangle;
@@ -225,7 +227,14 @@ export class HudScene extends Phaser.Scene {
               ? text(`food.${item.foodId}.pickup`)
               : format('pickup.empties', { n: item.count });
         this.setNotice(this.pickup, msg, NOTICE_MS.pickup);
+        // The first spirit he picks up: say which key drinks it.
+        if (item.kind === 'drink' && (item.drinkId === 'whiskey' || item.drinkId === 'tequila') && !this.spiritPromptShown) {
+          this.spiritPromptShown = true;
+          this.prompts.show('ui.prompt.spirit', { key: keyText(KEY_IDS.spirit) });
+          this.time.delayedCall(FALLBACK_PROMPT_MS, () => this.prompts.hide('ui.prompt.spirit'));
+        }
       }),
+      bus.on(GameEvents.KitUseRefused, ({ textId }) => this.setNotice(this.refusalNotice, text(textId), uiTuning().refusalMs)),
       bus.on(GameEvents.PickupRefused, ({ reason, max }) => this.setNotice(this.pickup, format(`pickup.refused.${reason}`, { max: String(max) }), NOTICE_MS.pickup)),
       bus.on(GameEvents.BarReturning, ({ reason, andrew }) => this.startReturn(reason, andrew)),
       bus.on(GameEvents.BarReturned, ({ reason }) => this.onReturned(reason)),

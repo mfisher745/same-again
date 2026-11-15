@@ -27,7 +27,7 @@ const BUZZ_COLOUR: Record<HudModel['buzz']['state'], ColourName> = {
   fecked: 'alarm',
 };
 
-type CellId = 'drink' | 'bottles' | 'weapon' | 'slot1' | 'slot2' | 'slot3' | 'slot4';
+type CellId = 'drink' | 'bottles' | 'weapon' | 'spirit' | 'slot1' | 'slot2' | 'slot3' | 'slot4';
 
 interface SlotWidgets {
   readonly icon: Pic;
@@ -47,6 +47,9 @@ export class HudStrip {
   private readonly bottleMouse: Pic;
   private readonly weaponIcon: Pic;
   private readonly weaponCap: Cap;
+  private readonly spiritIcon: Pic;
+  private readonly spiritCount: Label;
+  private readonly spiritCap: Cap;
   private readonly slots: SlotWidgets[] = [];
   private readonly state: Label;
   private readonly fill: Phaser.GameObjects.Rectangle;
@@ -85,6 +88,11 @@ export class HudStrip {
     this.cell('weapon', STRIP.weapon.x, STRIP.weapon.width);
     this.weaponIcon = makeIcon(scene, STRIP.weapon.x + 2, y + 5, L);
     this.weaponCap = new Cap(scene, L);
+    // Spirit: icon, count, G.
+    this.cell('spirit', STRIP.spirit.x, STRIP.spirit.width);
+    this.spiritIcon = makeIcon(scene, STRIP.spirit.x + 2, y + 5, L);
+    this.spiritCount = makeLabel(scene, STRIP.spirit.x + 16, y + 2, '', 'white', { depth: L });
+    this.spiritCap = new Cap(scene, L);
     // Four specials.
     for (let i = 0; i < 4; i++) {
       const x = this.slotX(i);
@@ -150,6 +158,21 @@ export class HudStrip {
       setLabelText(this.drinkCount, `×${d.count}`);
     }
     this.drinkCap.show(keyText(KEY_IDS.drink), STRIP.drink.x + 16, y + 12, d.drinkId === null ? 'slate' : 'amberLight', d.drinkId === null ? 'fog' : 'ink');
+    // What Q will drink is picked: a bright edge on its cell.
+    const cell = this.cells.get('drink');
+    if (cell !== undefined && d.drinkId !== null && now >= (this.flashUntil.get('drink') ?? 0)) cell.setStrokeStyle(1, PALETTE.amberLight);
+    // Spirit.
+    const sp = m.spirit;
+    this.watch('spirit', `${sp.spiritId ?? '-'}:${sp.count}`, now);
+    this.paint('spirit', now);
+    if (sp.spiritId === null) {
+      this.spiritIcon.setVisible(false);
+      setLabelText(this.spiritCount, '');
+    } else {
+      this.spiritIcon.set(iconFrames.drink(sp.spiritId), 'amber');
+      setLabelText(this.spiritCount, `×${sp.count}`);
+    }
+    this.spiritCap.show(keyText(KEY_IDS.spirit), STRIP.spirit.x + 16, y + 12, sp.spiritId === null ? 'slate' : 'amberLight', sp.spiritId === null ? 'fog' : 'ink');
     // Bottles.
     this.watch('bottles', String(m.bottles), now);
     this.paint('bottles', now);

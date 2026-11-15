@@ -6,7 +6,7 @@
  */
 
 import { TUNING } from '../../content/tuning';
-import type { BossId, DrunkLevel, DrunkState, MeterSnapshot, MoveId, OverhaulDrinkId, SpecialSlotIndex, TextId, WeaponId } from '../../core/types';
+import type { BossId, DrunkLevel, DrunkState, MeterSnapshot, MoveId, OverhaulDrinkId, SpecialSlotIndex, SpiritId, TextId, WeaponId } from '../../core/types';
 import type { UiStateSource } from '../contract';
 import { METER } from '../layout';
 import { uiTuning } from '../uiTuning';
@@ -15,6 +15,12 @@ export interface HudDrinkView {
   /** The drink in the drink slot, or null when the slot is empty. */
   readonly drinkId: OverhaulDrinkId | null;
   /** How many of it he holds (a hot drink counts 1). */
+  readonly count: number;
+}
+
+export interface HudSpiritView {
+  /** The spirit in the spirit slot (G drinks it at once), or null when the slot is empty. */
+  readonly spiritId: SpiritId | null;
   readonly count: number;
 }
 
@@ -49,7 +55,9 @@ export interface HudModel {
     /** 0..1 how flat the colours should be (under the low warning). */
     readonly flatness: number;
   };
+  /** What Q drinks: the picked beer or hot drink (else the beer slot). */
   readonly drink: HudDrinkView;
+  readonly spirit: HudSpiritView;
   readonly specials: readonly [HudSpecialView, HudSpecialView, HudSpecialView, HudSpecialView];
   readonly weapon: WeaponId;
   readonly bottles: number;
@@ -80,10 +88,18 @@ export function flatness(meter: MeterSnapshot): number {
 
 function drinkView(source: UiStateSource): HudDrinkView {
   const kit = source.kit();
-  const id = kit.slots.drink;
+  const sel = kit.selectedItem ?? null;
+  const picked = sel !== null && (sel === kit.hotDrink || (kit.drinks as Readonly<Record<string, number | undefined>>)[sel] !== undefined) ? (sel as OverhaulDrinkId) : null;
+  const id = picked ?? kit.slots.drink;
   if (id === null) return { drinkId: null, count: 0 };
   const count = id === 'coffee' || id === 'tea' ? (kit.hotDrink === id ? 1 : 0) : (kit.drinks[id] ?? 0);
   return { drinkId: id, count };
+}
+
+function spiritView(source: UiStateSource): HudSpiritView {
+  const kit = source.kit();
+  const id = kit.slots.spirit ?? null;
+  return id === null ? { spiritId: null, count: 0 } : { spiritId: id, count: kit.drinks[id] ?? 0 };
 }
 
 export function buildHudModel(source: UiStateSource): HudModel {
@@ -116,6 +132,7 @@ export function buildHudModel(source: UiStateSource): HudModel {
       flatness: flatness(meter),
     },
     drink: drinkView(source),
+    spirit: spiritView(source),
     specials,
     weapon: source.weapon(),
     bottles: source.kit().bottles,

@@ -29,6 +29,7 @@ import type {
   StealthPlacement,
 } from '../core/chapter';
 import { BusScope } from '../core/events';
+import { seededRandom } from '../core/random';
 import type { Random } from '../core/random';
 import { GameEvents } from '../core/types';
 import type {
@@ -80,6 +81,7 @@ import type {
   SectionKind,
   StealthSectionDef,
   StealthSectionId,
+  TextId,
   TileGrid,
   Vec2,
   BarReturnReason,
@@ -100,9 +102,11 @@ import { FightRunner } from './fight';
 import { add, angleFromFacing, distance, fromAngle, normalize, rectContains, scale } from './geometry';
 import { TILE, isShade, moveBox, tileOf } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
-import { assignDrink, assignMove, assignWeapon, cycleDrink, drinkFromInventory, drinkSelected, gainWeapon, learnMove, topUpBottles } from './kit';
+import { assignMove, assignWeapon, cycleDrink, gainWeapon, learnMove, selectItem, topUpForLeaving, useSelected, useSpirit } from './kit';
+import { GlintTracker } from './glint';
+import type { ObjectiveMark } from './glint';
 import { takeItem } from './pickups';
-import { dropRngFor, regionBeer, rollBreakableDrop, rollEnemyDrop } from './drops';
+import { barBeerOf, dropRngFor, regionBeer, rollBreakableDrop, rollEnemyDrop } from './drops';
 import { MykoMeterVoice } from './mykoMeter';
 import { applyDrinkReward, claimReward, createRewardState, openShortcut } from './rewards';
 import { Myko } from './myko';
@@ -175,6 +179,14 @@ interface SectionEntry {
 const HOOK_TOUCH = 4;
 /** Buzz level 3 is Bit much (DESIGN.md 7.1). */
 const BIT_MUCH_LEVEL = 3;
+
+interface MarkEntry {
+  readonly mark: ObjectiveMark;
+  /** Finished once this evidence is in the casebook. */
+  readonly evidenceId?: EvidenceId;
+  /** Finished once this prop is hidden or broken. */
+  readonly propKey?: string;
+}
 
 export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   readonly bus: GameEventBus;
@@ -254,6 +266,11 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** Time waiting for `completeBarReturn`, for the failsafe. */
   private returnWaitMs = 0;
   private readonly mykoVoice: MykoMeterVoice;
+  /** Objectives and clues that glint while unfinished (`glint.ts`). By mark id. */
+  private readonly marks = new Map<string, MarkEntry>();
+  private readonly glint: GlintTracker;
+  /** The screen Andrew was on before this one, to tell when he walks out of the bar. */
+  private lastScreenId: ScreenId | null = null;
 
   constructor(private readonly opts: RunOptions) {
     const save = opts.save;
@@ -276,7 +293,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.openedShortcuts = [...save.openedShortcuts];
 
     // Loading a save puts Andrew in the bar exactly as a return does, bottles topped up (DESIGN.md 7.6). Chapter 1 keeps its own start.
-    this.player = new Player(this.bus, opts.resumed && this.chapter >= 2 ? topUpBottles(save.kit).kit : save.kit, this.chapter);
+    this.player = new Player(this.bus, opts.resumed && this.chapter >= 2 ? topUpForLeaving(save.kit, barBeerOf(opts.module.def)) : save.kit, this.chapter);
     if (save.meterHidden) this.player.setMeterHidden(true);
     if (save.drainHeld) this.player.holdDrain(true);
     this.combat = new PlayerCombat(this.combatHost());
@@ -295,6 +312,9 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.casebook = new Casebook(this.bus, save.casebook);
     this.myko = new Myko(this.mykoHost());
     this.dressing = new Dressing(this.module.screens, save.brokenProps, TUNING.breakables.defaultHits);
+    // The glint has its own seeded source so it never shifts the drops and the sheep.
+    this.glint = new GlintTracker(seededRandom((save.lootSeed ^ 0x51ed270b) >>> 0));
+    this.collectMarks();
 
     const bar = this.barLocation();
     const screen = this.layout(bar.screenId) ?? this.module.screens[0];
@@ -518,6 +538,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     else this.mykoVoice.trigger({ kind: 'meterValue' }, p.meter.value);
 
     this.handleKitInput(live);
+    this.tickGlint(dtMs);
     this.combat.tick(dtMs);
     this.combat.handleInput(live, dtMs);
     if (live.pressed.has('interact')) this.interact();
@@ -647,6 +668,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
         this.combat.reset();
       },
       barLocation: () => this.barLocation(),
+      barBeer: () => barBeerOf(this.module.def),
       placeAt: (where) => this.loadScreen(where.screenId, where.position),
       restoreSaved: () => {
         for (const k of Object.keys(this.flags)) delete this.flags[k];
@@ -823,6 +845,66 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   objective(): ObjectiveId | null {
     return this.objectiveId;
+  }
+
+  markObjective(mark: ObjectiveMark): void {
+    if (!this.marks.has(mark.id)) this.marks.set(mark.id, { mark });
+  }
+
+  completeMark(id: string): void {
+    const entry = this.marks.get(id);
+    if (!entry || this.markDone(entry)) return;
+    this.flags[this.markKey(id)] = true;
+    this.glint.forget(id);
+  }
+
+  /** The marks not yet finished, on every screen, in the order they were declared. */
+  objectiveMarks(): readonly ObjectiveMark[] {
+    return [...this.marks.values()].filter((e) => !this.markDone(e)).map((e) => e.mark);
+  }
+
+  /**
+   * The area text for the H hint: the current objective's `areaTextId`, else the first unfinished mark that has
+   * one. Null if the chapter names none.
+   */
+  hintArea(): TextId | null {
+    return this.objectiveDef()?.areaTextId ?? this.objectiveMarks().find((m) => m.areaTextId !== undefined)?.areaTextId ?? null;
+  }
+
+  private markKey(id: string): string {
+    return `c${this.chapter}.glintDone.${id}`;
+  }
+
+  private markDone(e: MarkEntry): boolean {
+    if (this.flags[this.markKey(e.mark.id)] === true) return true;
+    if (e.evidenceId !== undefined && this.casebook.hasEvidence(e.evidenceId)) return true;
+    if (e.propKey !== undefined) {
+      const prop = this.dressing.prop(e.propKey);
+      if (prop && (!prop.visible || prop.broken)) return true;
+    }
+    return false;
+  }
+
+  /** Examinables and props the chapter flagged as objectives. */
+  private collectMarks(): void {
+    for (const e of this.module.examinables) {
+      if (!e.objective) continue;
+      this.marks.set(e.id, { mark: { id: e.id, screenId: e.screenId, position: e.position, ...(e.areaTextId ? { areaTextId: e.areaTextId } : {}), ...(e.faint ? { faint: true as const } : {}) }, ...(e.evidenceId ? { evidenceId: e.evidenceId } : {}) });
+    }
+    for (const screen of this.module.screens) {
+      for (const prop of this.dressing.propsOn(screen.id)) {
+        if (!prop.def.objective) continue;
+        const id = `prop.${prop.key}`;
+        const areaTextId = prop.def.areaTextId;
+        this.marks.set(id, { mark: { id, screenId: screen.id, position: this.propCentre(prop), ...(areaTextId ? { areaTextId } : {}), ...(prop.def.faint ? { faint: true as const } : {}) }, propKey: prop.key });
+      }
+    }
+  }
+
+  private tickGlint(dtMs: number): void {
+    const here: ObjectiveMark[] = [];
+    for (const e of this.marks.values()) if (e.mark.screenId === this.screen.id && !this.markDone(e)) here.push(e.mark);
+    for (const pulse of this.glint.tick(dtMs, here, this.player.pos)) this.bus.emit(GameEvents.ObjectiveGlint, pulse);
   }
 
   flag(key: string): ChapterFlagValue | undefined {
@@ -1123,13 +1205,6 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** Equip an owned weapon (the Tab screen). */
   assignWeapon(id: WeaponId): boolean {
     const r = assignWeapon(this.player.kit, id);
-    if (r.changed) this.player.setKit(r.kit);
-    return r.changed;
-  }
-
-  /** Put a held drink in the drink slot (the Tab screen). */
-  assignDrink(id: OverhaulDrinkId | null): boolean {
-    const r = assignDrink(this.player.kit, id);
     if (r.changed) this.player.setKit(r.kit);
     return r.changed;
   }
@@ -1630,7 +1705,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (loot !== 'table') return loot;
     const region = this.module.def.screens.find((s) => s.id === prop.screenId)?.region ?? 'kilnamoe';
     // A drink or nothing: usually the region's beer, now and then a whiskey (drops.ts). Seeded by the save and the prop.
-    const drop = rollBreakableDrop(dropRngFor(this.lootSeed, prop.key), regionBeer(region));
+    const drop = rollBreakableDrop(dropRngFor(this.lootSeed, prop.key), regionBeer(region), this.chapter);
     return drop === null ? null : { kind: 'drink', drinkId: drop, count: 1 };
   }
 
@@ -1669,6 +1744,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private loadScreen(id: ScreenId, spawn: Vec2): void {
     const layout = this.layout(id);
     if (!layout) return;
+    // Walking out of the bar leaves Andrew with at least the minimum bottles (every chapter, every return).
+    const barId = this.module.def.bar?.screenId;
+    if (barId !== undefined && this.lastScreenId === barId && id !== barId) {
+      this.player.setKit(topUpForLeaving(this.player.kit, barBeerOf(this.module.def)));
+    }
+    this.lastScreenId = id;
     this.screen = layout;
     this.actorList = [];
     this.projectileList = [];
@@ -1691,17 +1772,44 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.script?.onScreenEntered?.(id);
   }
 
-  /** Drink (Q), cycle the drink slot (wheel). DESIGN.md 6 and 7.1. */
+  /** Use the selected item (Q), drink the spirit slot (G), cycle the beer slot (wheel). DESIGN.md 6 and 7.1. */
   private handleKitInput(input: InputFrame): void {
     const p = this.player;
     if (input.pressed.has('cycleDrink') && p.canAct) p.setKit(cycleDrink(p.kit, input.wheelDir ?? 1).kit);
-    if (input.pressed.has('drink') && p.canAct) this.drinkResult(drinkSelected(p.kit));
+    if (input.pressed.has('drink') && p.canAct) this.useSelected();
+    if (input.pressed.has('useSpirit') && p.canAct) this.useSpirit();
   }
 
-  /** Drink something held, straight from the Tab screen. False if he does not hold it. */
-  drinkFromInventory(id: OverhaulDrinkId): boolean {
+  /**
+   * Click an inventory entry in the Tab screen: a beer or the hot drink becomes what Q uses, a spirit goes in the
+   * spirit slot (G), a weapon is equipped, a move goes in its level's special slot. See `kit.selectItem`.
+   */
+  selectItem(id: string | null): boolean {
+    const r = selectItem(this.player.kit, id);
+    if (r.changed) this.player.setKit(r.kit);
+    return r.changed;
+  }
+
+  /** The selected inventory entry, or null. */
+  selectedItem(): string | null {
+    return this.player.kit.selectedItem ?? null;
+  }
+
+  /** Use the selected beer or hot drink, as Q does. False (and `kit:useRefused`) if nothing is selected. */
+  useSelected(): boolean {
     if (!this.player.canAct) return false;
-    return this.drinkResult(drinkFromInventory(this.player.kit, id));
+    const r = useSelected(this.player.kit);
+    if (r.refusal === 'notHeld') this.bus.emit(GameEvents.KitUseRefused, { action: 'drink', textId: 'ui.use.nothing' });
+    else if (r.refusal === 'notConsumable') this.bus.emit(GameEvents.KitUseRefused, { action: 'drink', textId: 'ui.use.notADrink' });
+    return this.drinkResult(r);
+  }
+
+  /** Drink the spirit in the spirit slot at once, as G does. False (and `kit:useRefused`) if the slot is empty. */
+  useSpirit(): boolean {
+    if (!this.player.canAct) return false;
+    const r = useSpirit(this.player.kit);
+    if (r.refusal) this.bus.emit(GameEvents.KitUseRefused, { action: 'useSpirit', textId: 'ui.spirit.none' });
+    return this.drinkResult(r);
   }
 
   private drinkResult(r: { readonly consumed: OverhaulDrinkId | null; readonly kit: Kit }): boolean {
@@ -1877,6 +1985,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     // Examining again replays the object's line (DESIGN.md 7.5).
     if (best.dialogueId) void this.say(best.dialogueId, { repeat: true });
     if (best.evidenceId) this.addEvidence(best.evidenceId);
+    this.completeMark(best.id);
     if (best.item) this.give(best.item);
     if (this.module.deduction?.examinableId === best.id) this.openDeduction();
     for (const pp of this.pushPuzzlesHere()) if (pp.placement.resetExaminableId === best.id) pp.puzzle.reset();

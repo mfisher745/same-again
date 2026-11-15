@@ -279,7 +279,7 @@ export const C01: DialogueFile = {
     box('c1.hint.hotDrink.1', ['myko', "She's offering you something for free. Take it before she hears herself."]),
     box('c1.hint.hotDrink.2', ['myko', 'The urn at the end of the bar. E. Pick one.']),
     box('c1.hint.kit.1', ['myko', "You've pockets. Look in them."]),
-    box('c1.hint.kit.2', ['myko', 'Tab. The drink goes in the drink slot. That is the whole lesson.']),
+    box('c1.hint.kit.2', ['myko', 'Tab. Click the pint. Q drinks it. That is the whole lesson.']),
     box('c1.hint.gate.1', ['myko', "It's stuck, not locked. There's a difference, and the difference is your shoulder."]),
     box('c1.hint.gate.2', ['myko', 'Face the gate and press 1.']),
     box('c1.hint.bins.1', ['myko', "You can't reach it. You can reach it with something you can throw."]),
@@ -288,6 +288,22 @@ export const C01: DialogueFile = {
     box('c1.hint.hurley.2', ['myko', 'E at the hurley. R swaps between it and your fists.']),
     box('c1.hint.road.1', ['myko', "You were the one who wanted to look at the sky. It's out the road. Away from the chips."]),
     box('c1.hint.road.2', ['myko', 'Keep going right, past the tractor, out of the town. All four hundred yards of it.']),
+    // Where the objective is (playtest 4). Myko says this after the nudge on the first H; see DESIGN.md 7.5.
+    box('c1.hint.bar.where', ['myko', 'In Feeney’s. The west end of the bar, by your stool.']),
+    box('c1.hint.dympna.where', ['myko', 'Behind the bar, up the far end from your stool. She has not moved since 1998.']),
+    box('c1.hint.pint.where', ['myko', "On the bar. In front of you. I can see it from here."]),
+    box('c1.hint.machine.where', ['myko', "West wall of the pub, flashing. It's the only thing in here making money."]),
+    box('c1.hint.leave.where', ['myko', 'Bottom corner of the pub. The door with the draught under it.']),
+    box('c1.hint.kegs.where', ['myko', 'This yard. The gate in the wall, and the two things in front of it.']),
+    box('c1.hint.chipper.where', ['myko', 'Main Street, east of the bookies. The lit window with the queue.']),
+    box('c1.hint.row.where', ['myko', "Outside the chipper. They're the ones looking at you."]),
+    box('c1.hint.bigTom.where', ['myko', "East end of the street, by the tractor. He's the one the size of the tractor."]),
+    box('c1.hint.hotDrink.where', ['myko', "The urn, behind the bar at your own stool. You've sat beside it for years."]),
+    box('c1.hint.kit.where', ['myko', "It's on your person. Tab."]),
+    box('c1.hint.gate.where', ['myko', 'Same yard, same wall. The gate the kegs were minding.']),
+    box('c1.hint.bins.where', ['myko', 'Main Street, the alley between the bookies and the chipper. Behind the bins.']),
+    box('c1.hint.hurley.where', ['myko', 'Leaning on the tractor, east end of the street. Where he left it.']),
+    box('c1.hint.road.where', ['myko', 'East, past the tractor, where the street lights give up.']),
 
     // --- Myko calls ---
     scene(
