@@ -1,6 +1,7 @@
 /** DESIGN.md 7.1 "Back to the bar": what is kept, what is reset. */
 
 import { describe, expect, it } from 'vitest';
+import { TUNING } from '../../src/content/tuning';
 import type { Kit } from '../../src/core/types';
 import { arriveAtBar, loadIntoBar, returnToBar, takeFreeHotDrink, topUpBottles } from '../../src/systems/barReturn';
 import type { BarProgress } from '../../src/systems/barReturn';
@@ -78,16 +79,18 @@ describe('arrival details', () => {
 });
 
 describe('bottles', () => {
-  it('tops up to two', () => {
-    expect(topUpBottles(kit({ bottles: 0 })).bottles).toBe(2);
-    expect(topUpBottles(kit({ bottles: 1 })).bottles).toBe(2);
-    expect(returnToBar(progress(), 'sober').progress.kit.bottles).toBe(2);
+  const min = TUNING.overhaul!.carry.minBottlesOnLeavingBar;
+  const cap = TUNING.overhaul!.carry.bottleLimit;
+
+  it('tops up to the minimum', () => {
+    expect(topUpBottles(kit({ bottles: 0 })).bottles).toBe(min);
+    expect(topUpBottles(kit({ bottles: min })).bottles).toBe(min);
+    expect(returnToBar(progress(), 'sober').progress.kit.bottles).toBe(min);
   });
 
-  it('never takes bottles away; there is no cap', () => {
-    expect(topUpBottles(kit({ bottles: 2 })).bottles).toBe(2);
-    expect(topUpBottles(kit({ bottles: 17 })).bottles).toBe(17);
-    expect(returnToBar(progress({ kit: kit({ bottles: 9 }) }), 'floor').progress.kit.bottles).toBe(9);
+  it('never goes over the cap: a return to the bar clamps a bigger old stock', () => {
+    expect(returnToBar(progress({ kit: kit({ bottles: cap + 8 }) }), 'floor').progress.kit.bottles).toBe(cap);
+    expect(returnToBar(progress({ kit: kit({ bottles: cap }) }), 'sober').progress.kit.bottles).toBe(cap);
   });
 });
 

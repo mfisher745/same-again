@@ -99,7 +99,7 @@ export const C02: DialogueFile = {
     ),
     scene(
       'c2.throw.reminder',
-      ['myko', "I'll wait at the gate. I'll ring you. You've bottles on you?", 'by phone'],
+      ['myko', "I'll wait at the gate. I'll ring you. You've a bottle on you?", 'by phone'],
       ['andrew', 'A few.'],
       ['myko', "Then don't throw them at these lads. Throw them past them. They'll go and look. They're the type."],
     ),

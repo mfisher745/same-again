@@ -11,6 +11,7 @@ import { createSandboxModule } from '../../src/core/sandbox';
 import { createChapter2Sandbox } from '../../src/core/sandbox2';
 import type { ChapterRun } from '../../src/systems/run';
 import { carryOver } from '../../src/systems/session';
+import { MemoryStorage, SaveStore } from '../../src/core/save';
 import { NO_INPUT, advance, frame, makeRun, placeAt, record, settleDialogue, startChapterGame, drinkItem } from './helpers';
 
 async function newGame(how: 'chapter' | 'continue' = 'chapter', store?: Parameters<typeof startChapterGame>[2]) {
@@ -56,25 +57,25 @@ async function toSober(run: ChapterRun): Promise<void> {
 }
 
 describe('bottles at the start of the chapter and on a load', () => {
-  it('Chapter Select starts with at least two bottles', async () => {
+  it('Chapter Select starts with the one bottle he is allowed', async () => {
     const { run } = await newGame();
     expect(run.player.kit.bottles).toBeGreaterThanOrEqual(TUNING.overhaul!.carry.minBottlesOnLeavingBar);
-    expect(run.player.kit.bottles).toBeGreaterThanOrEqual(2);
+    expect(run.player.kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit);
   });
 
-  it('a load tops bottles up to two, and never takes any away', async () => {
+  it('a load tops bottles up to the minimum and clamps an old save to the cap', async () => {
     const a = await newGame();
     a.run.player.setKit({ ...a.run.player.kit, bottles: 0 });
     a.run.learnMove('reflexTest'); // writes a save with no bottles
     expect(a.store.load()?.kit.bottles).toBe(0);
     const loaded = await newGame('continue', a.store);
-    expect(loaded.run.player.kit.bottles).toBe(2);
+    expect(loaded.run.player.kit.bottles).toBe(TUNING.overhaul!.carry.minBottlesOnLeavingBar);
 
     const b = await newGame();
     b.run.player.setKit({ ...b.run.player.kit, bottles: 5 });
     b.run.learnMove('reflexTest');
     const reloaded = await newGame('continue', b.store);
-    expect(reloaded.run.player.kit.bottles).toBe(5);
+    expect(reloaded.run.player.kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit); // an old save holding five is clamped
   });
 
   it('a fresh game in chapter 1 is not topped up by a load (the pub keeps its own start)', () => {
@@ -293,7 +294,7 @@ describe('the sheep puzzle in the real farm', () => {
     const puzzle = sheepOf(run);
     const gateId = puzzle.layout.gates[0]!.id;
     expect(puzzle.toggleGate(gateId, { x: 0, y: 0 })).toBe(true);
-    puzzle.sheep()[0]!.pos = { x: 20 * 16, y: 12 * 16 };
+    puzzle.sheep()[0]!.pos = { x: 23 * 16 + 8, y: 10 * 16 + 8 };
     const sheepBefore = puzzle.sheep().map((s) => ({ ...s.pos }));
     const startPositions = sheepOf(run).layout.sheep.map((sh) => ({ x: sh.col * 16 + 8, y: sh.row * 16 + 8 }));
     const gateBefore = puzzle.gatePosition(gateId);
@@ -389,5 +390,113 @@ describe('the owed Stumble', () => {
     expect(shown.map((s) => s.sequenceId)).toContain('c2.stumble.lesson');
     expect(h.run.player.kit.moves).toContain('stumble');
     expect(h.run.movesOwed()).toEqual([]);
+  });
+});
+
+describe('a Myko call on the ram chase, then Continue', () => {
+  it('the closing is not lost when the game is left (or crashes) between the call and the closing', async () => {
+    const store = new SaveStore(new MemoryStorage());
+    const g = await newGame('chapter', store);
+    g.run.setFlag('concluded', true);
+    g.run.goToScreen('c2.lane', T(6, 6));
+    for (let i = 0; i < 2; i++) {
+      g.run.tick(16, NO_INPUT);
+      await settleDialogue(g.run);
+    }
+    g.run.setPlayerPosition(T(11, 5));
+    g.run.tick(16, NO_INPUT);
+    expect(g.run.myko.tryCall()).toBe(true);
+    // The blackout times out and the call saves; the closing is queued but never shown before the game is closed.
+    for (let i = 0; i < 400; i++) g.run.tick(50, NO_INPUT);
+    expect(g.run.boss('c2.setpiece.ram')!.isComplete()).toBe(true);
+    const loaded = startChapterGame(chapter2, 'continue', store);
+    const ended = record(loaded.session.bus, 'chapter:completed');
+    for (let i = 0; i < 4; i++) {
+      loaded.run.tick(50, NO_INPUT);
+      await settleDialogue(loaded.run);
+    }
+    expect(ended).toHaveLength(1);
+  });
+});
+
+describe('a Myko call at every point of the ram chase ends the chapter exactly once', () => {
+  async function lane() {
+    const g = await newGame();
+    const ended = record(g.run.bus, 'chapter:completed');
+    const shown = record(g.run.bus, 'dialogue:show');
+    g.run.setFlag('concluded', true);
+    g.run.goToScreen('c2.lane', T(6, 6));
+    g.run.tick(16, NO_INPUT);
+    return { ...g, ended, shown };
+  }
+  const finish = async (g: Awaited<ReturnType<typeof lane>>): Promise<void> => {
+    for (let i = 0; i < 400; i++) {
+      g.run.tick(50, NO_INPUT);
+      if (i % 20 === 0) await settleDialogue(g.run);
+    }
+    await settleDialogue(g.run);
+    g.run.tick(16, NO_INPUT);
+    await settleDialogue(g.run);
+  };
+  const expectOnce = (g: Awaited<ReturnType<typeof lane>>): void => {
+    expect(g.ended).toHaveLength(1);
+    expect(g.shown.filter((s) => s.sequenceId === 'c2.closing')).toHaveLength(1);
+    expect(g.shown.map((s) => s.sequenceId)).not.toContain('c2.ram.end');
+  };
+
+  it('during c2.ram.intro, before the section starts: refused or finished, never stuck', async () => {
+    const g = await lane();
+    // The intro is on screen and the section has not started.
+    expect(g.run.boss('c2.setpiece.ram')!.active).toBe(false);
+    const called = g.run.myko.tryCall();
+    if (called) {
+      await finish(g);
+      expectOnce(g);
+      return;
+    }
+    // Refused: the chase starts when the intro is done, and ends the usual way.
+    await settleDialogue(g.run);
+    g.run.tick(16, NO_INPUT);
+    expect(g.run.boss('c2.setpiece.ram')!.active).toBe(true);
+    g.run.completeCurrent();
+    await finish(g);
+    expect(g.ended).toHaveLength(1);
+  });
+
+  it('right after a c2.ram.hit line', async () => {
+    const g = await lane();
+    await settleDialogue(g.run);
+    g.run.tick(16, NO_INPUT);
+    await settleDialogue(g.run);
+    void g.run.say('c2.ram.hit', { repeat: true });
+    g.run.tick(16, NO_INPUT);
+    expect(g.run.myko.tryCall()).toBe(true);
+    await finish(g);
+    expectOnce(g);
+  });
+
+  it('right at the lane end trigger', async () => {
+    const g = await lane();
+    await settleDialogue(g.run);
+    g.run.tick(16, NO_INPUT);
+    await settleDialogue(g.run);
+    g.run.setPlayerPosition(T(84, 5));
+    g.run.tick(16, NO_INPUT);
+    expect(g.run.myko.tryCall()).toBe(true);
+    g.run.setPlayerPosition(T(86, 5));
+    await finish(g);
+    expectOnce(g);
+  });
+
+  it('while the ram is paused at the gate', async () => {
+    const g = await lane();
+    await settleDialogue(g.run);
+    g.run.tick(16, NO_INPUT);
+    await settleDialogue(g.run);
+    g.run.setPlayerPosition(T(40, 5));
+    for (let i = 0; i < 60; i++) g.run.tick(50, NO_INPUT);
+    expect(g.run.myko.tryCall()).toBe(true);
+    await finish(g);
+    expectOnce(g);
   });
 });

@@ -754,6 +754,9 @@ const weapon = (
   quirk: WeaponDef['quirk'],
 ): WeaponDef => ({ id, gainedInChapter, reach, swingMs, damage, knockback, quirk, nameTextId: `weapon.${id}.name`, descTextId: `weapon.${id}.desc` });
 
+// Playtest 5: Andrew carries one empty bottle at most (`bottleLimit`), and the bar tops him up to that one.
+// Declared apart from `overhaul` so `bottleLimit` can land before systems-dev adds it to `CarryTuning`
+// (src/core/types.ts); once the field is there this can go back inline.
 const overhaul: OverhaulTuning = {
   drainPerSecond: 1 / 3,
   sun: { drainMultiplier: 2, beerMultiplier: 1.5, spiritWindowMultiplier: 1.5 },
@@ -805,7 +808,7 @@ const overhaul: OverhaulTuning = {
     coffee: { kind: 'hot', id: 'coffee', nameTextId: 'drink.coffee.name', pickupTextId: 'drink.coffee.pickup', reset: { kind: 'instant' } },
     tea: { kind: 'hot', id: 'tea', nameTextId: 'drink.tea.name', pickupTextId: 'drink.tea.pickup', reset: { kind: 'ease', easeMs: 10000, holdMs: 20000 } },
   },
-  carry: { limit: 6, hotDrinkLimit: 1, minBottlesOnLeavingBar: 2, minBeersOnLeavingBar: 2 },
+  carry: { limit: 6, hotDrinkLimit: 1, bottleLimit: 1, minBottlesOnLeavingBar: 1, minBeersOnLeavingBar: 2 },
   moveCooldownMsByLevel,
   moves: {
     shoulder: move('shoulder', 1, 1, { kind: 'charge', distance: 40, knockback: 140 }),

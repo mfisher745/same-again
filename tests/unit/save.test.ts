@@ -168,7 +168,7 @@ describe('chapter carry-over', () => {
   it('the kit, casebook, shortcuts and Myko calls carry', () => {
     let kit = learnMove(createKit(), 'shoulder', { autoAssign: true }).kit;
     kit = gainWeapon(kit, 'hurley').kit;
-    kit = { ...pickUpDrink(kit, 'whiskey').kit, bottles: 4 };
+    kit = { ...pickUpDrink(kit, 'whiskey').kit, bottles: TUNING.overhaul!.carry.bottleLimit };
     const s = at(4, { kit, mykoCallsLeft: 1, openedShortcuts: ['c3.gate'], casebook: [{ kind: 'evidence', evidenceId: 'c2.clue.ring', chapter: 2 }] });
     const n = carryOver(s, 'grand', next(5));
     // Every chapter start leaves him at least two beers (the whiskey stays, stout tops them up).
@@ -266,13 +266,13 @@ describe('GameSession flow', () => {
   it('Continue resumes a saved game with its calls and kit, and puts Andrew in the bar at rest', () => {
     const { session, store } = setup();
     const s = fresh();
-    const kit = { ...pickUpDrink(s.kit, 'stout').kit, bottles: 4 };
+    const kit = { ...pickUpDrink(s.kit, 'stout').kit, bottles: 4 }; // an old save holding more than the cap
     store.write({ ...s, kit, mykoCallsLeft: 1 });
     session.continueGame();
     const run = session.createRun();
     expect(run?.callsRemaining()).toBe(1);
     expect(run?.player.kit.drinks.stout).toBe(1);
-    expect(run?.player.kit.bottles).toBe(4);
+    expect(run?.player.kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit);
     expect(run?.player.meter.value).toBe(restValue(1));
     expect(run?.player.pos).toEqual(run?.screenLayout.playerStart);
   });

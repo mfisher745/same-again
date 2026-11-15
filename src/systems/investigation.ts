@@ -54,8 +54,9 @@ export class Casebook {
   addEvidence(evidenceId: EvidenceId, chapter: ChapterNumber): boolean {
     if (this.hasEvidence(evidenceId)) return false;
     const entry: CasebookEntry = { kind: 'evidence', evidenceId, chapter };
+    const first = this.evidenceIds().length === 0;
     this.list.push(entry);
-    this.bus.emit(GameEvents.EvidenceFound, { evidenceId });
+    this.bus.emit(GameEvents.EvidenceFound, { evidenceId, first });
     this.bus.emit(GameEvents.CasebookEntryAdded, { entry });
     return true;
   }
