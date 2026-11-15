@@ -9,6 +9,8 @@
 
 import Phaser from 'phaser';
 import { animKey, fx, icon, PALETTE, PROPS_KEY, PROP, TEX } from '../../art';
+import { TUNING } from '../../content/tuning';
+import { GameEvents } from '../../core/types';
 import type { PickupItem, Vec2 } from '../../core/types';
 import { facingFromAngle } from '../geometry';
 import { TILE } from '../grid';
@@ -63,6 +65,17 @@ export class ObjectsView {
   ) {
     this.floor = scene.add.graphics().setDepth(FLOOR_DEPTH);
     this.ensureAnims();
+    this.offGlint = run.bus.on(GameEvents.ObjectiveGlint, (g) => this.sparkle(g.position, g.faint === true));
+  }
+
+  private readonly offGlint: () => void;
+
+  /** One soft sparkle on an unfinished objective: a pickup-glint frame that fades out. Subtle by design. */
+  private sparkle(at: Vec2, faint: boolean): void {
+    if (!this.scene.textures.exists(TEX.fx)) return;
+    const ms = TUNING.overhaul?.glint?.durationMs ?? 450;
+    const spark = this.scene.add.sprite(at.x, at.y, TEX.fx, fx.pickupGlint[0]).setDepth(ICON_DEPTH).setAlpha(faint ? 0.9 : 0.6);
+    this.scene.tweens.add({ targets: spark, alpha: 0, scale: faint ? 1.4 : 1.1, duration: ms, onComplete: () => spark.destroy() });
   }
 
   /** `mykoHead` is the top of Myko's sprite, for the puff. */
@@ -76,6 +89,7 @@ export class ObjectsView {
   }
 
   destroy(): void {
+    this.offGlint();
     this.clear();
     this.floor.destroy();
     this.examineIcon?.destroy();

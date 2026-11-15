@@ -231,8 +231,10 @@ export class Myko {
     const given = this.host.hintsGiven(obj.id);
     const level: 1 | 2 = given >= 1 ? 2 : 1;
     this.host.setHintsGiven(obj.id, Math.min(2, given + 1));
-    this.host.bus.emit(GameEvents.MykoHintRequested, { objectiveId: obj.id, level });
+    this.host.bus.emit(GameEvents.MykoHintRequested, { objectiveId: obj.id, level, ...(obj.areaTextId ? { areaTextId: obj.areaTextId } : {}) });
     this.host.play(level === 1 ? obj.hint.nudgeDialogueId : obj.hint.answerDialogueId, true);
+    // DESIGN.md 7.5: the "where" line follows the nudge on the first H press.
+    if (level === 1 && obj.hint.whereDialogueId) this.host.play(obj.hint.whereDialogueId, true);
   }
 
   /** Tries the call-in now (used by the hold and by tests). Returns true if Myko came. */

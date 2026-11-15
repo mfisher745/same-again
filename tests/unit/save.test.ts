@@ -171,7 +171,8 @@ describe('chapter carry-over', () => {
     kit = { ...pickUpDrink(kit, 'whiskey').kit, bottles: 4 };
     const s = at(4, { kit, mykoCallsLeft: 1, openedShortcuts: ['c3.gate'], casebook: [{ kind: 'evidence', evidenceId: 'c2.clue.ring', chapter: 2 }] });
     const n = carryOver(s, 'grand', next(5));
-    expect(n.kit).toEqual(kit);
+    // Every chapter start leaves him at least two beers (the whiskey stays, stout tops them up).
+    expect(n.kit).toEqual({ ...kit, drinks: { ...kit.drinks, stout: 2 }, slots: { ...kit.slots, drink: 'stout' }, selectedItem: 'stout' });
     expect(n.mykoCallsLeft).toBe(1);
     expect(n.casebook).toEqual(s.casebook);
     expect(n.openedShortcuts).toEqual(['c3.gate']);

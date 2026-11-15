@@ -12,7 +12,8 @@
  */
 
 import { GameEvents } from '../core/types';
-import type { BarReturnReason, ChapterNumber, GameEventBus, HotDrinkId, ScreenId, SectionId, Vec2 } from '../core/types';
+import type {
+  BeerId, BarReturnReason, ChapterNumber, GameEventBus, HotDrinkId, ScreenId, SectionId, Vec2 } from '../core/types';
 import { arriveAtBar, takeFreeHotDrink } from './barReturn';
 import type { BarProgress, HotDrinkOffer } from './barReturn';
 import type { Player } from './player';
@@ -36,6 +37,8 @@ export interface BarFlowHost {
   /** Despawn actors and projectiles of the screen being left. */
   clearWorld(): void;
   barLocation(): BarLocation;
+  /** The region's beer, which tops the beers up on arrival. Absent: stout. */
+  barBeer?(): BeerId;
   /** Move Andrew (and Myko) there. */
   placeAt(where: BarLocation): void;
   /** Script flags and run-time state go back to what the last save held. */
@@ -82,6 +85,8 @@ export class BarFlow {
     const arrival = arriveAtBar<BarProgress>(
       { chapter: h.chapter, completedSectionIds: [...h.completedSectionIds()], kit: p.kit, underWaySectionId: h.underWaySectionId() },
       reason,
+      undefined,
+      h.barBeer?.(),
     );
     h.clearWorld();
     if (arrival.resetSectionId) h.resetSection(arrival.resetSectionId);

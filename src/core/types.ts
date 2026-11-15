@@ -143,7 +143,10 @@ export type CompletableSectionId = FightSectionId | AlarmFightId | BossId | Puzz
  */
 export type InputAction =
   | 'melee'
+  /** Q: use the selected inventory item (drink it, if it is consumable). */
   | 'drink'
+  /** G: drink whatever spirit is in the spirit slot at once. */
+  | 'useSpirit'
   | 'sneak'
   | 'interact'
   | 'hint'
@@ -176,6 +179,7 @@ export const DEFAULT_BINDINGS = {
   moveRight: [{ device: 'keyboard', code: 'KeyD' }],
   melee: [{ device: 'mouse', button: 'left' }],
   drink: [{ device: 'keyboard', code: 'KeyQ' }],
+  useSpirit: [{ device: 'keyboard', code: 'KeyG' }],
   sneak: [
     { device: 'keyboard', code: 'ShiftLeft' },
     { device: 'keyboard', code: 'ShiftRight' },
@@ -909,6 +913,12 @@ export interface ExaminableDef {
   readonly item?: PickupItem;
   /** Line shown on examine. */
   readonly dialogueId?: DialogueId;
+  /** An objective or clue: it glints softly while Andrew is near, until it is examined. */
+  readonly objective?: true;
+  /** Names the area of this objective for the H hint. */
+  readonly areaTextId?: TextId;
+  /** Hard to see: glints from further off and more often (`glint.faint`). */
+  readonly faint?: true;
 }
 
 /** A casebook entry. DESIGN.md sections 7.4 and 7.5. */
@@ -1053,6 +1063,8 @@ export interface HintDef {
   readonly objectiveId: ObjectiveId;
   readonly nudgeDialogueId: DialogueId;
   readonly answerDialogueId: DialogueId;
+  /** Where the objective is, said after the nudge on the first H press. Absent: `<chapter>.hint.<objective>.where` is not played. */
+  readonly whereDialogueId?: DialogueId;
 }
 
 /** A current objective. DESIGN.md section 7.5. */
@@ -1060,6 +1072,8 @@ export interface ObjectiveDef {
   readonly id: ObjectiveId;
   readonly textId: TextId;
   readonly hint: HintDef;
+  /** Names where this objective is ("the yard", "behind the shed"); the H hint carries it in `myko:hintRequested`. */
+  readonly areaTextId?: TextId;
 }
 
 /** Record of one spent Myko call, stored in the save. DESIGN.md sections 7.5 and 7.6. */
@@ -1565,7 +1579,11 @@ export interface GameEventPayloads {
   };
   'section:started': { readonly sectionId: SectionId; readonly kind: SectionKind };
   'section:completed': { readonly sectionId: SectionId; readonly kind: SectionKind; readonly by: CompletionSource };
-  'myko:hintRequested': { readonly objectiveId: ObjectiveId; readonly level: 1 | 2 };
+  'myko:hintRequested': { readonly objectiveId: ObjectiveId; readonly level: 1 | 2; readonly areaTextId?: TextId };
+  /** Q or G did nothing; the HUD may flash `textId` (`ui.use.nothing`, `ui.use.notADrink`, `ui.spirit.none`). */
+  'kit:useRefused': { readonly action: 'drink' | 'useSpirit'; readonly textId: TextId };
+  /** An unfinished objective mark sparkles: Andrew is near it. The view draws a soft glint at `position` on `screenId`. */
+  'objective:glint': { readonly markId: string; readonly screenId: ScreenId; readonly position: Vec2; readonly faint?: true };
   'myko:callStarted': { readonly sectionId: CompletableSectionId; readonly kind: MykoCallKind; readonly callsLeft: number };
   'myko:callRefused': { readonly reason: 'noCallsLeft' | 'notCallable' | 'noSection' };
   'myko:comment': { readonly trigger: MykoCommentTrigger; readonly dialogueId: DialogueId };
@@ -1680,6 +1698,8 @@ export const GameEvents = {
   SectionStarted: 'section:started',
   SectionCompleted: 'section:completed',
   MykoHintRequested: 'myko:hintRequested',
+  ObjectiveGlint: 'objective:glint',
+  KitUseRefused: 'kit:useRefused',
   MykoCallStarted: 'myko:callStarted',
   MykoCallRefused: 'myko:callRefused',
   MykoComment: 'myko:comment',
@@ -2015,7 +2035,16 @@ export interface WeaponDef {
 
 /** The six slots: one drink, four specials (slot n takes level n), one melee. DESIGN.md 7.7. */
 export interface KitSlots {
+  /**
+   * The beer the wheel cycles to and Q drinks when nothing is selected. Always a beer or null (saves are migrated
+   * and the kit keeps it so); typed wide until `src/ui` stops reading a hot drink from it, then it narrows to `BeerId`.
+   */
   readonly drink: OverhaulDrinkId | null;
+  /**
+   * The spirit G drinks at once. A spirit or null; the kit keeps it on a held spirit while one is held. Optional
+   * only until `src/ui` builds slot literals with it, then it becomes required.
+   */
+  readonly spirit?: SpiritId | null;
   readonly specials: readonly [MoveId | null, MoveId | null, MoveId | null, MoveId | null];
   readonly melee: WeaponId;
 }
@@ -2033,6 +2062,11 @@ export interface Kit {
   readonly weapons: readonly WeaponId[];
   readonly moves: readonly MoveId[];
   readonly slots: KitSlots;
+  /**
+   * What Q drinks: a beer or the hot drink, or null. Set by clicking it in the Tab screen or rolling the wheel
+   * (beers only); the kit keeps it on something held. Weapons, moves and spirits never go here. Saved. Optional only until `src/ui` builds kit literals with it.
+   */
+  readonly selectedItem?: string | null;
 }
 
 /** One special slot as the HUD and the Tab screen show it. DESIGN.md 7.2, 7.7. */
@@ -2121,6 +2155,8 @@ export interface CarryTuning {
   readonly hotDrinkLimit: number;
   /** Bottles Andrew has on leaving the bar, at least (2). */
   readonly minBottlesOnLeavingBar: number;
+  /** Beers (the region's beer) Andrew has on leaving the bar, at least (2). Chapter start and every return. */
+  readonly minBeersOnLeavingBar: number;
 }
 
 /** Aim sway for a level, degrees. 0 at levels 1 and 2. DESIGN.md 7.2. */
@@ -2209,6 +2245,37 @@ export interface OverhaulTuning {
   readonly cameraLeadPx?: number;
   /** The sheep puzzle's flock (`sheep.ts`). Chapter 2. */
   readonly sheep?: SheepTuning;
+  /** The soft glint on unfinished objectives and clues (`glint.ts`). */
+  readonly glint?: GlintTuning;
+  /** Random wander of the sheep (`sheep.ts`). Chapter 2. */
+  readonly sheepWander?: SheepWanderTuning;
+  /** Added to the beer chance of breakable and enemy drops in these chapters; absent is 0. */
+  readonly dropBeerBonusByChapter?: Readonly<Partial<Record<number, number>>>;
+}
+
+/** How the objective glint behaves. */
+export interface GlintTuning {
+  /** A mark glints only while Andrew is within this many tiles. */
+  readonly radiusTiles: number;
+  /** Time between glints of one mark: a random value in this range, ms. */
+  readonly intervalMsMin: number;
+  readonly intervalMsMax: number;
+  /** How long one sparkle lasts, ms (for the view). */
+  readonly durationMs: number;
+  /** For marks flagged `faint` (hard to see): a wider radius and a shorter wait. */
+  readonly faint: { readonly radiusTiles: number; readonly intervalMsMin: number; readonly intervalMsMax: number };
+}
+
+/** The wander of the chapter 2 sheep outside the flee radius. */
+export interface SheepWanderTuning {
+  /** A fresh random wait per sheep between walks, ms. */
+  readonly intervalMsMin: number;
+  readonly intervalMsMax: number;
+  /** Pace of a wander, pixels per second. */
+  readonly speed: number;
+  /** How long one walk lasts, ms. */
+  readonly walkMsMin: number;
+  readonly walkMsMax: number;
 }
 
 /** How the flock in the chapter 2 yard behaves. All first guesses. */
