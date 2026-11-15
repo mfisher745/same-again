@@ -7,6 +7,7 @@ import { TUNING } from '../../src/content/tuning';
 import { migrateSave } from '../../src/core/save';
 import { seededRandom } from '../../src/core/random';
 import { DEFAULT_BINDINGS } from '../../src/core/types';
+import type { ObjectiveMark } from '../../src/core/chapter';
 import { GlintTracker } from '../../src/systems/glint';
 import { createKit, pickUpDrink } from '../../src/systems/kit';
 import { arriveAtBar } from '../../src/systems/barReturn';
@@ -21,7 +22,7 @@ describe('G is bound to the spirit slot', () => {
 });
 
 describe('objective glint', () => {
-  const mark = { id: 'm', screenId: 'c2.farm', position: { x: 100, y: 100 } };
+  const mark: ObjectiveMark = { id: 'm', screenId: 'c2.farm', position: { x: 100, y: 100 } };
   it('is silent out of range, pulses in range, and never for a finished mark', () => {
     const g = new GlintTracker(seededRandom(1));
     const far = { x: 100 + (G.radiusTiles + 2) * 16, y: 100 };
@@ -42,7 +43,7 @@ describe('objective glint', () => {
     let faint = 0;
     for (let t = 0; t < 60000; t += 100) {
       plain += g.tick(100, [mark], spot).length;
-      faint += g.tick(100, [{ ...mark, id: 'f', faint: true }], spot).length;
+      faint += g.tick(100, [{ ...mark, id: 'f', faint: true as const }], spot).length;
     }
     expect(plain).toBe(0);
     expect(faint).toBeGreaterThan(10);
