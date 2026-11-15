@@ -223,6 +223,8 @@ export const C01: DialogueFile = {
       ['npc:name.bigTom', "I'm not carrying it home like this. I'll want it back, Andrew. Same as the tenner."],
       ['myko', "He's lent you a stick. Press R when you want it. That's the most anyone in this town has ever trusted you with."],
     ),
+    // Trying the east exit without the hurley. Says why the way is shut; the how is `c1.hint.hurley`.
+    box('c1.exit.needHurley', ['myko', "You were asked to mind a stick and you're leaving without the stick. It's against the tractor."]),
 
     // --- The lights ---
     scene(

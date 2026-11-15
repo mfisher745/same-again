@@ -365,6 +365,11 @@ export class WorldView {
       const a = placement.layout.area;
       g.lineStyle(1, PALETTE.amberLight, 0.3).strokeRect(a.col * TILE, a.row * TILE, a.width * TILE, a.height * TILE);
     }
+    for (const { placement } of r.sheepPuzzlesHere()) {
+      const pen = placement.layout.targetPen;
+      g.lineStyle(1, PALETTE.amberLight, 0.4).strokeRect(pen.col * TILE, pen.row * TILE, pen.width * TILE, pen.height * TILE);
+      for (const p of placement.layout.pens ?? []) g.lineStyle(1, PALETTE.amberLight, 0.2).strokeRect(p.col * TILE, p.row * TILE, p.width * TILE, p.height * TILE);
+    }
     for (const { runner } of r.stealthHere()) {
       for (const prop of runner.def.hidingProps) g.lineStyle(1, PALETTE.white, 0.6).strokeCircle(prop.position.x, prop.position.y, prop.radius);
     }

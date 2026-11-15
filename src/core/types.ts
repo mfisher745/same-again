@@ -925,6 +925,11 @@ export type CasebookEntry =
       readonly kind: 'mykoCall';
       readonly sectionId: CompletableSectionId;
       readonly callKind: MykoCallKind;
+      /**
+       * A set piece or boss call: the name its lines go by (`BossPlacement.callId`, 'ram' for `c2.call.ram`). The
+       * casebook texts are `cN.call.<callId ?? callKind>.casebook` and `.margin`. Absent for fight and puzzle calls.
+       */
+      readonly callId?: string;
       readonly chapter: ChapterNumber;
     };
 
@@ -969,8 +974,12 @@ export interface PuzzleDef {
 // Sections and completeNow (DESIGN.md sections 7.5 and 10)
 // ---------------------------------------------------------------------------
 
-/** Which set of Myko call lines applies. DESIGN.md section 7.5. */
-export type MykoCallKind = 'fight' | 'puzzle';
+/**
+ * Which set of Myko call lines applies. DESIGN.md section 7.5. `setpiece` is a call during a boss or set piece whose
+ * placement names a `callId` (`BossPlacement.callId`) in a chapter that has `mykoCallLines.setpiece`. Every other boss and
+ * set piece calls as `fight` (`MYKO_CALL_KIND_BY_SECTION`). The blackout card is the `fight` one either way.
+ */
+export type MykoCallKind = 'fight' | 'puzzle' | 'setpiece';
 
 /** Call line set used for each completable kind. docs/chapters/README.md, DESIGN.md section 7.5. */
 export const MYKO_CALL_KIND_BY_SECTION = {
@@ -1068,7 +1077,10 @@ export interface MykoCallLineSet {
 }
 
 /** Myko's per-chapter call lines, one set per kind. DESIGN.md section 7.5. */
-export type MykoCallLines = Readonly<Record<MykoCallKind, MykoCallLineSet>>;
+export type MykoCallLines = Readonly<Record<'fight' | 'puzzle', MykoCallLineSet>> & {
+  /** For a call during a boss or set piece (chapter 2's ram: `c2.call.ram`). Absent: the `fight` lines. */
+  readonly setpiece?: MykoCallLineSet;
+};
 
 // ---------------------------------------------------------------------------
 // Dialogue (DESIGN.md sections 2, 3, 7.5)
@@ -1579,6 +1591,11 @@ export interface GameEventPayloads {
    * `uiState.dialogueFinished(sequenceId)` when it is done.
    */
   'myko:blackout': { readonly sectionId: CompletableSectionId; readonly kind: MykoCallKind; readonly sequenceId: DialogueId };
+  /**
+   * The sheep puzzle's whole flock has stood in one pen for `settleMs` and that pen is not the one it last settled
+   * in. Not emitted for the far pen (the puzzle completes), a split flock, or a layout with no `pens`.
+   */
+  'sheep:flockSettled': { readonly puzzleId: PuzzleSectionId; readonly pen: string };
   'prop:broken': { readonly screenId: ScreenId; readonly propId: string; readonly frame: string };
   // --- Overhaul events (DESIGN.md 7.1, 7.2, 7.7) ---
   /** Andrew crossed into another drunk level. */
@@ -1679,6 +1696,7 @@ export const GameEvents = {
   BarReturned: 'bar:returned',
   MoveUsed: 'move:used',
   MoveLearned: 'move:learned',
+  SheepFlockSettled: 'sheep:flockSettled',
   WeaponGained: 'weapon:gained',
   KitChanged: 'kit:changed',
   MeterHiddenChanged: 'meter:hiddenChanged',
@@ -1777,6 +1795,15 @@ export interface MeterSnapshot {
   readonly hidden?: boolean;
   /** The chapter script is holding the drain: the value does not fall. `ChapterContext.holdDrain`. */
   readonly drainHeld?: boolean;
+}
+
+/** A move whose lesson is owed: taught the first time Andrew reaches Bit much in a later chapter. */
+export interface OwedMove {
+  readonly moveId: MoveId;
+  /** The lesson scene to play first. */
+  readonly sceneId: DialogueId;
+  /** The chapter that owed it; the fallback only runs in later chapters. */
+  readonly chapter: ChapterNumber;
 }
 
 // ---------------------------------------------------------------------------
@@ -2227,4 +2254,6 @@ export interface OverhaulSaveState {
   readonly meterHidden?: boolean;
   /** The drain is held by the chapter script (absent = draining). */
   readonly drainHeld?: boolean;
+  /** Moves a chapter script has promised and not yet taught (`ChapterContext.oweMove`); absent = none. */
+  readonly owedMoves?: readonly OwedMove[];
 }

@@ -33,6 +33,8 @@ export const FONT_CELL = { width: 6, height: 9 } as const;
 export const TEX = {
   andrew: 'char.andrew',
   myko: 'char.myko',
+  /** Chapter 2: a Brennan sheep, 16 x 16. `idle` and `walk` in four directions; use `animKey(TEX.sheep, 'walk', facing)`. */
+  sheep: 'animal.sheep',
   /** Small HUD and world icons; frames listed in `icon`. */
   icons: 'ui.icons',
   /** 32 x 32 dialogue portraits; frames are `SpeakerId`s. */

@@ -54,3 +54,26 @@ At the cattle grid. Andrew lays out the case. Myko says a depot on the edge of t
 ## Dialogue needed
 
 The lean-to (open, hot drink, first return), casebook tutorial, seven clue entries and the conclusion with margin notes, the Department men (arrival and 3 overheard), bottle reminder, stealth caught and clean lines, sheep puzzle (3), shed and whiskey, The Stumble (2), cousins (intro, Reflex Test, end), casebook conclusion, ram (start, 3 mid-run phone lines, hit, end), closing scene, fight call, puzzle call and ram call lines.
+
+## Art
+
+Everything is in the props atlas (`PROPS_KEY`, names in `PROP`) unless marked. Sizes are in pixels. "Floor" means place it with `layer: 'floor'`; it has no outline and is walked over.
+
+| Thing | Key | Size | Notes |
+|---|---|---|---|
+| Sheep | texture `TEX.sheep` | 16 × 16 | Its own sheet. `idle` (2 frames) and `walk` (4) in four directions; `animKey(TEX.sheep, 'walk', facing)`. |
+| The ram | texture `boss.c2.setpiece.ram` | 24 × 16 | Already there. |
+| Field gate, one tile | `PROP.fieldGate.across`, `.along` | 16 × 16 | `across` repeats along a row, `along` down a column. One per tile the gate blocks. |
+| Field gate, whole | `PROP.fieldGate.across3`, `.along3` | 48 × 16, 16 × 48 | With posts. The lane gate: `along3` shut, `across3` open. |
+| Puddle | `PROP.puddle`, `PROP.puddleLarge` | 32 × 16, 48 × 32 | Floor. |
+| Cattle grid | `PROP.cattleGrid` | 16 × 16 | Floor. Repeats; one per tile across the lane. |
+| Tyre tracks | `PROP.tyreTracks.across`, `.along` | 16 × 16 | Floor. Repeats; see-through between the ruts. |
+| The scorched ring | `PROP.scorchRing` | 144 × 144 | Floor. Nine tiles across, one tile to the metre. |
+| Wheelbarrow | `PROP.wheelbarrow` | 24 × 16 | Solid on its left tile. |
+| Sleeping dog | `PROP.sleepingDog` (2 frames) | 16 × 16 | Frame rate 1. Solid. |
+| The Department van | `PROP.van.right`, `.left` | 48 × 32 | Unmarked. |
+| Lean-to | `PROP.leanTo` | 64 × 32 | Back wall and roof; the crate (`PROP.bottleCrate`), flask (`PROP.flask`), honesty box and jar stand in front. Chairs are the `seat` tile. |
+| Honesty box, coffee jar | `PROP.honestyBox`, `PROP.coffeeJar` | 16 × 16 | |
+| Hay bale, feed buckets | `PROP.hayBale`, `PROP.feedBuckets` | 16 × 16, 16 × 24 | The buckets are the breakable for The Stumble. |
+| Clues | `PROP.metalFragment`, `.boiledFrog`, `.burntWelly`, `.lanyard`, `.docket` | 16 × 16 | The ring and the tracks are their own clue art. |
+| Turf bank, mud | tiles `turfBank`, `mud` (`kilnamoe`) | 16 × 16 | `turfBank` blocks walking, not sight. Turf stacks are the `cover` tile; drains are `bogPool`. |

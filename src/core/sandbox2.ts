@@ -19,6 +19,7 @@
  *   at col 52 that enemies cannot cross, and the exit at cols 56 to 58.
  */
 
+import { PROP } from '../art/props';
 import type { ChapterModule } from './chapter';
 import type { ChapterNumber, ScreenId, StealthSectionDef, Vec2 } from './types';
 import { gridFromAscii, tileCentre } from '../systems/grid';
@@ -95,6 +96,7 @@ export function createChapter2Sandbox(): ChapterModule {
       objectives: [],
       newAbilities: [],
       mykoCallLines: {
+        setpiece: { sequenceId: 'c2.call.ram', casebookBodyTextId: 'c2.call.ram.casebook', casebookMarginTextId: 'c2.call.ram.margin' },
         fight: { sequenceId: 'c2.call.fight', casebookBodyTextId: 'c2.call.fight.casebook', casebookMarginTextId: 'c2.call.fight.margin' },
         puzzle: { sequenceId: 'c2.call.puzzle', casebookBodyTextId: 'c2.call.puzzle.casebook', casebookMarginTextId: 'c2.call.puzzle.margin' },
       },
@@ -116,12 +118,12 @@ export function createChapter2Sandbox(): ChapterModule {
         playerStart: T(4, 14),
         dressing: {
           props: [
-            { id: 'yard.bucket1', frame: 'barrel', col: 24, row: 5, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
-            { id: 'yard.bucket2', frame: 'barrel', col: 25, row: 5, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
-            { id: 'lane.puddle', frame: 'debris.1', col: 14, row: 15, layer: 'floor', slows: { width: 3, height: 3 } },
-            { id: 'lane.wheelbarrow', frame: 'crate', col: 20, row: 15, solid: { width: 1, height: 1 } },
-            { id: 'lane.gate', frame: 'crate', col: 30, row: 15, solid: { width: 1, height: 3 } },
-            { id: 'lane.grid', frame: 'debris.0', col: 52, row: 15, layer: 'floor', blocksEnemies: { width: 1, height: 3 } },
+            { id: 'yard.bucket1', frame: PROP.feedBuckets, col: 24, row: 5, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
+            { id: 'yard.bucket2', frame: PROP.feedBuckets, col: 25, row: 5, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
+            { id: 'lane.puddle', frame: PROP.puddleLarge, col: 14, row: 15, layer: 'floor', slows: { width: 3, height: 2 } },
+            { id: 'lane.wheelbarrow', frame: PROP.wheelbarrow, col: 20, row: 15, solid: { width: 1, height: 1 } },
+            { id: 'lane.gate', frame: PROP.fieldGate.along3, col: 30, row: 15, solid: { width: 1, height: 3 } },
+            ...[15, 16, 17].map((row) => ({ id: `lane.grid.${row}`, frame: PROP.cattleGrid, col: 52, row, layer: 'floor' as const, blocksEnemies: { width: 1, height: 1 } })),
           ],
         },
       },
@@ -138,6 +140,7 @@ export function createChapter2Sandbox(): ChapterModule {
     bosses: [
       {
         bossId: 'c2.setpiece.ram',
+        callId: 'ram',
         screenId,
         trigger: { kind: 'area', area: px(11, 15, 3, 3) },
         bodies: [{ tag: 'ram', position: T(9, 16), invulnerable: true }],
@@ -166,6 +169,12 @@ export function createChapter2Sandbox(): ChapterModule {
             { id: 'sheep3', col: 32, row: 7 },
           ],
           gates: GATES.map((g) => ({ id: g.id, positions: [gateTiles(g.col), []] as const, examinableId: g.examinable })),
+          // The three pens before the far one, between the gates.
+          pens: [
+            { id: 'pen1', col: 30, row: 2, width: 4, height: 7 },
+            { id: 'pen2', col: 35, row: 2, width: 2, height: 7 },
+            { id: 'pen3', col: 38, row: 2, width: 2, height: 7 },
+          ],
           targetPen: { col: 41, row: 2, width: 5, height: 7 },
           solution: {
             sheep: [

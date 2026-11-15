@@ -223,6 +223,13 @@ function kilnamoe(): TileDef[] {
     }), true, true),
     t('kerb', on(flat('slate', 'coal', 13, 3), (b) => void b.rect(0, 0, 16, 4, 'steel').hline(0, 4, 16, 'coal'))),
     t('nightGrass', flat('mossDark', 'ink', 6, 23)),
+    // Chapter 2. The cut face of a turf bank: too high to step up, low enough to see over.
+    t('turfBank', on(bog, (b) => {
+      b.rect(0, 5, 16, 11, 'turfDark').hline(0, 5, 16, 'turf');
+      for (let y = 8; y < 16; y += 3) for (let x = y % 2 === 0 ? 1 : 4; x < 16; x += 6) b.hline(x, y, 3, 'ink');
+    }), true),
+    // Churned mud for the farmyard and the lane verge.
+    t('mud', flat('turfDark', 'turf', 5, 31)),
   ];
 }
 

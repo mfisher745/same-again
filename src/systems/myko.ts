@@ -85,6 +85,8 @@ export interface MykoHost {
   stealthUncaught(): boolean;
   callsLeft(): number;
   callLines(kind: MykoCallKind): MykoCallLineSet | null;
+  /** What a boss or set piece's call lines are called (`BossPlacement.callId`), if it names them. */
+  callId?(sectionId: CompletableSectionId): string | undefined;
   /** Calls already spent in this chapter in this save (read before `spendCall`). */
   callsThisChapter(): number;
   /** Spend one call: decrement, record, casebook entry, save at once. */
@@ -244,7 +246,10 @@ export class Myko {
     }
     if (!target) return false;
     const sectionId = target.completable.sectionId;
-    const kind = MYKO_CALL_KIND_BY_SECTION[target.completable.kind];
+    const baseKind = MYKO_CALL_KIND_BY_SECTION[target.completable.kind];
+    // A boss or set piece that names its call lines (`BossPlacement.callId`) uses the chapter's set-piece set.
+    const named = baseKind === 'fight' && this.host.callId?.(sectionId) !== undefined && this.host.callLines('setpiece') !== null;
+    const kind: MykoCallKind = named ? 'setpiece' : baseKind;
     const earlier = this.host.callsThisChapter();
     // Which call of the save this is (whole game); `callsLeft` is saved, so it survives reload.
     const nth = Math.min(3, Math.max(1, TUNING.myko.callsPerGame - this.host.callsLeft() + 1));
@@ -255,7 +260,7 @@ export class Myko {
     this.host.setPlayerProtected(true);
     this.mode = 'calledIn';
     this.smoking = false;
-    const sequenceId = `myko.call.${kind}.blackout.${nth}` as DialogueId;
+    const sequenceId = `myko.call.${baseKind}.blackout.${nth}` as DialogueId;
     this.call = { target, sectionId, kind, sequenceId, earlier, elapsed: 0 };
     this.host.bus.emit(GameEvents.MykoBlackout, { sectionId, kind, sequenceId });
     return true;

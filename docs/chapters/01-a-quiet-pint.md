@@ -36,7 +36,7 @@ Feeney's itself (`c1.pub`). Andrew's stool at the end of the bar is the arrival 
    - The lads drop stout. The spice bag is the prize and is story only.
 9. **The Myko call.** A prompt introduces it (hold M) here, as information only. Myko says he is there in an advisory capacity.
 10. **Big Tom Brennan** (`c1.boss.bigtom`, boss) by the tractor.
-11. **The hurley.** Tom leaves his hurley against the tractor and asks Andrew to mind it. E takes it; R cycles between it and fists.
+11. **The hurley.** Tom leaves his hurley against the tractor and asks Andrew to mind it. E takes it; R cycles between it and fists. The east exit to the bog road stays shut until he has it; trying the exit without it plays Myko's `c1.exit.needHurley`, which says why and where the hurley is (the `c1.hint.hurley` hints give the keys).
 12. **The lights** (`c1.explore.road`). Andrew walks out the bog road. Lights move over the bog, silently, and go down behind the hill. Myko was looking at his lighter. Chapter ends.
 
 ## Boss: Big Tom Brennan
@@ -67,4 +67,4 @@ On the bog road, after the lights. Andrew is certain. Myko asks whether it might
 
 ## Dialogue needed
 
-Dympna's list (6 steps and 4 examines), the meter, the hot drink, the kit, fruit machine (2), lock-in, keg yard (2), The Shoulder (2), bottle and whiskey (3), chipper row (intro, first hit, Stout Slam, mid, end), M prompt, Big Tom (intro, phase change, dazed, end), the hurley, first return to the bar, the lights and closing scene, fight call and puzzle call lines.
+Dympna's list (6 steps and 4 examines), the meter, the hot drink, the kit, fruit machine (2), lock-in, keg yard (2), The Shoulder (2), bottle and whiskey (3), chipper row (intro, first hit, Stout Slam, mid, end), M prompt, Big Tom (intro, phase change, dazed, end), the hurley, the east exit without the hurley, first return to the bar, the lights and closing scene, fight call and puzzle call lines.

@@ -16,6 +16,7 @@
  */
 
 import { TUNING } from '../content/tuning';
+import { GameEvents } from '../core/types';
 import type { GameEventBus, PuzzleDef, Reward, SheepTuning, TileCoord, TileGrid, Vec2 } from '../core/types';
 import { distance, normalize, scale, sub } from './geometry';
 import { moveBox, tileCentre, TILE } from './grid';
@@ -40,6 +41,12 @@ export interface SheepGateDef {
   readonly examinableId?: string;
 }
 
+/** A pen the flock can settle in. */
+export interface SheepPenDef extends TileRect {
+  /** Named in `sheep:flockSettled`; default `pen<index>`. */
+  readonly id?: string;
+}
+
 export interface SheepPuzzleLayout {
   /** Sheep stay inside this area (tiles). */
   readonly area: TileRect;
@@ -47,6 +54,11 @@ export interface SheepPuzzleLayout {
   readonly gates: readonly SheepGateDef[];
   /** The far pen: the flock must be inside it. */
   readonly targetPen: TileRect;
+  /**
+   * Every pen except the far one, for `sheep:flockSettled`. Absent: that event is never emitted.
+   * The far pen does not need listing; settling in it solves the puzzle.
+   */
+  readonly pens?: readonly SheepPenDef[];
   /** Where `completeNow()` puts the sheep and the gates. */
   readonly solution: {
     readonly sheep: readonly { readonly id: string; readonly col: number; readonly row: number }[];
@@ -74,6 +86,11 @@ export class SheepPuzzle extends PuzzleBase {
   private flock: LiveSheep[];
   private readonly gatePos = new Map<string, 0 | 1>();
   private penMs = 0;
+  /** The pen the whole flock is standing in now, and for how long. */
+  private settlingPen: string | null = null;
+  private settlingMs = 0;
+  /** The last pen announced, so the same pen is not announced twice running. */
+  private lastSettled: string | null = null;
   /** Gate swings so far, for the player's own counting and tests. */
   gateChanges = 0;
   /** Called when a gate swings (sound). */
@@ -86,11 +103,11 @@ export class SheepPuzzle extends PuzzleBase {
     readonly layout: SheepPuzzleLayout,
     private readonly grid: TileGrid,
     host: SectionHost,
-    bus: GameEventBus,
+    private readonly events: GameEventBus,
     reward?: Reward,
     private readonly tuning: SheepTuning | undefined = TUNING.overhaul?.sheep,
   ) {
-    super(def, host, bus, reward);
+    super(def, host, events, reward);
     if (!this.tuning) throw new Error('TUNING.overhaul.sheep is missing');
     this.flock = layout.sheep.map((s) => ({ id: s.id, pos: tileCentre(s), facingDeg: 0, moving: false }));
     for (const g of layout.gates) this.gatePos.set(g.id, g.start ?? 0);
@@ -158,6 +175,17 @@ export class SheepPuzzle extends PuzzleBase {
     return this.flock.every((s) => s.pos.x >= pen.x && s.pos.x < pen.x + pen.width && s.pos.y >= pen.y && s.pos.y < pen.y + pen.height);
   }
 
+  /** The id of the listed pen that holds every sheep, or null if the flock is split or outside the listed pens. */
+  penOfFlock(): string | null {
+    const pens = this.layout.pens ?? [];
+    for (let i = 0; i < pens.length; i++) {
+      const pen = pens[i] as SheepPenDef;
+      const r = rectOf(pen);
+      if (this.flock.length > 0 && this.flock.every((s) => s.pos.x >= r.x && s.pos.x < r.x + r.width && s.pos.y >= r.y && s.pos.y < r.y + r.height)) return pen.id ?? `pen${i}`;
+    }
+    return null;
+  }
+
   /** One tick. The flock shies from Andrew; the puzzle is solved once it has stayed in the far pen long enough. */
   update(dtMs: number, playerPos: Vec2): void {
     if (this.isComplete()) return;
@@ -180,6 +208,21 @@ export class SheepPuzzle extends PuzzleBase {
       this.penMs += dtMs;
       if (this.penMs >= t.settleMs) this.solved();
     } else this.penMs = 0;
+    this.trackSettled(dtMs, t.settleMs);
+  }
+
+  private trackSettled(dtMs: number, settleMs: number): void {
+    const pen = this.layout.pens ? this.penOfFlock() : null;
+    if (pen !== this.settlingPen) {
+      this.settlingPen = pen;
+      this.settlingMs = 0;
+    }
+    if (pen === null) return;
+    this.settlingMs += dtMs;
+    if (this.settlingMs >= settleMs && pen !== this.lastSettled) {
+      this.lastSettled = pen;
+      this.events.emit(GameEvents.SheepFlockSettled, { puzzleId: this.def.id, pen });
+    }
   }
 
   protected applySolution(): void {
