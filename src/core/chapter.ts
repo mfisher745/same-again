@@ -287,6 +287,11 @@ export interface BossPlacement {
   readonly trigger: SectionTrigger;
   readonly bodies: readonly BossBodyPlacement[];
   readonly entrance: Vec2;
+  /**
+   * What Myko's call lines for this boss or set piece are called: the chapter's `mykoCallLines.setpiece` set is
+   * used, and its casebook entry records this name (`cN.call.<callId>.casebook`). Chapter 2's ram: 'ram'.
+   */
+  readonly callId?: string;
   /** For `reachExit` set pieces. */
   readonly exitArea?: AreaRect;
 }
@@ -471,6 +476,19 @@ export interface ChapterContext {
    * unsubscribe function.
    */
   onBarReturnSettled(fn: () => void): () => void;
+  /**
+   * Calls `fn` when the sheep puzzle `puzzleId`'s whole flock has settled in a pen that is not the last one it
+   * settled in (`sheep:flockSettled`). `pen` is the layout pen's `id`, or `pen<index>`. Returns an unsubscribe.
+   */
+  onFlockSettled(puzzleId: SectionId, fn: (pen: string) => void): () => void;
+  /**
+   * Promise a move lesson: the first time Andrew is at Bit much (level 3 or more) in a LATER chapter while it is
+   * still owed, the run plays `sceneId`, learns the move into its slot, and stops owing it. Learning the move any
+   * other way (`learnMove`) also clears it. Saved. Calling it again for the same move changes nothing.
+   */
+  oweMove(moveId: MoveId, sceneId: DialogueId): void;
+  /** Whether a move's lesson is still owed. */
+  movesOwed(): readonly MoveId[];
   /** Take the bar's free hot drink into the kit. False if one is already carried or it was taken. */
   takeHotDrink(id: HotDrinkId): boolean;
   /** The bar is offering a free hot drink and Andrew carries none. */
