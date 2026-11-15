@@ -293,11 +293,7 @@ test('(a) the pub: meter hidden, Dympna, the pint reveals the meter, the hot dri
   expect(errors).toEqual([]);
 });
 
-// KNOWN BUG (level-builder, src/chapters/01/maps.ts yardScreen): the stuck yard gate prop is solid on (17,7) and (18,7), but keg2
-// can only be pushed left from (17,7), the one tile Andrew cannot stand on (up and down are shut by the fixed crate). So the keg
-// puzzle cannot be solved by walking while the gate is shut. The unit search ignores props, so it still reports four pushes.
-// Remove `test.fail` when fixed.
-test.fail('(b) the keg puzzle: four real pushes', async ({ page }) => {
+test('(b) the keg puzzle: four real pushes', async ({ page }) => {
   await start(page);
   await until(page, 'the opening to finish', async () => (await flag(page, 'intro.done')) === true, 40_000);
   // Skip the pub: arrive at the yard door as the back door would deliver him.

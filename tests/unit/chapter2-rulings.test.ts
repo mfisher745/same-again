@@ -339,10 +339,17 @@ describe('the Stumble lesson in the real farm', () => {
       expect(lurch).not.toHaveBeenCalled();
     });
 
-    it('from the yard south of row 25 (the practice stack end)', async () => {
-      const { run, lurch } = await farm();
-      await atBitMuch(run, { x: 5 * 16 + 8, y: 26 * 16 });
+    it('from the east side of the yard (x of 6 tiles or more, where the practice stack is)', async () => {
+      const { run, lurch, shown } = await farm();
+      await atBitMuch(run, { x: 6 * 16, y: 20 * 16 });
       expect(lurch).not.toHaveBeenCalled();
+      expect(lessonShown(shown)).toBe(false);
+    });
+
+    it('but from just west of that line it does lurch', async () => {
+      const { run, lurch } = await farm();
+      await atBitMuch(run, { x: 6 * 16 - 1, y: 270 });
+      expect(lurch).toHaveBeenCalledTimes(1);
     });
 
     it('with the sleeping dog on the line to the stack', async () => {
@@ -399,7 +406,7 @@ describe('the Stumble lesson in the real farm', () => {
   });
 
   describe('the practice stack and c2.stumble.done', () => {
-    /** Andrew with the Stumble learned, at Bit much, at the west wall, two tiles from the practice stack (cols 6 to 7, rows 27 to 28; the lurch ends on the gate's exit tiles). */
+    /** Andrew with the Stumble learned, at Bit much, at the west side, a few tiles from the practice stack (cols 7 to 8, rows 15 to 16). */
     async function practise(taught: boolean) {
       const g = await farm();
       g.run.learnMove('stumble');
@@ -410,8 +417,8 @@ describe('the Stumble lesson in the real farm', () => {
       const slot = g.run.player.kit.slots.specials.indexOf('stumble') + 1;
       const doneLines = () => g.shown.filter((s) => s.sequenceId === 'c2.stumble.done').length;
       const stumble = async (): Promise<void> => {
-        g.run.goToScreen('c2.farm', px(1, 27));
-        const aim = { x: 12 * 16, y: 27 * 16 + 8 };
+        g.run.goToScreen('c2.farm', px(2, 15));
+        const aim = { x: 12 * 16, y: 15 * 16 + 8 };
         g.run.tick(16, frame({ aim }));
         g.run.tick(16, frame({ pressed: [`special${slot}` as 'special1'], aim }));
         await settled(g.run, 3);
@@ -443,5 +450,79 @@ describe('the Stumble lesson in the real farm', () => {
       expect(shown.some((s) => s.sequenceId === 'c2.stumble.done')).toBe(false);
       expect(run.flag('stumble.done')).not.toBe(true);
     });
+  });
+});
+
+describe('the practice stack', () => {
+  const PRACTICE = ['yard.practice1', 'yard.practice2', 'yard.practice3'];
+  const stack = { x: 8 * 16, y: 15.5 * 16 }; // the middle of cols 7 to 8, rows 15 to 16, in pixels (cols 7-8 span 112-144)
+  /**
+   * The direction the lurch travels. The stack is against the east fence, so a lurch heading west (west, south-west,
+   * north-west) would have to start in the field, which is not the yard: those three are checked separately below.
+   */
+  const DIRS: Array<[string, number, number]> = [['east', 1, 0], ['south-east', 1, 1], ['south', 0, 1], ['north', 0, -1], ['north-east', 1, -1]];
+  const WESTWARD: Array<[string, number, number]> = [['west', -1, 0], ['south-west', -1, 1], ['north-west', -1, -1]];
+
+  async function lurchFrom(dx: number, dy: number) {
+    const g = startChapterGame(chapter2, 'chapter');
+    g.run.tick(16, NO_INPUT);
+    await settleDialogue(g.run);
+    g.run.goToScreen('c2.farm', T(2, 2));
+    g.run.tick(16, NO_INPUT);
+    await settleDialogue(g.run);
+    g.run.learnMove('stumble');
+    g.run.setFlag('stumble.taught', true);
+    g.run.player.meter = { ...g.run.player.meter, value: 75 };
+    g.run.tick(16, NO_INPUT);
+    const slot = g.run.player.kit.slots.specials.indexOf('stumble') + 1;
+    const dist = dx !== 0 && dy !== 0 ? 40 : 56;
+    const from = { x: stack.x - dx * dist, y: stack.y - dy * dist };
+    g.run.setPlayerPosition(from);
+    const aim = { x: stack.x, y: stack.y };
+    g.run.tick(16, frame({ aim }));
+    g.run.tick(16, frame({ pressed: [`special${slot}` as 'special1'], aim }));
+    await settled(g.run, 4);
+    return g;
+  }
+
+  it.each(DIRS)('a Stumble into the stack from the %s stays on c2.farm', async (_name, dx, dy) => {
+    const g = await lurchFrom(dx, dy);
+    expect(g.run.screenId).toBe('c2.farm');
+    // And it really went through the stack, or the test would prove nothing.
+    expect(PRACTICE.some((id) => g.run.dressing.prop(id)?.broken)).toBe(true);
+  });
+
+  it.each(WESTWARD)('a lurch heading %s would start in the field, so the yard cannot be lurched out of this way', async (_name, dx, dy) => {
+    const { run } = await lurchFrom(1, 0);
+    const dist = dx !== 0 && dy !== 0 ? 40 : 56;
+    const col = Math.floor((stack.x - dx * dist) / 16);
+    expect(col).toBeGreaterThanOrEqual(9); // the yard is cols 1 to 8; col 9 is the field fence
+    const row = Math.floor((stack.y - dy * dist) / 16);
+    expect(run.grid.blocked[row * run.grid.widthTiles + col] || col >= 9).toBe(true);
+  });
+
+  it('the lesson lurch never breaks the practice stack', async () => {
+    const { run } = await (async () => {
+      const g = startChapterGame(chapter2, 'chapter');
+      g.run.tick(16, NO_INPUT);
+      await settleDialogue(g.run);
+      g.run.completeSection('c2.explore.shed', 'debug');
+      await settleDialogue(g.run);
+      g.run.goToScreen('c2.farm', T(2, 2));
+      g.run.tick(16, NO_INPUT);
+      await settleDialogue(g.run);
+      return g;
+    })();
+    // Every spot the lesson would lurch from (west of 6 tiles, 2 to 7 tiles from the first stack), a fresh Bit much each time.
+    const spots = [px(1, 15), px(3, 14), px(2, 17), px(4, 13), px(1, 22), px(3, 16)];
+    for (const spot of spots) {
+      run.setFlag('stumble.taught', false);
+      run.setPlayerPosition(spot);
+      run.give({ kind: 'drink', drinkId: 'stout', count: 1 });
+      run.player.meter = { ...run.player.meter, value: 60 };
+      run.drinkFromInventory('stout');
+      await settled(run, 6);
+      for (const id of PRACTICE) expect(run.dressing.prop(id)?.broken, `${id} after the lurch from ${spot.x},${spot.y}`).toBeFalsy();
+    }
   });
 });
