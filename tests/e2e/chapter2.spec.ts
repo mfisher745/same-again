@@ -56,11 +56,11 @@ test('?chapter=2 starts at the lean-to and reaches the first beats', async ({ pa
   expect(await run(page, (r) => r.objective())).toBe('c2.ring');
 
   // Examine the three key clues with E; the van and the Department men follow and the crossing starts.
-  for (const [col, row] of [[25, 13], [29, 13], [34, 14]]) {
+  for (const [col, row, key] of [[25, 13, 'clue.ring'], [29, 13, 'clue.fragment'], [34, 14, 'clue.tracks']] as const) {
     await page.evaluate(([c, r]) => (window as unknown as GameWindow & { __game: { session: { run: Run } } }).__game.session.run.setPlayerPosition({ x: (c as number) * 16 + 8, y: (r as number) * 16 + 8 }), [col, row]);
-    await page.waitForTimeout(150);
-    await page.keyboard.press('KeyE');
     await clearScenes(page, async () => !(await run(page, (r) => r.dialogue.blocking)));
+    await page.keyboard.press('KeyE');
+    await clearScenes(page, async () => (await page.evaluate((k) => (window as unknown as GameWindow).__game.session.run?.flag(k), key)) === true);
   }
   await clearScenes(page, async () => (await run(page, (r) => r.guardsHere().length)) === 3);
   expect(await run(page, (r) => r.objective())).toBe('c2.cross');

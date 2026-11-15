@@ -90,6 +90,19 @@ describe('the keg puzzle through a return to the bar', () => {
   });
 });
 
+describe('the keg puzzle by walking', () => {
+  // BUG (level-builder, src/chapters/01/maps.ts yardScreen): the stuck gate prop is solid on (17,7) and (18,7). Keg2 (16,7) can only
+  // be pushed left from (17,7); up and down are shut by the fixed crate at (16,8). So no walk can ever move keg2 and the
+  // puzzle cannot be solved while the gate is shut. The unit search in chapter1.test.ts ignores props. Remove `.fails` when fixed.
+  it.fails('Andrew can reach the tile east of keg2 and push it left', async () => {
+    const { run } = await inYard();
+    const p = kegs(run);
+    run.setPlayerPosition(T(19, 7)); // the street side of the gate: the only way to the east of the kegs
+    for (let i = 0; i < 400; i++) run.tick(16, frame({ move: { x: -1, y: 0 } }));
+    expect(p.piecePositions().find((k) => k.id === 'keg2')?.col).toBe(15);
+  });
+});
+
 describe('the Shoulder on the stuck yard gate', () => {
   it('opens it: the yard section completes and the gate exit unlocks', async () => {
     const { run } = await inYard();
