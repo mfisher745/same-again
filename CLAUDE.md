@@ -7,9 +7,7 @@ A comedic top-down arcade game built with Phaser 3, TypeScript and Vite, shipped
 These rules apply to this repository only. Rules written for other projects do not apply here.
 
 ## Git
-
-- The owner has authorised commits and pushes to `main` in this repository. A push to `main` deploys the game.
-- Parallel agents work in their own `git worktree` on a branch named `agent/<role>/<task>` and merge to `main` only after the creative director approves.
+- Parallel agents work in their own `git worktree` on a branch named `agent/<role>/<task>` and merge to `main` only after the director approves.
 - Never force-push. Never rewrite history on `main`.
 - `main` must always build. Run `pnpm lint && pnpm typecheck && pnpm test && pnpm build` before merging.
 
