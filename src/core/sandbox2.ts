@@ -20,6 +20,7 @@
  */
 
 import { PROP } from '../art/props';
+import { TUNING } from '../content/tuning';
 import type { ChapterModule } from './chapter';
 import type { ChapterNumber, ScreenId, StealthSectionDef, Vec2 } from './types';
 import { gridFromAscii, tileCentre } from '../systems/grid';
@@ -122,7 +123,7 @@ export function createChapter2Sandbox(): ChapterModule {
             { id: 'yard.bucket2', frame: PROP.feedBuckets, col: 25, row: 5, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
             { id: 'lane.puddle', frame: PROP.puddleLarge, col: 14, row: 15, layer: 'floor', slows: { width: 3, height: 2 } },
             { id: 'lane.wheelbarrow', frame: PROP.wheelbarrow, col: 20, row: 15, solid: { width: 1, height: 1 } },
-            { id: 'lane.gate', frame: PROP.fieldGate.along3, col: 30, row: 15, solid: { width: 1, height: 3 } },
+            { id: 'lane.gate', frame: PROP.fieldGate.along3, col: 30, row: 15, solid: { width: 1, height: 3 }, bossBreaksAfterMs: TUNING.overhaul?.ramGatePauseMs ?? 1000 },
             ...[15, 16, 17].map((row) => ({ id: `lane.grid.${row}`, frame: PROP.cattleGrid, col: 52, row, layer: 'floor' as const, blocksEnemies: { width: 1, height: 1 } })),
           ],
         },

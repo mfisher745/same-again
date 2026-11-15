@@ -843,6 +843,10 @@ const overhaul: OverhaulTuning = {
   weaponComboWindowMs: 450,
   // Floor return total (900 + 1100 + 1800 + 500) plus 2 s.
   barReturnFailsafeMs: 6300,
+  // stand-in: creative director to set
+  ramGatePauseMs: 1000,
+  // stand-in: creative director to set
+  forcedLurchMs: 220,
   // Carried over from the old bottle throw (range 220, damage 10, noise 90). First guesses.
   throw: { range: 220, speed: 150, damage: 10, knockback: 30, noiseRadius: 90, previewPoints: 12, swayPeriodMs: 1700 },
   // Walking: the old 56, x1.75 at Bit much, x2 at Fecked. Sneaking is silent until Fecked.

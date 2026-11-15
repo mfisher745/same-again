@@ -97,7 +97,7 @@ import type { DialogueLookup } from './dialogue';
 import { EnemyActor, statsFromDef } from './enemies';
 import type { ActorStats, CombatWorld } from './enemies';
 import { FightRunner } from './fight';
-import { add, distance, fromAngle, normalize, rectContains, scale } from './geometry';
+import { add, angleFromFacing, distance, fromAngle, normalize, rectContains, scale } from './geometry';
 import { TILE, isShade, moveBox, tileOf } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
 import { assignDrink, assignMove, assignWeapon, cycleDrink, drinkFromInventory, drinkSelected, gainWeapon, learnMove, topUpBottles } from './kit';
@@ -202,6 +202,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private owedMoves: OwedMove[];
   /** A lesson scene is playing now (the fallback runs once at a time). */
   private owedPlaying = false;
+  /** Andrew has reached Bit much with a lesson owed; it plays as soon as nothing else is going on. */
+  private owedDue = false;
+  /** A scripted involuntary lurch under way (`forceLurch`). */
+  private forced: { from: Vec2; to: Vec2; elapsedMs: number; durationMs: number; resolve: () => void; promise: Promise<void> } | null = null;
+  /** Time each `bossBreaksAfterMs` prop has had a boss body against it, by prop key. */
+  private readonly bossBreakMs = new Map<string, number>();
   private readonly finished: readonly ChapterNumber[];
   /** The script flags as the last save held them; a return to the bar puts them back. */
   private savedFlags: Record<string, ChapterFlagValue>;
@@ -452,6 +458,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   }
 
   dispose(): void {
+    this.endForcedLurch();
     this.meleeHooks = [];
     this.moveHooks = [];
     this.timers = [];
@@ -498,11 +505,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     }
     if (this.dialogue.blocking) return;
 
-    const live = this.controlsLocked || this.myko.callInProgress || this.deduction?.isOpen === true ? lockedInput(input) : input;
+    const live = this.controlsLocked || this.forced !== null || this.myko.callInProgress || this.deduction?.isOpen === true ? lockedInput(input) : input;
     const p = this.player;
 
     // Player: move, then the meter (sun first, so this tick's drain is right).
     p.move(dtMs, live, this.grid, (c, r) => this.extraBlocked(c, r), this.groundSpeed());
+    this.tickForcedLurch(dtMs);
     p.setInSun(this.screenInSun && !isShade(this.grid, p.pos));
     p.tickMeter(dtMs);
     this.mykoVoice.step(dtMs);
@@ -528,6 +536,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
     // Actors, projectiles.
     for (const a of this.actorList) a.tick(dtMs, this);
+    this.tickBossBreaks(dtMs);
     this.tickProjectiles(dtMs);
 
     // Sections.
@@ -552,6 +561,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.myko.standPoint = combat ? this.activeEntrance() : this.myko.standPoint;
     const inputActive = live.move.x !== 0 || live.move.y !== 0 || live.pressed.size > 0;
     this.myko.update(dtMs, this.deduction?.isOpen === true ? lockedInput(input) : input, { combatOrStealth: combat, inputActive });
+    this.tryPayOwedMove();
     if (p.meter.returnReason) this.handleReturn();
   }
 
@@ -560,6 +570,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     const reason = this.player.meter.returnReason;
     if (!reason) return;
     this.returnWaitMs = 0;
+    this.endForcedLurch();
     this.barFlow.beginReturn(reason);
     const hurryMs = TUNING.ui?.floorReturn.hurryMs;
     if (reason === 'floor' && this.barFlow.pending && hurryMs !== undefined) {
@@ -946,24 +957,113 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   }
 
   /**
-   * Andrew has reached Bit much: pay the first lesson owed from an earlier chapter. The scene plays, then the move
-   * is learned and no longer owed. If the scene never finishes (the run ends first) it is still owed next time.
+   * Andrew has reached Bit much: a lesson owed from an earlier chapter is now due. It plays at once if nothing else
+   * is going on, otherwise when the fight, stealth section, set piece, Myko call or dialogue scene ends (`tryPayOwedMove`),
+   * whatever his level by then.
    */
   private payOwedMove(level: DrunkLevel): void {
-    if (level < BIT_MUCH_LEVEL || this.owedPlaying || this.ended) return;
+    if (level < BIT_MUCH_LEVEL || this.ended) return;
+    this.owedDue = true;
+    this.tryPayOwedMove();
+  }
+
+  private tryPayOwedMove(): void {
+    if (!this.owedDue || this.owedPlaying || this.ended) return;
     const owed = this.owedMoves.find((o) => o.chapter < this.chapter);
-    if (!owed) return;
+    if (!owed) {
+      this.owedDue = false;
+      return;
+    }
     if (this.player.kit.moves.includes(owed.moveId)) {
       this.owedMoves = this.owedMoves.filter((o) => o !== owed);
       return;
     }
+    const busy =
+      this.anyCombatOrStealthActive() ||
+      this.myko.callInProgress ||
+      this.dialogue.blocking ||
+      this.deduction?.isOpen === true ||
+      this.forced !== null ||
+      this.player.meter.returnReason !== null;
+    if (busy) return;
+    this.owedDue = false;
     this.owedPlaying = true;
     void this.say(owed.sceneId).then(() => {
       this.owedPlaying = false;
       if (this.ended || !this.owedMoves.includes(owed)) return;
       this.owedMoves = this.owedMoves.filter((o) => o !== owed);
       this.learnMove(owed.moveId);
+      const slot = this.player.kit.slots.specials.indexOf(owed.moveId);
+      this.bus.emit(GameEvents.MoveTaughtByFallback, { moveId: owed.moveId, slot: slot < 0 ? null : ((slot + 1) as SpecialSlotIndex) });
     });
+  }
+
+  forceLurch(dir: Facing | number, opts: { readonly distance?: number; readonly durationMs?: number } = {}): Promise<void> {
+    if (this.forced) return this.forced.promise;
+    const p = this.player;
+    const effect = (TUNING.overhaul?.moves.stumble.effect ?? { kind: 'lurch', distance: 88, width: 20 }) as { distance?: number; width?: number };
+    const distancepx = opts.distance ?? effect.distance ?? 88;
+    p.aimDeg = typeof dir === 'number' ? dir : angleFromFacing(dir);
+    p.faceAim();
+    // Breakables in the lane go first (as with the move), so what broke no longer stops him.
+    this.moveWorldHits('stumble', { kind: 'charge', distance: distancepx, width: effect.width ?? 20 }, true);
+    const from = { ...p.pos };
+    p.lurch(distancepx, p.aimDeg, this.grid, (c, r) => this.extraBlocked(c, r));
+    const to = { ...p.pos };
+    p.pos = from;
+    let resolve: () => void = () => undefined;
+    const promise = new Promise<void>((r) => {
+      resolve = r;
+    });
+    this.forced = { from, to, elapsedMs: 0, durationMs: Math.max(1, opts.durationMs ?? TUNING.overhaul?.forcedLurchMs ?? 220), resolve, promise };
+    return promise;
+  }
+
+  private tickForcedLurch(dtMs: number): void {
+    const f = this.forced;
+    if (!f) return;
+    f.elapsedMs += dtMs;
+    const t = Math.min(1, f.elapsedMs / f.durationMs);
+    this.player.pos = { x: f.from.x + (f.to.x - f.from.x) * t, y: f.from.y + (f.to.y - f.from.y) * t };
+    if (t >= 1) this.endForcedLurch();
+  }
+
+  private endForcedLurch(): void {
+    const f = this.forced;
+    if (!f) return;
+    this.forced = null;
+    f.resolve();
+  }
+
+  /** A boss body standing against a `bossBreaksAfterMs` prop long enough batters it open. */
+  private tickBossBreaks(dtMs: number): void {
+    for (const prop of this.dressing.propsOn(this.screen.id)) {
+      const ms = prop.def.bossBreaksAfterMs;
+      if (ms === undefined) continue;
+      if (!prop.visible || prop.broken) {
+        this.bossBreakMs.delete(prop.key);
+        continue;
+      }
+      const fp = prop.def.solid ?? { width: 1, height: 1 };
+      const rect = { x: (prop.col + (fp.dx ?? 0)) * TILE - TILE, y: (prop.row + (fp.dy ?? 0)) * TILE - TILE, width: (fp.width + 2) * TILE, height: (fp.height + 2) * TILE };
+      let hitBy: BossId | null = null;
+      for (const b of this.bosses.values()) {
+        if (!b.active || b.suspended) continue;
+        if (b.allBodies().some((a) => !a.down && !a.frozen && rectContains(rect, a.pos))) hitBy = b.bossId;
+      }
+      if (hitBy === null) {
+        this.bossBreakMs.delete(prop.key);
+        continue;
+      }
+      const total = (this.bossBreakMs.get(prop.key) ?? 0) + dtMs;
+      if (total < ms) {
+        this.bossBreakMs.set(prop.key, total);
+        continue;
+      }
+      this.bossBreakMs.delete(prop.key);
+      this.dressing.setPropVisible(prop.key, false);
+      this.bus.emit(GameEvents.PropBrokenByBoss, { propId: prop.key, bossId: hitBy, screenId: this.screen.id });
+    }
   }
 
   /** Learn a move; it goes into its slot if that slot is empty (DESIGN.md 7.7). */
