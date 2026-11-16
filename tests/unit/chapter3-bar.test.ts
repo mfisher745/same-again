@@ -166,7 +166,7 @@ describe('chapter 3: back to the bar', () => {
   // BUG (level-builder, src/chapters/03/script.ts takeManifest ~l.240 and onBarReturn ~l.305): the night shift is started only by
   // the first E on the manifest ("if (flag('manifest.found')) return"). A return to the bar mid-fight resets the fight but nothing
   // starts it again, and the board stays shut until it is won, so the chapter cannot be finished (the Myko call has no section).
-  it.fails('a return mid night shift: walking back into the bay starts the night shift again (BUG: it never restarts, the board stays shut)', async () => {
+  it('a return mid night shift: walking back into the bay starts the night shift again (BUG: it never restarts, the board stays shut)', async () => {
     const { run } = await duringNightShift();
     await toSober(run);
     await enter(run, 'c3.office', OFFICE_ARRIVAL);
@@ -178,7 +178,7 @@ describe('chapter 3: back to the bar', () => {
 
   // BUG (level-builder, src/chapters/03/script.ts: the 'lights.on' flag is set after the manifest scene and is not saved before the
   // fight): after a return the bay is dark again until the night shift is won.
-  it.fails('a return after the manifest: the bay lights stay on (BUG: dark again)', async () => {
+  it('a return after the manifest: the bay lights stay on (BUG: dark again)', async () => {
     const { run } = await duringNightShift();
     await toSober(run);
     await enter(run, 'c3.office', OFFICE_ARRIVAL);
@@ -188,7 +188,7 @@ describe('chapter 3: back to the bar', () => {
 
   // BUG (level-builder, src/chapters/03/script.ts hallorannArrives ~l.283): 'halloran.started' is saved true and never cleared on a
   // return, so stepping back into the boss area never starts the fight again.
-  it.fails('a return mid-Halloran: stepping into the boss area starts him again (BUG: flag halloran.started blocks it)', async () => {
+  it('a return mid-Halloran: stepping into the boss area starts him again (BUG: flag halloran.started blocks it)', async () => {
     const { run } = await duringNightShift();
     for (const a of run.fight('c3.fight.bay')!.aliveActors()) run.defeat(a, 'player');
     await settle(run, 8);
@@ -336,7 +336,7 @@ describe('chapter 3: Myko\'s call-in on each callable section', () => {
   // BUG (level-builder, src/chapters/03/script.ts enteredBay ~l.215): nothing ever starts c3.puzzle.crates as a section (chapter 1
   // does it in enteredYard with ctx.startSection), and a push does not make it the current section, so M answers "noSection" and the
   // crate puzzle, listed as callable, can never be called in. Chapter 4 has the same gap for c4.puzzle.containers.
-  it.fails('the crate puzzle: M in the bay calls it in (BUG: refused, no current section)', async () => {
+  it('the crate puzzle: M in the bay calls it in (BUG: refused, no current section)', async () => {
     const { run } = await newGame();
     await enter(run, 'c3.bay', BAY_ARRIVAL);
     expect(run.myko.tryCall()).toBe(true);
