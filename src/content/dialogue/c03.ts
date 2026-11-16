@@ -64,6 +64,9 @@ export const C03: DialogueFile = {
       ['myko', "There's never been a party. Take a tea. The watchman doesn't come round this side. There's nothing here to mind."],
     ),
     box('c3.bar.hotDrink', ['myko', "Kettle's there. The milk is a risk. I'd go without."]),
+    // E at the kettle when there is none to give (integration, chapters 3 and 4).
+    box('c3.kettle.held', ['myko', "You've one on you already. One at a time. It's a social club, not a canteen."]),
+    box('c3.kettle.spent', ['myko', "That was your one. It'll be there again the next time you end up back in here."]),
     box('c3.bar.return', ['myko', "The social club. You're the most use it's had since it opened."]),
     scene(
       'c3.open',
@@ -204,7 +207,7 @@ export const C03: DialogueFile = {
     box('c3.hint.cabinet.1', ['myko', "It's locked and you've no key. You've never had a key to anything. Hit it.", 'by phone']),
     box('c3.hint.cabinet.2', ['myko', 'Tab, put Same Again on 2. Press 2, then hit the cabinet.', 'by phone']),
     box('c3.hint.crates.1', ['myko', "Don't push anything into a corner. A crate in a corner is there for life.", 'by phone']),
-    box('c3.hint.crates.2', ['myko', 'Left column first, push them up out of the road. Then the middle one right. Then straight through.', 'by phone']),
+    box('c3.hint.crates.2', ['myko', "Top one first: get round the right of the stack and shove it left, off the painted road. Then the next one down. If one won't go left, drop it a row first.", 'by phone']),
     box('c3.hint.manifest.1', ['myko', "It's the glass room you just spent ten minutes getting to. Go in it.", 'by phone']),
     box('c3.hint.manifest.2', ['myko', 'Clipboard on the desk. E.', 'by phone']),
     box('c3.hint.bay.1', ['myko', "The lads up top are no use up close. The trouble is getting close.", 'by phone']),

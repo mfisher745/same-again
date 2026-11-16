@@ -51,10 +51,13 @@ export class DeductionScene extends Phaser.Scene {
       this.scene.stop();
       return;
     }
-    this.sel = new LinkSelection(board.candidateIds);
+    // Only the clues Andrew has found go on the board (from any chapter: the casebook carries over).
+    const held = new Set(this.shared.source.casebook().flatMap((e) => (e.kind === 'evidence' ? [e.evidenceId] : [])));
+    const candidates = board.candidateIds.filter((id) => held.has(id));
+    this.sel = new LinkSelection(candidates);
     makeLabel(this, 240, 10, text(hasText(`${board.id}.prompt`) ? `${board.id}.prompt` : 'ui.deduction.title'), 'bone', { anchor: 'centre' });
     makeLabel(this, 240, 24, text('ui.deduction.instruction'), 'fog', { anchor: 'centre' });
-    board.candidateIds.forEach((id, i) => {
+    candidates.forEach((id, i) => {
       const col = i % 2;
       const row = Math.floor(i / 2);
       const x = CARD.x + col * (CARD.w + CARD.gapX);

@@ -127,12 +127,12 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   const syncSteam = (): void => ctx.setPropVisible('bar.steam', ctx.hotDrinkOffered());
 
   let kettleLineOpen = false;
-  /** The kettle. The free hot drink, each visit. With nothing to give, Myko's line about it is all there is (once at a time). */
+  /** The kettle. The free hot drink, each visit. With nothing to give, Myko says why (once at a time). */
   const kettle = (): void => {
     if (!ctx.hotDrinkOffered()) {
       if (kettleLineOpen) return;
       kettleLineOpen = true;
-      void ctx.say('c3.bar.hotDrink', { repeat: true }).finally(() => {
+      void ctx.say(ctx.kit().hotDrink !== null ? 'c3.kettle.held' : 'c3.kettle.spent', { repeat: true }).finally(() => {
         kettleLineOpen = false;
       });
       return;
