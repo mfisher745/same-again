@@ -58,9 +58,18 @@ interface SlotBox {
   readonly icon: Pic;
 }
 
+const nameIdOf = (item: { readonly kind: string; readonly id: string }): TextId =>
+  item.kind === 'move' ? `ability.${item.id}.name` : item.kind === 'weapon' ? `weapon.${item.id}.name` : `drink.${item.id}.name`;
+
 const nameOf = (item: { readonly kind: string; readonly id: string }): string => {
-  const id: TextId = item.kind === 'move' ? `ability.${item.id}.name` : item.kind === 'weapon' ? `weapon.${item.id}.name` : `drink.${item.id}.name`;
+  const id = nameIdOf(item);
   return hasText(id) ? text(id) : id;
+};
+
+/** List rows and slot boxes: the `.short` text (the name ID with `.short` for `.name`) when one exists, else the full name. */
+const shortOf = (item: { readonly kind: string; readonly id: string }): string => {
+  const id: TextId = nameIdOf(item).replace(/\.name$/, '.short');
+  return hasText(id) ? text(id) : nameOf(item);
 };
 
 const descOf = (item: KitItem): string => {
@@ -247,7 +256,7 @@ export class KitView {
     if (itemKey(item) === this.cursorKey) row.bg.setStrokeStyle(1, PALETTE.slate);
     else row.bg.setStrokeStyle();
     row.icon.set(iconOf(item.kind === 'hot' ? 'drink' : item.kind, item.id), item.kind === 'move' ? 'amberLight' : item.kind === 'weapon' ? 'steel' : 'amber');
-    setLabelText(row.name, nameOf(item).slice(0, note === '' ? COL1.chars : COL1.chars - 3));
+    setLabelText(row.name, shortOf(item).slice(0, note === '' ? COL1.chars : COL1.chars - 3));
     setLabelText(row.note, note);
     row.bg.off('pointerdown');
     row.bg.on('pointerdown', () => this.choose(item));
@@ -301,7 +310,7 @@ export class KitView {
         setLabelColour(box.content, 'steel');
         box.icon.setVisible(false);
       } else {
-        setLabelText(box.content, nameOf(c).slice(0, 18));
+        setLabelText(box.content, shortOf(c).slice(0, 18));
         setLabelColour(box.content, 'ink');
         box.icon.set(iconOf(c.kind === 'hot' ? 'drink' : c.kind, c.id), c.kind === 'move' ? 'amberLight' : 'amber');
       }
