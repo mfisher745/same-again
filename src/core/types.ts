@@ -1616,6 +1616,12 @@ export interface GameEventPayloads {
    * in. Not emitted for the far pen (the puzzle completes), a split flock, or a layout with no `pens`.
    */
   'sheep:flockSettled': { readonly puzzleId: PuzzleSectionId; readonly pen: string };
+  /** A slide puzzle's lever was pulled: the rail's piece is moving to `slot`. For the audio layer. */
+  'slide:pulled': { readonly puzzleId: PuzzleSectionId; readonly railId: string; readonly slot: number };
+  /** A player hit on a guarded boss body (`BossRunner.guard`) did no damage. */
+  'boss:guarded': { readonly bossId: BossId; readonly tag: string };
+  /** A swept hazard (`ChapterContext.sweepHazard`) began moving, or struck Andrew. */
+  'hazard:swept': { readonly phase: 'moving' | 'hit'; readonly frame: string };
   'prop:broken': { readonly screenId: ScreenId; readonly propId: string; readonly frame: string };
   // --- Overhaul events (DESIGN.md 7.1, 7.2, 7.7) ---
   /** Andrew crossed into another drunk level. */
@@ -1729,6 +1735,9 @@ export const GameEvents = {
   MoveTaughtByFallback: 'move:taughtByFallback',
   PropBrokenByBoss: 'prop:brokenByBoss',
   SheepFlockSettled: 'sheep:flockSettled',
+  SlidePulled: 'slide:pulled',
+  BossGuarded: 'boss:guarded',
+  HazardSwept: 'hazard:swept',
   WeaponGained: 'weapon:gained',
   KitChanged: 'kit:changed',
   MeterHiddenChanged: 'meter:hiddenChanged',

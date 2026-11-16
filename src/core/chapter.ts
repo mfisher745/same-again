@@ -87,6 +87,7 @@ import type {
   CompletableSectionId,
   CompletionSource,
   DialogueId,
+  EnemyId,
   EvidenceId,
   ExaminableDef,
   Facing,
@@ -102,6 +103,7 @@ import type {
   SectionId,
   StealthSectionId,
   TextId,
+  TileCoord,
   TileGrid,
   Vec2,
 } from './types';
@@ -305,6 +307,11 @@ export interface FightPlacement {
   readonly spawnPoints: readonly Vec2[];
   /** Where Myko waits on the phone and strolls in from. */
   readonly entrance: Vec2;
+  /**
+   * Leashed enemies: enemies of `enemyId` spawn inside `area` (at the spawn point nearest it, clamped into it) and never
+   * leave it, so they fight at range from there (chapter 3's box-throwing workers on the gantry). Others roam as usual.
+   */
+  readonly zones?: readonly { readonly enemyId: EnemyId; readonly area: AreaRect }[];
 }
 
 export interface BossPlacement {
@@ -347,6 +354,38 @@ export interface PushPuzzlePlacement {
   readonly pieceKind: string;
 }
 
+/** One rail of the slide puzzle: a piece that sits in one of `slots` positions along a line. */
+export interface SlideRail {
+  readonly id: string;
+  /** Top-left tile of slot 0. */
+  readonly origin: TileCoord;
+  /** Which way the slots run: 'across' steps right a piece-length per slot, 'along' steps down. */
+  readonly axis: 'across' | 'along';
+  readonly slots: number;
+  /** The piece's size in tiles: `length` along the axis, `breadth` across it. */
+  readonly length: number;
+  readonly breadth: number;
+  /** The slot the piece starts in. */
+  readonly start: number;
+  /** PROP frame for the piece. */
+  readonly frame: string;
+}
+
+/** The slide puzzle (chapter 4 containers). Built by the systems (`slide.ts`). */
+export interface SlidePuzzlePlacement {
+  readonly sectionId: PuzzleSectionId;
+  readonly screenId: ScreenId;
+  readonly rails: readonly SlideRail[];
+  /**
+   * E on the examinable pulls the lever: its rail's piece moves one slot on, wrapping from the last slot to 0. The
+   * examinable's own dialogue and evidence still play. `propId` is a prop whose frame flips between `PROP.lever.up`
+   * (start) and `.down` on each pull.
+   */
+  readonly levers: readonly { readonly examinableId: string; readonly railId: string; readonly propId?: string }[];
+  /** The slot each rail's piece must be in. Met, the section completes. `completeNow()` moves them there. */
+  readonly goal: Readonly<Record<string, number>>;
+}
+
 export interface SheepPuzzlePlacement {
   readonly sectionId: PuzzleSectionId;
   readonly screenId: ScreenId;
@@ -377,6 +416,8 @@ export interface ChapterModule {
   readonly pushPuzzles?: readonly PushPuzzlePlacement[];
   /** The chapter 2 sheep puzzle: gates that swing, a flock that shies from Andrew. Built by the systems (`sheep.ts`). */
   readonly sheepPuzzles?: readonly SheepPuzzlePlacement[];
+  /** The chapter 4 container puzzle: levers slide pieces along rails. Built by the systems (`slide.ts`). */
+  readonly slidePuzzles?: readonly SlidePuzzlePlacement[];
   readonly deduction?: DeductionPlacement;
   readonly triggers: readonly TriggerDef[];
   /** Pools for Myko's tangents (DESIGN.md 7.5: Ohio from chapter 6). */
@@ -433,6 +474,23 @@ export interface StealthControl {
   setHazardEnabled(hazardId: string, enabled: boolean): void;
   finish(): void;
   readonly alarmRaised: boolean;
+}
+
+export interface SweepHazardOptions {
+  readonly from: Vec2;
+  readonly to: Vec2;
+  /** Width of the swept band, px. */
+  readonly width: number;
+  /** The shadow shows along the whole path this long before anything moves, ms. */
+  readonly telegraphMs: number;
+  /** Time to travel from `from` to `to`, ms. */
+  readonly travelMs: number;
+  /** The meter hit on contact: a weight from `TUNING.overhaul.hitWeights`. */
+  readonly weight: 'ordinary' | 'heavy' | 'worst';
+  readonly knockback: number;
+  /** What is drawn moving and its shadow. */
+  readonly frame: string;
+  readonly shadowFrame: string;
 }
 
 /** The public API a chapter script uses. Implemented in `src/systems/`. */
@@ -559,6 +617,20 @@ export interface ChapterContext {
    * is under way returns the first's promise. Resolves early if the run ends or he returns to the bar.
    */
   forceLurch(dir: Facing | number, opts?: { readonly distance?: number; readonly durationMs?: number }): Promise<void>;
+  /**
+   * True when a band `width` px wide from `from` to `to` on the current screen touches no blocked tile, solid prop,
+   * slide-puzzle piece, push piece, sheep gate or NPC. Use it to ask "could he see / reach that" in a script.
+   * `ignoreBreakables` lets breakable props (which a lurch smashes) count as clear.
+   */
+  lineClear(from: Vec2, to: Vec2, width: number, opts?: { readonly ignoreBreakables?: boolean }): boolean;
+  /**
+   * A hazard sweeps across the screen: a shadow shows along the whole path for `telegraphMs`, then `frame` travels
+   * `from` to `to` over `travelMs`. If its band touches Andrew it hits him once per pass (`weight` from
+   * `TUNING.overhaul.hitWeights`, `knockback` px/s away from the path). Enemies are not hurt. Drawn in the world view.
+   * Resolves when the pass ends; a return to the bar or dispose cancels it (resolves at once). Emits
+   * `hazard:swept` `moving` as it starts to move and `hit` if it lands.
+   */
+  sweepHazard(opts: SweepHazardOptions): Promise<void>;
   spawnPickup(def: PickupDef): void;
   removePickup(id: string): void;
   /** Ends the chapter: hangover carry-over, save, next chapter. */

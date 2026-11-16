@@ -22,6 +22,8 @@ import type {
   MoveHitInfo,
   PushPuzzlePlacement,
   SheepPuzzlePlacement,
+  SlidePuzzlePlacement,
+  SweepHazardOptions,
   ScreenAmbient,
   ScreenLayout,
   ScriptedCompletableHandle,
@@ -100,7 +102,7 @@ import { EnemyActor, statsFromDef } from './enemies';
 import type { ActorStats, CombatWorld } from './enemies';
 import { FightRunner } from './fight';
 import { add, angleFromFacing, distance, fromAngle, normalize, rectContains, scale } from './geometry';
-import { TILE, isShade, moveBox, tileOf } from './grid';
+import { TILE, bandClear, isBlocked, isShade, moveBox, tileOf } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
 import { assignMove, assignWeapon, clampBottles, cycleDrink, gainWeapon, learnMove, selectItem, spiritLimit, topUpForLeaving, useSelected, useSpirit } from './kit';
 import { GlintTracker } from './glint';
@@ -120,6 +122,8 @@ import { projectileTouches, spawnProjectile, stepProjectile } from './projectile
 import type { Projectile, ProjectileSpawn } from './projectiles';
 import { PushPuzzle } from './puzzles';
 import { SheepPuzzle } from './sheep';
+import { SlidePuzzle } from './slide';
+import { PROP } from '../art/props';
 import { CompletableSection, ScriptedCompletable } from './sections';
 import type { SectionHost } from './sections';
 import { StealthRunner, actingNatural } from './stealth';
@@ -191,6 +195,22 @@ interface MarkEntry {
   readonly propKey?: string;
 }
 
+interface LiveSweep {
+  readonly opts: SweepHazardOptions;
+  readonly screenId: ScreenId;
+  elapsedMs: number;
+  hit: boolean;
+  moving: boolean;
+  readonly resolve: () => void;
+}
+
+/** Where a sweep's moving thing is: at `from` while the shadow telegraphs, then along the path. */
+function sweepPos(h: LiveSweep): Vec2 {
+  const o = h.opts;
+  const t = h.moving ? Math.min(1, (h.elapsedMs - o.telegraphMs) / Math.max(1, o.travelMs)) : 0;
+  return { x: o.from.x + (o.to.x - o.from.x) * t, y: o.from.y + (o.to.y - o.from.y) * t };
+}
+
 export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   readonly bus: GameEventBus;
   readonly rng: Random;
@@ -221,6 +241,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private owedDue = false;
   /** A scripted involuntary lurch under way (`forceLurch`). */
   private forced: { from: Vec2; to: Vec2; elapsedMs: number; durationMs: number; resolve: () => void; promise: Promise<void> } | null = null;
+  /** Sweep hazards under way (`sweepHazard`). */
+  private hazards: LiveSweep[] = [];
   /** Time each `bossBreaksAfterMs` prop has had a boss body against it, by prop key. */
   private readonly bossBreakMs = new Map<string, number>();
   private readonly finished: readonly ChapterNumber[];
@@ -482,6 +504,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   dispose(): void {
     this.endForcedLurch();
+    this.cancelHazards();
     this.meleeHooks = [];
     this.moveHooks = [];
     this.timers = [];
@@ -557,6 +580,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     // Puzzles.
     for (const { puzzle } of this.pushPuzzlesHere()) puzzle.update(dtMs, p.pos, live.move);
     for (const { puzzle } of this.sheepPuzzlesHere()) puzzle.update(dtMs, p.pos);
+    for (const { puzzle } of this.slidePuzzlesHere()) puzzle.update(dtMs);
+    this.tickHazards(dtMs);
 
     // Actors, projectiles.
     for (const a of this.actorList) a.tick(dtMs, this);
@@ -595,6 +620,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (!reason) return;
     this.returnWaitMs = 0;
     this.endForcedLurch();
+    this.cancelHazards();
     this.barFlow.beginReturn(reason);
     const hurryMs = TUNING.ui?.floorReturn.hurryMs;
     if (reason === 'floor' && this.barFlow.pending && hurryMs !== undefined) {
@@ -757,6 +783,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   extraBlocked(col: number, row: number): boolean {
     for (const { puzzle } of this.pushPuzzlesHere()) if (puzzle.occupies(col, row)) return true;
     for (const { puzzle } of this.sheepPuzzlesHere()) if (puzzle.blocks(col, row)) return true;
+    for (const { puzzle } of this.slidePuzzlesHere()) if (puzzle.blocks(col, row)) return true;
     return false;
   }
 
@@ -766,6 +793,16 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       if (p.screenId !== this.screen.id) continue;
       const e = this.sections.get(p.sectionId);
       if (e && e.completable instanceof SheepPuzzle) out.push({ puzzle: e.completable, placement: p });
+    }
+    return out;
+  }
+
+  slidePuzzlesHere(): { puzzle: SlidePuzzle; placement: SlidePuzzlePlacement }[] {
+    const out: { puzzle: SlidePuzzle; placement: SlidePuzzlePlacement }[] = [];
+    for (const p of this.module.slidePuzzles ?? []) {
+      if (p.screenId !== this.screen.id) continue;
+      const e = this.sections.get(p.sectionId);
+      if (e && e.completable instanceof SlidePuzzle) out.push({ puzzle: e.completable, placement: p });
     }
     return out;
   }
@@ -1102,6 +1139,70 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     });
     this.forced = { from, to, elapsedMs: 0, durationMs: Math.max(1, opts.durationMs ?? TUNING.overhaul?.forcedLurchMs ?? 220), resolve, promise };
     return promise;
+  }
+
+  lineClear(from: Vec2, to: Vec2, width: number, opts: { readonly ignoreBreakables?: boolean } = {}): boolean {
+    const grid = opts.ignoreBreakables ? this.dressing.gridWithoutBreakables(this.screen) : this.grid;
+    const npcTiles = new Set(this.dressing.npcsOn(this.screen.id).filter((n) => n.visible).map((n) => `${Math.floor(n.pos.x / TILE)},${Math.floor(n.pos.y / TILE)}`));
+    return bandClear(from, to, width, (c, r) => isBlocked(grid, c, r) || this.extraBlocked(c, r) || npcTiles.has(`${c},${r}`));
+  }
+
+  sweepHazard(opts: SweepHazardOptions): Promise<void> {
+    let resolve: () => void = () => undefined;
+    const promise = new Promise<void>((r) => {
+      resolve = r;
+    });
+    this.hazards.push({ opts, screenId: this.screen.id, elapsedMs: 0, hit: false, moving: false, resolve });
+    return promise;
+  }
+
+  /** The sweeps under way on the current screen, for drawing: where the shadow lies and where the thing is. */
+  sweepsHere(): readonly { readonly opts: SweepHazardOptions; readonly moving: boolean; readonly pos: Vec2 }[] {
+    return this.hazards
+      .filter((h) => h.screenId === this.screen.id)
+      .map((h) => ({ opts: h.opts, moving: h.moving, pos: sweepPos(h) }));
+  }
+
+  private cancelHazards(): void {
+    const all = this.hazards;
+    this.hazards = [];
+    for (const h of all) h.resolve();
+  }
+
+  private tickHazards(dtMs: number): void {
+    if (this.hazards.length === 0) return;
+    for (const h of this.hazards) {
+      h.elapsedMs += dtMs;
+      const o = h.opts;
+      if (!h.moving && h.elapsedMs >= o.telegraphMs) {
+        h.moving = true;
+        this.bus.emit(GameEvents.HazardSwept, { phase: 'moving', frame: o.frame });
+      }
+      if (!h.moving || h.hit || h.screenId !== this.screen.id || !this.playerTargetable()) continue;
+      const head = sweepPos(h);
+      const half = o.width / 2 + TUNING.player.bodyWidth / 2;
+      const p = this.player.pos;
+      if (Math.abs(p.x - head.x) > half || Math.abs(p.y - head.y) > half) continue;
+      const away = normalize({ x: p.x - head.x, y: p.y - head.y });
+      const dir = away.x === 0 && away.y === 0 ? normalize({ x: o.to.x - o.from.x, y: o.to.y - o.from.y }) : away;
+      const landed = this.player.takeHit({
+        source: { kind: 'hazard', hazardId: o.frame },
+        targetInstanceId: this.player.instanceId,
+        amount: 0,
+        knockback: scale(dir, o.knockback),
+        stunMs: 0,
+        holdMs: 0,
+        weight: o.weight,
+      });
+      if (landed) {
+        h.hit = true;
+        this.bus.emit(GameEvents.HazardSwept, { phase: 'hit', frame: o.frame });
+      }
+    }
+    const done = this.hazards.filter((h) => h.elapsedMs >= h.opts.telegraphMs + h.opts.travelMs);
+    if (done.length === 0) return;
+    this.hazards = this.hazards.filter((h) => !done.includes(h));
+    for (const h of done) h.resolve();
   }
 
   private tickForcedLurch(dtMs: number): void {
@@ -1441,6 +1542,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       puzzle.onPush = () => this.opts.playEffect?.('push');
       this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: p.screenId, entrance: null, start: () => puzzle.start() });
     }
+    for (const p of m.slidePuzzles ?? []) {
+      const def = m.def.puzzle.id === p.sectionId ? m.def.puzzle : { id: p.sectionId, chapter: this.chapter, kind: 'containers' as const };
+      const puzzle = new SlidePuzzle(def, p, this, this.bus, this.sectionReward(p.sectionId));
+      if (this.completed.has(p.sectionId)) puzzle.restoreComplete();
+      this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: p.screenId, entrance: null, start: () => puzzle.start() });
+    }
     for (const p of m.sheepPuzzles ?? []) {
       const layout = this.layout(p.screenId);
       if (!layout) continue;
@@ -1476,7 +1583,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   private addFight(f: FightPlacement): void {
     const def: FightDef = TUNING.fights[f.sectionId] ?? { id: f.sectionId, waves: [] };
-    const runner = new FightRunner(def, f.spawnPoints, this, this, this.sectionReward(f.sectionId), this.lazyFightHooks(f.sectionId));
+    const runner = new FightRunner(def, f.spawnPoints, this, this, this.sectionReward(f.sectionId), this.lazyFightHooks(f.sectionId), f.zones ?? []);
     if (this.completed.has(f.sectionId)) runner.restoreComplete();
     this.fights.set(f.sectionId, runner);
     this.sections.set(f.sectionId, {
@@ -2006,6 +2113,13 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (best.item) this.give(best.item);
     if (this.module.deduction?.examinableId === best.id) this.openDeduction();
     for (const pp of this.pushPuzzlesHere()) if (pp.placement.resetExaminableId === best.id) pp.puzzle.reset();
+    // E at a container lever pulls it (Andrew in the piece's way refuses); the lever's prop flips.
+    for (const sp of this.slidePuzzlesHere()) {
+      const lever = sp.puzzle.leverFor(best.id);
+      if (lever && sp.puzzle.pull(lever.railId, this.player.pos) && lever.propId) {
+        this.dressing.setPropFrame(lever.propId, sp.puzzle.pullsOf(lever.railId) % 2 === 1 ? PROP.lever.down : PROP.lever.up);
+      }
+    }
     // E at a gate swings it (a sheep or Andrew in the way refuses).
     for (const sp of this.sheepPuzzlesHere()) if (sp.puzzle.gateFor(best.id)) sp.puzzle.toggleGate(sp.puzzle.gateFor(best.id)?.id ?? '', this.player.pos);
   }
