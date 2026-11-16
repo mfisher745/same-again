@@ -8,7 +8,7 @@ import { PROP } from '../../art/props';
 import type { ExitDef, PropPlacement, ScreenAmbient, ScreenDressing, ScreenLayout } from '../../core/chapter';
 import type { StealthSectionDef } from '../../core/types';
 import { Canvas, T, tilesArea } from '../canvas';
-import { PEN, PILLARS, PEN_ENTRANCE_COLS, DOOR_COL } from './puzzle';
+import { PEN, PILLARS, PEN_ENTRANCE_COLS, DOOR_COL, ROAD } from './puzzle';
 
 export { T, tilesArea };
 
@@ -288,6 +288,8 @@ export function bayScreen(): ScreenLayout {
   const doorCol = PEN.col + DOOR_COL;
   c.set(doorCol, 4, 'd');
   for (const e of PEN_ENTRANCE_COLS) c.set(PEN.col + e, 11, '.').set(PEN.col + e, 12, '.');
+  // The road painted on the pen's floor: crates are cleared off it.
+  for (const r of ROAD) c.set(PEN.col + r.x, PEN.row + r.y, 'm');
   // The two pillars in the pen.
   for (const p of PILLARS) c.set(PEN.col + p.x, PEN.row + p.y, 'K');
   // The gantry: a walkway along the north wall behind a chain-link rail.

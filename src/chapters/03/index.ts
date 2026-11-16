@@ -157,6 +157,8 @@ export const chapter3: ChapterModule = {
   pushPuzzles: [{ sectionId: 'c3.puzzle.crates', screenId: 'c3.bay', pieceKind: 'crate', resetExaminableId: 'c3.crates.lever', layout: PUSH_LAYOUT }],
   deduction: { examinableId: 'c3.board' },
   triggers: [
+    // Stepping out of the gap behind the skip: the yard begins.
+    { id: 'c3.trig.yard', screenId: 'c3.yard', area: YARD_START_AREA, once: false },
     { id: 'c3.trig.watch1', screenId: 'c3.yard', area: tilesArea(14, 5, 4, 3), once: false },
     { id: 'c3.trig.watch2', screenId: 'c3.yard', area: tilesArea(22, 13, 4, 3), once: false },
     { id: 'c3.trig.doors', screenId: 'c3.bay', area: DOORS_AREA, once: false },

@@ -421,6 +421,9 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
 
     onTrigger: (id) => {
       switch (id) {
+        case 'c3.trig.yard':
+          if (flag('intro.done') && !ctx.isComplete('c3.stealth.yard')) yardStarted();
+          break;
         case 'c3.trig.watch1':
           watchman(1);
           break;
