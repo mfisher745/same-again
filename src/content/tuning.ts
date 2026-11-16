@@ -718,7 +718,7 @@ const crisps: LootEntry['item'] = { kind: 'food', foodId: 'crisps' };
 const anEmpty: LootEntry['item'] = { kind: 'empties', count: 1 };
 
 // ---------------------------------------------------------------------------
-// Overhaul (DESIGN.md 7.1 and 7.2; docs/overhaul-plan.md "Tuning: starting numbers").
+// Overhaul (DESIGN.md 7.1 and 7.2).
 // First guesses, to be changed after chapter 1 has been played.
 // ---------------------------------------------------------------------------
 

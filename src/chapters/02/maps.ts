@@ -213,7 +213,7 @@ export function bogScreen(): ScreenLayout {
     { id: 'bog.p6', frame: PROP.barrel, col: 14, row: 10, solid: { width: 1, height: 1 }, breakable: {} },
     { id: 'bog.p7', frame: PROP.bottleCrate, col: 18, row: 4, solid: { width: 1, height: 1 }, breakable: {} },
     { id: 'bog.p8', frame: PROP.sack, col: 30, row: 28, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'bog.p10', frame: PROP.cardboardBox, col: 20, row: 30, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'bog.p10', frame: PROP.cardboardBox, col: 15, row: 29, solid: { width: 1, height: 1 }, breakable: {} },
     // The van is not here until it arrives. Solid on its bottom row only.
     { id: 'van', frame: PROP.van.left, col: VAN_TILE.col, row: VAN_TILE.row, solid: { dy: 1, width: 3, height: 1 }, hidden: true },
   ];
@@ -274,16 +274,16 @@ export function farmScreen(): ScreenLayout {
     // Odds and ends round the yard (east of the lurch lines) and the field.
     { id: 'farm.p1', frame: PROP.barrel, col: 8, row: 3, solid: { width: 1, height: 1 }, breakable: {} },
     { id: 'farm.p7', frame: PROP.feedBuckets, col: 7, row: 2, solid: { width: 1, height: 1 }, breakable: { hits: 2, loot: 'none' } },
-    { id: 'farm.p8', frame: PROP.barrel, col: 32, row: 4, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'farm.p9', frame: PROP.sack, col: 34, row: 8, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'farm.p10', frame: PROP.bottleCrate, col: 36, row: 12, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'farm.p11', frame: PROP.barrel, col: 32, row: 16, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'farm.p12', frame: PROP.cardboardBox, col: 35, row: 20, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'farm.p13', frame: PROP.sack, col: 31, row: 25, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'farm.p14', frame: PROP.bottleCrate, col: 36, row: 26, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'farm.p15', frame: PROP.barrel, col: 22, row: 3, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'farm.p19', frame: PROP.sack, col: 20, row: 26, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'farm.p20', frame: PROP.cardboardBox, col: 26, row: 25, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'farm.p8', frame: PROP.barrel, col: 37, row: 6, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'farm.p9', frame: PROP.sack, col: 24, row: 3, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'farm.p10', frame: PROP.bottleCrate, col: 31, row: 11, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'farm.p11', frame: PROP.barrel, col: 32, row: 11, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'farm.p12', frame: PROP.cardboardBox, col: 31, row: 12, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'farm.p13', frame: PROP.sack, col: 36, row: 17, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'farm.p14', frame: PROP.bottleCrate, col: 12, row: 25, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'farm.p15', frame: PROP.barrel, col: 23, row: 2, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'farm.p19', frame: PROP.sack, col: 13, row: 26, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'farm.p20', frame: PROP.cardboardBox, col: 27, row: 27, solid: { width: 1, height: 1 }, breakable: {} },
     // The dog, asleep throughout.
     { id: 'farm.dog', frame: PROP.sleepingDog[0], frames: PROP.sleepingDog, frameRate: 1, col: FARM_DOG.col, row: FARM_DOG.row, solid: { width: 1, height: 1 } },
   ];
@@ -333,14 +333,14 @@ export function laneScreen(): ScreenLayout {
       solid: { width: 1, height: 3 },
       bossBreaksAfterMs: TUNING.overhaul?.ramGatePauseMs ?? 1000,
     },
-    // Kit along the verges, off the ram's lane.
-    { id: 'lane.p2', frame: PROP.bottleCrate, col: 18, row: 2, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'lane.p4', frame: PROP.cardboardBox, col: 42, row: 2, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'lane.p5', frame: PROP.barrel, col: 58, row: 2, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'lane.p7', frame: PROP.sack, col: 10, row: 9, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'lane.p8', frame: PROP.barrel, col: 22, row: 9, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'lane.p10', frame: PROP.cardboardBox, col: 56, row: 9, solid: { width: 1, height: 1 }, breakable: {} },
-    { id: 'lane.p11', frame: PROP.sack, col: 64, row: 9, solid: { width: 1, height: 1 }, breakable: {} },
+    // Kit along the verges, off the ram's lane: alone and in pairs (playtest 6).
+    { id: 'lane.p2', frame: PROP.bottleCrate, col: 10, row: 9, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'lane.p4', frame: PROP.cardboardBox, col: 41, row: 9, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'lane.p5', frame: PROP.barrel, col: 43, row: 9, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'lane.p7', frame: PROP.sack, col: 9, row: 9, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'lane.p8', frame: PROP.barrel, col: 23, row: 2, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'lane.p10', frame: PROP.cardboardBox, col: 57, row: 2, solid: { width: 1, height: 1 }, breakable: {} },
+    { id: 'lane.p11', frame: PROP.sack, col: 58, row: 2, solid: { width: 1, height: 1 }, breakable: {} },
     // The dog is asleep. Go round.
     { id: 'lane.dog', frame: PROP.sleepingDog[0], frames: PROP.sleepingDog, frameRate: 1, col: 66, row: 5, solid: { width: 1, height: 1 } },
     // The cattle grid: Andrew crosses it; the ram will not. One tile each, across the lane.

@@ -240,6 +240,7 @@ export const C01: DialogueFile = {
       ['myko', "He's taking the jacket off. He's folding it. Andrew, he's put it on the wall. That's a man settling in."],
     ),
     box('c1.bigTom.dazed', ['myko', "He's hit the tractor. The tractor's fine. Now, go on, while he's thinking about it."]),
+    box('c1.bigTom.dazedSkip', ['myko', "Straight into the skip. That's the Dolans' old kitchen he's after hitting. Go on, while he's thinking about it."]),
     scene(
       'c1.bigTom.end',
       ['npc:name.bigTom', "I'll sit down a minute."],
@@ -310,8 +311,8 @@ export const C01: DialogueFile = {
     box('c1.hint.chipper.2', ['myko', 'Right, down the street, past the bookies. Join the queue. Try to concentrate on the queue.']),
     box('c1.hint.row.1', ['myko', "They swing slow. You'll see it coming a week ahead. Don't be there when it lands."]),
     box('c1.hint.row.2', ['myko', 'Step back when he winds up, then three in a row. And have a drink, you hit harder when you’re grand.']),
-    box('c1.hint.bigTom.1', ['myko', "He runs in a straight line and he doesn't steer. There's a tractor there. I'm only saying."]),
-    box('c1.hint.bigTom.2', ['myko', 'Stand in front of the tractor or the gate, let him run, step aside. Hit him while he’s seeing stars.']),
+    box('c1.hint.bigTom.1', ['myko', "He runs in a straight line and he doesn't steer. There's a tractor there, and a skip. I'm only saying."]),
+    box('c1.hint.bigTom.2', ['myko', 'Stand in front of the tractor or the skip, let him run, step aside. Hit him while he’s seeing stars.']),
     box('c1.hint.hotDrink.1', ['myko', "She's offering you something for free. Take it before she hears herself."]),
     box('c1.hint.hotDrink.2', ['myko', 'The urn at the end of the bar. E. Pick one.']),
     box('c1.hint.kit.1', ['myko', "You've pockets. Look in them."]),
