@@ -74,7 +74,7 @@ export function takeItem(kit: Kit, item: PickupItem): PickupTake {
       for (; took < item.count; took++) {
         const r = pickUpDrink(next, id);
         if (r.refusal) {
-          refusal = r.refusal === 'carryFull' ? 'kitFull' : 'hotDrinkHeld';
+          refusal = r.refusal === 'carryFull' ? 'kitFull' : r.refusal === 'spiritsFull' ? 'spiritsFull' : 'hotDrinkHeld';
           break;
         }
         next = r.kit;

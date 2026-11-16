@@ -39,8 +39,8 @@ export const C01: DialogueFile = {
     // these are filed retrospectively on its first page).
     'c1.call.fight.casebook': 'Tuesday. Bit of bother on Main Street. Handled it. Myko was there.',
     'c1.call.fight.margin': 'I handled it. You held my lighter.',
-    'c1.call.puzzle.casebook': 'Tuesday. Kegs in the way out the back of Feeney’s. Got them moved.',
-    'c1.call.puzzle.margin': 'Two kegs, Andrew. Two.',
+    'c1.call.puzzle.casebook': 'Tuesday. Three kegs in the way out the back of Feeney’s. Got them moved.',
+    'c1.call.puzzle.margin': 'Three kegs, Andrew. Three.',
   },
   sequences: [
     caption('c1.caption.title', 'A Quiet Pint'),
@@ -55,12 +55,23 @@ export const C01: DialogueFile = {
       ['andrew', "I'm not alone. You're there."],
       ['myko', "I'm over here. It's a different thing."],
       ['dympna', 'Andrew. Come up here to me. I’ve a list.'],
+      // Playtest 6: the opening says plainly how things work. Myko still says it his way.
+      ['myko', 'Go on up to her. W, A, S and D to walk. She’s at the far end of the bar, where she always is.'],
+      ['myko', 'E talks to people and looks at things. Anything you can use gets a little mark over it when you’re close.'],
+      ['myko', "And if you lose the run of yourself, press H and I'll tell you what you should be at. I do anyway."],
     ),
     scene(
       'c1.pub.stool',
       ['dympna', 'Item one. The stool.'],
       ['andrew', 'What about the stool?'],
       ['dympna', 'It had four legs when you sat on it Friday.'],
+      ['dympna', 'Come here to me till I go through the rest of it.'],
+    ),
+    // Q before Dympna has poured: the first time, Myko says why and what to do. After that the HUD line says it.
+    box(
+      'c1.pub.notYet',
+      ['myko', 'Not yet. In Feeney’s the first one is Dympna’s. That’s not a rule, it’s older than that.'],
+      ['myko', 'Talk to her first: walk up to her and press E. Anything you pick up before that, you keep.'],
     ),
     scene(
       'c1.pub.thursday',
@@ -73,18 +84,37 @@ export const C01: DialogueFile = {
       ['dympna', 'Item three is whatever you’re having now. Go on.'],
       ['myko', 'She’s put it on the slate, Andrew. The slate has an extension built on it at this stage.'],
     ),
-    box('c1.pub.buzz', ['myko', "That's you grand. Stay around there. Let it run dry and you'll wake up back on that stool. Go over the top and it's the same stool."]),
+    // A scene, so the player reads it at their own pace (playtest 6: it is the lesson).
+    scene(
+      'c1.pub.buzz',
+      ['myko', "See the meter along the bottom? That's you. You're in Grand, the middle. Stay around there."],
+      ['myko', 'It runs down on its own, all the time. A drink puts it back up. Q drinks a beer.'],
+      ['myko', "Let it run dry and you'll wake up back on that stool. Go over the top and it's the same stool."],
+      ['myko', "The further up you go, the harder you hit and the worse you aim. That's the whole of it."],
+    ),
     scene(
       'c1.pub.hotDrink',
       ['dympna', 'Item four. Tea or coffee. Take it with you.'],
       ['andrew', 'Is that on the slate?'],
       ['dympna', "It is not. It's the one thing in here that isn't. Don't make me regret it."],
       ['myko', "Mind that. Wherever you've got yourself to, too far up or too far down, it puts you back where you are now."],
+      ['myko', 'Coffee does it at once. Tea takes its time, then holds you there a while with no drain.'],
+      ['myko', "One free every time you're back in here. The urn, beside your stool. E at it, then pick one."],
     ),
-    box('c1.pub.kit', ['myko', "Tab. Have a look at what you're carrying. It won't take long."]),
+    // A scene, so the player reads it at their own pace (playtest 6: it is the lesson).
+    scene(
+      'c1.pub.kit',
+      ['myko', "Tab. Have a look at what you're carrying. It won't take long."],
+      ['myko', 'Click a thing in there to pick it. Q drinks what you picked: a beer, or the tea or the coffee.'],
+      ['myko', "The empty bottle is for throwing, not drinking. You'll know when."],
+    ),
     // Back at the bar (the first time, then the offer each visit).
     scene('c1.bar.return', ['dympna', 'You’re back.'], ['andrew', 'I am.'], ['dympna', "The kettle's on. Don't tell me about it."]),
     box('c1.bar.hotDrink', ['dympna', 'Tea or coffee. Same as before. Still not on the slate.']),
+    // E at the urn when it has nothing to give (playtest 6: it used to say nothing).
+    box('c1.urn.notYet', ['dympna', "That's item four. We're not at item four."]),
+    box('c1.urn.held', ['dympna', "You've one with you already. One at a time."]),
+    box('c1.urn.spent', ['dympna', "That was your one. There's another the next time you end up back on that stool."]),
     scene(
       'c1.pub.listEnd',
       ['dympna', 'That’s the list. I’ll read it again tomorrow.'],
@@ -107,6 +137,7 @@ export const C01: DialogueFile = {
       ['myko', 'From when?'],
       ['andrew', 'March.'],
       ['myko', 'Then have a word with it. Three words. In a row.'],
+      ['myko', 'Left click is a punch. Three quick ones and the third one lands heavy. Stand right up against it.'],
     ),
     scene(
       'c1.machine.payout',
@@ -121,15 +152,20 @@ export const C01: DialogueFile = {
       ['dympna', 'I’m locking the front. There’s a few staying on.'],
       ['andrew', 'I could stay on.'],
       ['dympna', 'You could not. Out the back. Mind the kegs.'],
+      ['myko', 'Back door. Bottom right corner, past the tables. Walk through it.'],
     ),
-    box('c1.yard.kegs', ['myko', 'Full ones. Put your shoulder to them, they slide. Not that one first. Well, whatever you think yourself.']),
+    box(
+      'c1.yard.kegs',
+      ['myko', "Three full kegs across the path to the gate, and no way round them. Walk into one and keep walking: it slides a step."],
+      ['myko', "They only go the way you're pushing, and those crates are going nowhere. Leave the gate till the kegs are shifted."],
+    ),
     box('c1.yard.done', ['myko', "Look at that. A man who can leave a pub. They said it couldn't be done."]),
 
     // --- The Shoulder (slot 1) ---
     scene(
       'c1.shoulder.lesson',
       ['andrew', "The gate's stuck."],
-      ['myko', "You've just moved two kegs with your shoulder. A gate is only a keg that's been nailed to something."],
+      ['myko', "You've just moved three kegs with your shoulder. A gate is only a keg that's been nailed to something."],
       ['myko', 'Press 1. And remember it. It works on people, and people go back further.'],
     ),
     box('c1.shoulder.done', ['myko', "There. Don't apologise to it."]),
@@ -268,8 +304,8 @@ export const C01: DialogueFile = {
     box('c1.hint.machine.2', ['myko', 'Left click, three times, quick. The third one is the one that counts.']),
     box('c1.hint.leave.1', ['myko', 'The front is locked and there’s a door behind the bar end. I won’t draw you a map.']),
     box('c1.hint.leave.2', ['myko', 'Back door, bottom corner, where the light is on the floor. Walk through it.']),
-    box('c1.hint.kegs.1', ['myko', "There's two kegs and a gate. Think about which keg is in the other keg's way."]),
-    box('c1.hint.kegs.2', ['myko', 'Near one up, then left, out of the road. Far one left, then up against the wall. Then the gate.']),
+    box('c1.hint.kegs.1', ['myko', "Three kegs and one way through. The two on top are in each other's road. Start there."]),
+    box('c1.hint.kegs.2', ['myko', 'Top one right. The one under it up. Then the near one right to the end of the path, and up into the corner.']),
     box('c1.hint.chipper.1', ['myko', "Follow the smell. It's the only thing open and it's lit up like a ferry."]),
     box('c1.hint.chipper.2', ['myko', 'Right, down the street, past the bookies. Join the queue. Try to concentrate on the queue.']),
     box('c1.hint.row.1', ['myko', "They swing slow. You'll see it coming a week ahead. Don't be there when it lands."]),
@@ -281,7 +317,7 @@ export const C01: DialogueFile = {
     box('c1.hint.kit.1', ['myko', "You've pockets. Look in them."]),
     box('c1.hint.kit.2', ['myko', 'Tab. Click the pint. Q drinks it. That is the whole lesson.']),
     box('c1.hint.gate.1', ['myko', "It's stuck, not locked. There's a difference, and the difference is your shoulder."]),
-    box('c1.hint.gate.2', ['myko', 'Face the gate and press 1.']),
+    box('c1.hint.gate.2', ['myko', 'Walk to the end of the path, face the gate and press 1.']),
     box('c1.hint.bins.1', ['myko', "You can't reach it. You can reach it with something you can throw."]),
     box('c1.hint.bins.2', ['myko', 'Hold right click, aim at the bins, let go. Then pick up what was behind them.']),
     box('c1.hint.hurley.1', ['myko', "He's left you something against the tractor. He asked nicely."]),
@@ -289,18 +325,18 @@ export const C01: DialogueFile = {
     box('c1.hint.road.1', ['myko', "You were the one who wanted to look at the sky. It's out the road. Away from the chips."]),
     box('c1.hint.road.2', ['myko', 'Keep going right, past the tractor, out of the town. All four hundred yards of it.']),
     // Where the objective is (playtest 4). Myko says this after the nudge on the first H; see DESIGN.md 7.5.
-    box('c1.hint.bar.where', ['myko', 'In Feeney’s. The west end of the bar, by your stool.']),
+    box('c1.hint.bar.where', ['myko', 'In Feeney’s. The far end of the bar from your stool, where Dympna is.']),
     box('c1.hint.dympna.where', ['myko', 'Behind the bar, up the far end from your stool. She has not moved since 1998.']),
     box('c1.hint.pint.where', ['myko', "On the bar. In front of you. I can see it from here."]),
     box('c1.hint.machine.where', ['myko', "West wall of the pub, flashing. It's the only thing in here making money."]),
     box('c1.hint.leave.where', ['myko', 'Bottom corner of the pub. The door with the draught under it.']),
-    box('c1.hint.kegs.where', ['myko', 'This yard. The gate in the wall, and the two things in front of it.']),
+    box('c1.hint.kegs.where', ['myko', 'This yard. The walled path to the gate, and the three kegs in the mouth of it.']),
     box('c1.hint.chipper.where', ['myko', 'Main Street, east of the bookies. The lit window with the queue.']),
     box('c1.hint.row.where', ['myko', "Outside the chipper. They're the ones looking at you."]),
     box('c1.hint.bigTom.where', ['myko', "East end of the street, by the tractor. He's the one the size of the tractor."]),
     box('c1.hint.hotDrink.where', ['myko', "The urn, behind the bar at your own stool. You've sat beside it for years."]),
     box('c1.hint.kit.where', ['myko', "It's on your person. Tab."]),
-    box('c1.hint.gate.where', ['myko', 'Same yard, same wall. The gate the kegs were minding.']),
+    box('c1.hint.gate.where', ['myko', 'The end of the path the kegs were minding. Stand right in front of the gate.']),
     box('c1.hint.bins.where', ['myko', 'Main Street, the alley between the bookies and the chipper. Behind the bins.']),
     box('c1.hint.hurley.where', ['myko', 'Leaning on the tractor, east end of the street. Where he left it.']),
     box('c1.hint.road.where', ['myko', 'East, past the tractor, where the street lights give up.']),

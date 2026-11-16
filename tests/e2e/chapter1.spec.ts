@@ -293,7 +293,7 @@ test('(a) the pub: meter hidden, Dympna, the pint reveals the meter, the hot dri
   expect(errors).toEqual([]);
 });
 
-test('(b) the keg puzzle: four real pushes', async ({ page }) => {
+test('(b) the keg puzzle: six real pushes', async ({ page }) => {
   await start(page);
   await until(page, 'the opening to finish', async () => (await flag(page, 'intro.done')) === true, 40_000);
   // Skip the pub: arrive at the yard door as the back door would deliver him.
@@ -310,20 +310,23 @@ test('(b) the keg puzzle: four real pushes', async ({ page }) => {
       return { pieces: p?.piecePositions() ?? [], fixed: p?.layout.fixed ?? [], done: p?.isComplete() ?? false };
     });
   const initial = await pieces();
-  expect(initial.pieces).toHaveLength(2);
-  const [k1, k2] = initial.pieces;
-  if (!k1 || !k2) throw new Error('kegs');
+  expect(initial.pieces).toHaveLength(3);
+  const [k1, k2, k3] = initial.pieces;
+  if (!k1 || !k2 || !k3) throw new Error('kegs');
 
   const centre = (c: number, r: number): Vec => ({ x: c * TILE + TILE / 2, y: r * TILE + TILE / 2 });
 
   /** Stand on `from`, then walk into the keg until the puzzle registers exactly one push. */
-  const push = async (id: string, from: { col: number; row: number }, dir: 'up' | 'left'): Promise<void> => {
+  const push = async (id: string, from: { col: number; row: number }, dir: 'up' | 'left' | 'right'): Promise<void> => {
     const state = await pieces();
     const blocked = [...state.pieces.map((p) => ({ col: p.col, row: p.row })), ...state.fixed];
     const before = state.pieces.find((p) => p.id === id);
     if (!before) throw new Error(id);
+    // Square up on the tile he is on first: a push can leave him half a tile off, and the walker goes x before y.
+    const here = await look(page);
+    await walkTo(page, centre(Math.floor(here.x / TILE), Math.floor(here.y / TILE)), { extraBlocked: blocked });
     await walkTo(page, centre(from.col, from.row), { extraBlocked: blocked });
-    const key = dir === 'up' ? KEYS.up : KEYS.left;
+    const key = dir === 'up' ? KEYS.up : dir === 'left' ? KEYS.left : KEYS.right;
     await page.keyboard.down(key);
     try {
       await until(page, `${id} to move ${dir}`, async () => {
@@ -334,15 +337,15 @@ test('(b) the keg puzzle: four real pushes', async ({ page }) => {
       await page.keyboard.up(key);
     }
     const after = (await pieces()).pieces.find((p) => p.id === id);
-    expect(after).toEqual({ id, col: before.col + (dir === 'left' ? -1 : 0), row: before.row + (dir === 'up' ? -1 : 0) });
+    expect(after).toEqual({ id, col: before.col + (dir === 'left' ? -1 : dir === 'right' ? 1 : 0), row: before.row + (dir === 'up' ? -1 : 0) });
     await page.waitForTimeout(250); // let the keg finish sliding
   };
 
-  // keg1 up, keg1 left, keg2 left, keg2 up.
-  await push(k1.id, { col: k1.col, row: k1.row + 1 }, 'up');
-  await push(k1.id, { col: k1.col + 1, row: k1.row - 1 }, 'left');
-  await push(k2.id, { col: k2.col + 1, row: k2.row }, 'left');
-  await push(k2.id, { col: k2.col - 1, row: k2.row + 1 }, 'up');
+  // keg1 right, keg2 up, keg3 right three times, keg3 up into the corner by the gate.
+  await push(k1.id, { col: k1.col - 1, row: k1.row }, 'right');
+  await push(k2.id, { col: k2.col, row: k2.row + 1 }, 'up');
+  for (let i = 0; i < 3; i++) await push(k3.id, { col: k3.col - 1 + i, row: k3.row }, 'right');
+  await push(k3.id, { col: k3.col + 3, row: k3.row + 1 }, 'up');
 
   await until(page, 'puzzle complete', async () => (await pieces()).done);
   expect(await complete(page, 'c1.puzzle.kegs')).toBe(true);

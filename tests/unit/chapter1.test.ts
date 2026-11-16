@@ -73,81 +73,142 @@ describe('keg puzzle', () => {
   const layout: PushPuzzleLayout = placement.layout;
   const yard = layoutOf('c1.yard');
 
-  it('is solved by four real pushes', () => {
+  it('is solved by six real pushes', () => {
     const { run } = newRun();
     run.goToScreen('c1.yard', T(5, 3));
     const puzzle = run.pushPuzzlesHere()[0]?.puzzle;
     if (!puzzle) throw new Error('no puzzle on the yard screen');
-    // keg1 up, keg1 left, keg2 left, keg2 up.
+    // keg1 right, keg2 up, keg3 right three times, keg3 up.
     const pos = layout.pieces.map((p) => ({ ...p }));
-    const order: Array<[number, 'up' | 'left']> = [[0, 'up'], [0, 'left'], [1, 'left'], [1, 'up']];
-    for (const [i, d] of order) {
+    const order: Array<[number, 'up' | 'right']> = [[0, 'right'], [1, 'up'], [2, 'right'], [2, 'right'], [2, 'right'], [2, 'up']];
+    order.forEach(([i, d], n) => {
       const piece = pos[i];
       if (!piece) throw new Error('piece');
+      expect(puzzle.goalMet(), `not solved before push ${n + 1}`).toBe(false);
       expect(puzzle.push({ col: piece.col, row: piece.row }, d)).toBe(true);
-      piece.col += d === 'left' ? -1 : 0;
+      piece.col += d === 'right' ? 1 : 0;
       piece.row += d === 'up' ? -1 : 0;
-    }
+    });
     expect(puzzle.goalMet()).toBe(true);
     expect(puzzle.isComplete()).toBe(true);
     expect(puzzle.piecePositions()).toEqual(layout.solution.map((p) => ({ id: p.id, col: p.col, row: p.row })));
   });
 
-  it('needs at least four pushes (breadth-first search, player walking round to push)', () => {
-    expect(minPushes(layout, yard.grid, tileOf(T(5, 3)))).toBe(4);
+  it('needs at least six pushes (breadth-first search, player walking round to push)', () => {
+    expect(searchPushes(layout, yard.grid, tileOf(T(5, 3))).minPushes).toBe(6);
+  });
+
+  it('can be finished from every position the kegs can be pushed into', () => {
+    expect(searchPushes(layout, yard.grid, tileOf(T(5, 3))).deadEnds).toBe(0);
+  });
+
+  it('the kegs close the path: Andrew cannot walk round them to the gate', () => {
+    expect(goalMet(layout, yard.grid, layout.pieces)).toBe(false);
+    // And the solution's positions leave the way open.
+    expect(goalMet(layout, yard.grid, layout.solution)).toBe(true);
+  });
+
+  it('the gate is its own obstacle: solid in the gateway, outside the keg area', () => {
+    const gate = yard.dressing?.props?.find((p) => p.id === 'yardGate');
+    expect(gate?.solid).toBeDefined();
+    expect(gate && gate.col >= layout.area.col + layout.area.width).toBe(true);
   });
 });
 
-/** Fewest pushes that satisfy the goal, or -1. Andrew must walk round to the pushing side. */
-function minPushes(layout: PushPuzzleLayout, grid: TileGrid, startTile: { col: number; row: number }): number {
-  const D = [[0, -1], [0, 1], [-1, 0], [1, 0]] as const;
+const D4 = [[0, -1], [0, 1], [-1, 0], [1, 0]] as const;
+
+/** The goal on a set of keg positions: cells clear or covered, or (`reach`) a walk from `from` to `to`. */
+function goalMet(layout: PushPuzzleLayout, grid: TileGrid, kegs: readonly { col: number; row: number }[]): boolean {
+  const g = layout.goal;
+  const keg = (c: number, r: number) => kegs.some((k) => k.col === c && k.row === r);
+  if (g.kind !== 'reach') return g.kind === 'clear' ? g.cells.every((c) => !keg(c.col, c.row)) : g.cells.every((c) => keg(c.col, c.row));
+  const fixed = (c: number, r: number) => layout.fixed.some((f) => f.col === c && f.row === r);
+  const seen = new Set([`${g.from.col},${g.from.row}`]);
+  const stack = [g.from];
+  while (stack.length > 0) {
+    const w = stack.pop();
+    if (!w) break;
+    if (w.col === g.to.col && w.row === g.to.row) return true;
+    for (const [dc, dr] of D4) {
+      const c = w.col + dc;
+      const r = w.row + dr;
+      if (isBlocked(grid, c, r) || fixed(c, r) || keg(c, r) || seen.has(`${c},${r}`)) continue;
+      seen.add(`${c},${r}`);
+      stack.push({ col: c, row: r });
+    }
+  }
+  return false;
+}
+
+/**
+ * Every position the kegs can reach, Andrew walking round to the pushing side. A solved puzzle takes no more pushes.
+ * `minPushes`: fewest pushes to the goal, or -1. `deadEnds`: positions from which the goal can no longer be reached.
+ */
+function searchPushes(layout: PushPuzzleLayout, grid: TileGrid, startTile: { col: number; row: number }): { minPushes: number; deadEnds: number } {
   const fixed = (c: number, r: number) => layout.fixed.some((f) => f.col === c && f.row === r);
   const inArea = (c: number, r: number) => c >= layout.area.col && r >= layout.area.row && c < layout.area.col + layout.area.width && r < layout.area.row + layout.area.height;
-  const goalMet = (k: { col: number; row: number }[]) =>
-    layout.goal.kind === 'clear' ? layout.goal.cells.every((c) => !k.some((p) => p.col === c.col && p.row === c.row)) : layout.goal.cells.every((c) => k.some((p) => p.col === c.col && p.row === c.row));
-  type State = { kegs: { col: number; row: number }[]; player: { col: number; row: number }; pushes: number };
-  const start: State = { kegs: layout.pieces.map((p) => ({ col: p.col, row: p.row })), player: startTile, pushes: 0 };
-  const key = (s: State, reach: Set<string>) => `${s.kegs.map((k) => `${k.col},${k.row}`).sort().join(';')}#${[...reach].sort()[0]}`;
-  const reachOf = (s: State): Set<string> => {
-    const seen = new Set([`${s.player.col},${s.player.row}`]);
-    const stack = [s.player];
+  type Tile = { col: number; row: number };
+  type State = { kegs: Tile[]; player: Tile; pushes: number; next: string[]; solved: boolean };
+  const reachOf = (kegs: Tile[], player: Tile): Set<string> => {
+    const seen = new Set([`${player.col},${player.row}`]);
+    const stack = [player];
     while (stack.length > 0) {
       const w = stack.pop();
       if (!w) break;
-      for (const [dc, dr] of D) {
+      for (const [dc, dr] of D4) {
         const c = w.col + dc;
         const r = w.row + dr;
-        if (isBlocked(grid, c, r) || fixed(c, r) || s.kegs.some((k) => k.col === c && k.row === r) || seen.has(`${c},${r}`)) continue;
+        if (isBlocked(grid, c, r) || fixed(c, r) || kegs.some((k) => k.col === c && k.row === r) || seen.has(`${c},${r}`)) continue;
         seen.add(`${c},${r}`);
         stack.push({ col: c, row: r });
       }
     }
     return seen;
   };
-  let frontier = [start];
-  const seen = new Set<string>([key(start, reachOf(start))]);
+  const key = (kegs: Tile[], reach: Set<string>) => `${kegs.map((k) => `${k.col},${k.row}`).join(';')}#${[...reach].sort()[0]}`;
+  const states = new Map<string, State>();
+  const kegs0 = layout.pieces.map((p) => ({ col: p.col, row: p.row }));
+  const k0 = key(kegs0, reachOf(kegs0, startTile));
+  states.set(k0, { kegs: kegs0, player: startTile, pushes: 0, next: [], solved: goalMet(layout, grid, kegs0) });
+  let frontier = [k0];
+  let minPushes = -1;
   while (frontier.length > 0) {
-    const next: State[] = [];
-    for (const s of frontier) {
-      if (goalMet(s.kegs)) return s.pushes;
-      const reach = reachOf(s);
+    const nextFrontier: string[] = [];
+    for (const sk of frontier) {
+      const s = states.get(sk);
+      if (!s) continue;
+      if (s.solved) {
+        if (minPushes < 0) minPushes = s.pushes;
+        continue;
+      }
+      const reach = reachOf(s.kegs, s.player);
       s.kegs.forEach((k, i) => {
-        for (const [dc, dr] of D) {
+        for (const [dc, dr] of D4) {
           if (!reach.has(`${k.col - dc},${k.row - dr}`)) continue;
           const n = { col: k.col + dc, row: k.row + dr };
           if (!inArea(n.col, n.row) || isBlocked(grid, n.col, n.row) || fixed(n.col, n.row) || s.kegs.some((o) => o.col === n.col && o.row === n.row)) continue;
           const kegs = s.kegs.map((o, j) => (j === i ? n : o));
-          const ns: State = { kegs, player: { col: k.col, row: k.row }, pushes: s.pushes + 1 };
-          const kk = key(ns, reachOf(ns));
-          if (seen.has(kk)) continue;
-          seen.add(kk);
-          next.push(ns);
+          const nk = key(kegs, reachOf(kegs, k));
+          s.next.push(nk);
+          if (states.has(nk)) continue;
+          states.set(nk, { kegs, player: k, pushes: s.pushes + 1, next: [], solved: goalMet(layout, grid, kegs) });
+          nextFrontier.push(nk);
         }
       });
     }
-    frontier = next;
+    frontier = nextFrontier;
   }
-  return -1;
+  const good = new Set([...states].filter(([, s]) => s.solved).map(([k]) => k));
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const [k, s] of states) {
+      if (!good.has(k) && s.next.some((n) => good.has(n))) {
+        good.add(k);
+        changed = true;
+      }
+    }
+  }
+  return { minPushes, deadEnds: states.size - good.size };
 }
 
 /** Finishes every queued line, letting the script's awaited chains run between passes. */

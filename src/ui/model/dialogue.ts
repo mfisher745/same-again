@@ -3,7 +3,8 @@
  * unit-tested. The HUD scene feeds it `dialogue:show` events and frame time,
  * and draws whatever `view()` returns.
  *
- * - `box`: never blocks play, advances on a timer.
+ * - `box`: never blocks play, advances on a timer. If a scene is waiting behind it (play is already paused for that
+ *   scene), E or a click skips it too, so the player is never held up by commentary they cannot dismiss.
  * - `scene`: blocks play (the game pauses itself), advances on `advance()`.
  * - `caption`: a centred narrator card, advances on a timer.
  */
@@ -72,10 +73,22 @@ export class DialogueQueue {
     if (this.current === null) this.startNext();
   }
 
-  /** E or left click. Only scene delivery responds; the other kinds run on timers. */
+  /** A scene is queued behind what is showing: the game is paused waiting for it. */
+  private sceneWaiting(): boolean {
+    return this.waiting.some((id) => {
+      try {
+        return this.deps.lookup(id).delivery === 'scene';
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  /** E or left click. Scene delivery responds; so does a box holding up a scene. Captions run on timers. */
   advance(): void {
     const cur = this.current;
-    if (cur === null || cur.seq.delivery !== 'scene') return;
+    if (cur === null) return;
+    if (cur.seq.delivery !== 'scene' && !(cur.seq.delivery === 'box' && this.sceneWaiting())) return;
     const page = cur.pages[cur.index];
     if (page === undefined) return;
     if (this.shownChars < page.total) {
@@ -125,7 +138,7 @@ export class DialogueQueue {
       lines: page.lines,
       shown,
       revealed,
-      awaitingAdvance: revealed && cur.seq.delivery === 'scene',
+      awaitingAdvance: revealed && (cur.seq.delivery === 'scene' || (cur.seq.delivery === 'box' && this.sceneWaiting())),
     };
   }
 

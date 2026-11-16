@@ -808,7 +808,8 @@ const overhaul: OverhaulTuning = {
     coffee: { kind: 'hot', id: 'coffee', nameTextId: 'drink.coffee.name', pickupTextId: 'drink.coffee.pickup', reset: { kind: 'instant' } },
     tea: { kind: 'hot', id: 'tea', nameTextId: 'drink.tea.name', pickupTextId: 'drink.tea.pickup', reset: { kind: 'ease', easeMs: 10000, holdMs: 20000 } },
   },
-  carry: { limit: 6, hotDrinkLimit: 1, bottleLimit: 1, minBottlesOnLeavingBar: 1, minBeersOnLeavingBar: 2 },
+  // Playtest 6: six beers and, apart from them, two spirits.
+  carry: { limit: 6, spiritLimit: 2, hotDrinkLimit: 1, bottleLimit: 1, minBottlesOnLeavingBar: 1, minBeersOnLeavingBar: 2 },
   moveCooldownMsByLevel,
   moves: {
     shoulder: move('shoulder', 1, 1, { kind: 'charge', distance: 40, knockback: 140 }),
@@ -1043,6 +1044,7 @@ export const TUNING: Tuning = {
     floorReturn: { fallMs: 900, hurryMs: 1100, smokeMs: 1800, blackMs: 500, mykoStartOffset: 24 },
     revealMs: 700,
     refusalMs: 1600,
+    notYetMs: 3200,
     flatAtZero: 0.9,
     throwDotEndAlpha: 0.25,
     throwDotScale: 2,

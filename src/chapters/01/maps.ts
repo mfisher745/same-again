@@ -23,8 +23,14 @@ export const MYKO_SEAT = T(5, 13);
 export const YARD_ARRIVAL = T(5, 3);
 /** Where Andrew steps out of the yard when he comes back from Main Street. */
 export const YARD_FROM_STREET = T(17, 7);
-/** Close enough to the stuck yard gate for The Shoulder to count as a shove at it. */
-export const YARD_GATE_AREA = tilesArea(13, 5, 6, 5);
+/** Close enough to the stuck yard gate for The Shoulder to count as a shove at it: the far end of the path, past the kegs. */
+export const YARD_GATE_AREA = tilesArea(15, 6, 3, 3);
+/** The stuck gate, in the gateway in the yard's east wall. */
+export const YARD_GATE_TILE = { col: 18, row: 7 } as const;
+/** Where Andrew stands to shove the gate: the end of the fenced path. The keg puzzle is solved once he can walk here. */
+export const YARD_GATE_FRONT = { col: 17, row: 7 } as const;
+/** The open yard end of the fenced path: the keg puzzle's walk starts here. */
+export const YARD_PATH_MOUTH = { col: 11, row: 7 } as const;
 export const PUB_BACK_ARRIVAL = T(27, 14);
 export const STREET_ARRIVAL = T(3, 8);
 export const ROAD_ARRIVAL = T(2, 8);
@@ -32,8 +38,11 @@ export const STREET_WEST_ARRIVAL = T(2, 9);
 /** Big Tom's hurley, left against the tractor; E takes it. */
 export const HURLEY_TILE = { col: 64, row: 8 } as const;
 
-/** Keg puzzle: play area top-left tile and local-to-tile mapping. */
-export const KEG_AREA = { col: 11, row: 5, width: 6, height: 5 } as const;
+/**
+ * Keg puzzle: play area top-left tile and local-to-tile mapping. Playtest 6: the area is the fenced path to the
+ * gate, three tiles wide (rows 6 to 8), cols 12 to 16. It opens onto the yard at col 11; col 17 is the gate's step.
+ */
+export const KEG_AREA = { col: 12, row: 6, width: 5, height: 3 } as const;
 export const kegTile = (x: number, y: number) => ({ col: KEG_AREA.col + x, row: KEG_AREA.row + y });
 
 /** Street landmarks (tiles) the boss hooks refer to; both are solid props. */
@@ -67,6 +76,8 @@ export function pubScreen(): ScreenLayout {
     props: [
       // The urn on the staff side of the bar, beside Andrew's stool.
       { id: 'urn', frame: PROP.hotDrinkUrn, col: 5, row: 2 },
+      // Steam while the free hot drink can be taken (the script shows and hides it).
+      { id: 'urn.steam', frame: PROP.steam[0], frames: PROP.steam, frameRate: 4, col: 5, row: 1, hidden: true },
       { frame: PROP.beerTaps, col: 8, row: 2 },
       { frame: PROP.beerTaps, col: 14, row: 2 },
       { frame: PROP.trophyShelf, col: 24, row: 1 },
@@ -98,19 +109,22 @@ export function yardScreen(): ScreenLayout {
   const c = new Canvas(20, 17, 'y').room();
   // Door back into the pub, top left.
   c.rect(4, 0, 2, 2, 'd');
-  // The way to Main Street: a break in the east wall with gateposts, and a path strip leading to it.
-  c.rect(14, 7, 4, 1, 'p').rect(18, 7, 2, 1, 'p');
-  c.set(18, 6, 'G').set(18, 8, 'G');
+  // The way to Main Street: a gateway in the east wall between two stone posts, and a paved path to it, walled on
+  // both sides from the yard (rows 5 and 9). The path is open at its west end (col 11); the kegs stand across it.
+  c.rect(11, 6, 7, 3, ',').rect(18, 7, 2, 1, 'p');
+  c.rect(11, 5, 7, 1, 'K').rect(11, 9, 7, 1, 'K').set(17, 6, 'K').set(17, 8, 'K');
+  c.set(17, 7, 'p');
+  c.set(18, 6, 'K').set(18, 8, 'K');
   // Stacked crates along the south and west, out of the way of the puzzle.
   c.rect(2, 12, 2, 2, 'o').rect(8, 13, 2, 1, 'o').rect(2, 4, 1, 2, 'o').rect(5, 14, 1, 1, 'o');
   const exits: ExitDef[] = [
     { id: 'c1.yard.door', area: tilesArea(4, 0, 2, 2), toScreen: 'c1.pub', spawn: PUB_BACK_ARRIVAL },
     { id: 'c1.yard.gate', area: tilesArea(18, 7, 2, 1), toScreen: 'c1.street', spawn: STREET_ARRIVAL, lockedUntil: ['c1.explore.yard'] },
   ];
-  // The gate is stuck: solid in the gateway (18,7) until The Shoulder shifts it. (17,7) stays open: it is where keg2 is pushed from.
+  // The gate is stuck: solid in the gateway (18,7) until The Shoulder shifts it. It is not part of the keg puzzle.
   const dressing: ScreenDressing = {
     props: [
-      { id: 'yardGate', frame: PROP.churchGate, col: 17, row: 6, solid: { dx: 1, dy: 1, width: 1, height: 1 } },
+      { id: 'yardGate', frame: PROP.yardGate, col: YARD_GATE_TILE.col, row: YARD_GATE_TILE.row, solid: { width: 1, height: 1 } },
       // Spare kit lying about the yard, clear of the kegs and the gate path.
       { id: 'yard.p1', frame: PROP.barrel, col: 2, row: 8, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'yard.p2', frame: PROP.bottleCrate, col: 2, row: 10, solid: { width: 1, height: 1 }, breakable: {} },

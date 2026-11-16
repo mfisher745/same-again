@@ -4,8 +4,9 @@
  *
  * Pieces sit on tiles and are pushed one tile at a time by walking into
  * them. A piece cannot leave the play area or move into a blocked tile,
- * a fixed tile or another piece. The goal is either "these cells are clear"
- * (kegs off the gate) or "these cells are covered".
+ * a fixed tile or another piece. The goal is "these cells are clear",
+ * "these cells are covered", or "Andrew can walk from here to there" (the
+ * chapter 1 kegs: a way through to the yard gate).
  */
 
 import { TUNING } from '../content/tuning';
@@ -26,10 +27,18 @@ export interface PushPuzzleLayout {
   readonly pieces: readonly PushPiece[];
   /** Immovable tiles inside the area (the fixed crate, pillars). */
   readonly fixed: readonly TileCoord[];
-  readonly goal: { readonly kind: 'clear' | 'cover'; readonly cells: readonly TileCoord[] };
+  readonly goal: PushGoal;
   /** Piece positions used by `completeNow()`. */
   readonly solution: readonly PushPiece[];
 }
+
+/**
+ * When the puzzle is solved. `reach`: a walk from `from` to `to` exists through open tiles (not blocked, not a
+ * piece or a fixed tile). Use it when the pieces plug a passage and any way of unplugging it will do.
+ */
+export type PushGoal =
+  | { readonly kind: 'clear' | 'cover'; readonly cells: readonly TileCoord[] }
+  | { readonly kind: 'reach'; readonly from: TileCoord; readonly to: TileCoord };
 
 interface LivePiece {
   readonly id: string;
@@ -147,8 +156,29 @@ export class PushPuzzle extends PuzzleBase {
 
   goalMet(): boolean {
     const g = this.layout.goal;
+    if (g.kind === 'reach') return this.walkable(g.from, g.to);
     if (g.kind === 'clear') return g.cells.every((c) => !this.pieces.some((p) => p.col === c.col && p.row === c.row));
     return g.cells.every((c) => this.pieces.some((p) => p.col === c.col && p.row === c.row));
+  }
+
+  /** A walk from `from` to `to` through tiles that are not blocked and hold no piece or fixed tile. */
+  private walkable(from: TileCoord, to: TileCoord): boolean {
+    const open = (c: number, r: number): boolean => !isBlocked(this.grid, c, r) && !this.occupies(c, r);
+    if (!open(from.col, from.row)) return false;
+    const seen = new Set<number>([from.row * this.grid.widthTiles + from.col]);
+    const stack: TileCoord[] = [from];
+    for (let t = stack.pop(); t !== undefined; t = stack.pop()) {
+      if (t.col === to.col && t.row === to.row) return true;
+      for (const d of Object.values(DELTA)) {
+        const c = t.col + d.col;
+        const r = t.row + d.row;
+        const k = r * this.grid.widthTiles + c;
+        if (seen.has(k) || !open(c, r)) continue;
+        seen.add(k);
+        stack.push({ col: c, row: r });
+      }
+    }
+    return false;
   }
 
   override reset(): void {

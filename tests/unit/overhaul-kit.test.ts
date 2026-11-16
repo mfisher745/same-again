@@ -25,6 +25,8 @@ import {
   topUpBottles,
 } from '../../src/systems/kit';
 import type { Kit, OverhaulDrinkId } from '../../src/core/types';
+import { takeItem } from '../../src/systems/pickups';
+import { hasText } from '../../src/content/dialogue';
 
 /** Drink a held drink as the player does: click it in the Tab, then Q (G for a spirit). */
 function drinkFromInventory(kit: Kit, id: OverhaulDrinkId) {
@@ -47,20 +49,43 @@ describe('kit: carry limit', () => {
     expect(k.bottles).toBe(0);
   });
 
-  it('accepts drinks up to the limit and refuses the next', () => {
+  it('accepts beers up to the limit and refuses the next', () => {
     const k = full();
     expect(carriedCount(k)).toBe(6);
-    const r = pickUpDrink(k, 'whiskey');
+    const r = pickUpDrink(k, 'lager');
     expect(r.changed).toBe(false);
     expect(r.refusal).toBe('carryFull');
     expect(r.kit).toBe(k);
   });
 
-  it('counts any mix toward the limit', () => {
+  it('counts any mix of beers toward the six', () => {
     let k = createKit();
-    for (const id of ['stout', 'lager', 'lightBeer', 'craftIpa', 'whiskey', 'tequila'] as const) k = pickUpDrink(k, id).kit;
+    for (const id of ['stout', 'lager', 'lightBeer', 'craftIpa', 'stout', 'lager'] as const) k = pickUpDrink(k, id).kit;
     expect(carriedCount(k)).toBe(6);
-    expect(pickUpDrink(k, 'stout').refusal).toBe('carryFull');
+    expect(pickUpDrink(k, 'craftIpa').refusal).toBe('carryFull');
+  });
+
+  it('spirits have their own limit of two, apart from the six beers (playtest 6)', () => {
+    expect(TUNING.overhaul!.carry.spiritLimit).toBe(2);
+    let k = full();
+    k = pickUpDrink(k, 'whiskey').kit;
+    k = pickUpDrink(k, 'tequila').kit;
+    expect(carriedCount(k)).toBe(8);
+    const r = pickUpDrink(k, 'whiskey');
+    expect(r.changed).toBe(false);
+    expect(r.refusal).toBe('spiritsFull');
+    // Two spirits do not take a beer's place.
+    let s = pickUpDrink(pickUpDrink(createKit(), 'whiskey').kit, 'whiskey').kit;
+    for (let i = 0; i < 6; i++) s = pickUpDrink(s, 'stout').kit;
+    expect(s.drinks).toEqual({ whiskey: 2, stout: 6 });
+  });
+
+  it('a full spirit pocket leaves the pickup on the ground with its own refusal', () => {
+    const k = pickUpDrink(pickUpDrink(createKit(), 'whiskey').kit, 'tequila').kit;
+    const r = takeItem(k, { kind: 'drink', drinkId: 'whiskey', count: 1 });
+    expect(r.taken).toBeNull();
+    expect(r.refusal).toBe('spiritsFull');
+    expect(hasText('pickup.refused.spiritsFull')).toBe(true);
   });
 
   it('the hot drink and bottles do not count toward the limit', () => {

@@ -195,6 +195,8 @@ export function bogScreen(): ScreenLayout {
     { id: 'bar.crate', frame: PROP.bottleCrate, col: 4, row: 26, solid: { width: 1, height: 1 } },
     { id: 'bar.box', frame: PROP.honestyBox, col: 8, row: 26, solid: { width: 1, height: 1 } },
     { id: 'bar.flask', frame: PROP.flask, col: 6, row: 26 },
+    // Steam while the free hot drink can be taken (the script shows and hides it).
+    { id: 'bar.steam', frame: PROP.steam[0], frames: PROP.steam, frameRate: 4, col: 6, row: 25, hidden: true },
     { id: 'bar.jar', frame: PROP.coffeeJar, col: 7, row: 26 },
     // The scorched ring, nine tiles across, and what is in it.
     { id: 'ring.scorch', frame: PROP.scorchRing, col: RING.col - 4, row: RING.row - 4, layer: 'floor' },

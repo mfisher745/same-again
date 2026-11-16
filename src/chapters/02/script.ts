@@ -125,6 +125,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.setPropVisible('shed.door', !ctx.isComplete('c2.puzzle.sheep'));
     ctx.setPropVisible('van', crossingOpen());
     shutGate(!ctx.isComplete('c2.setpiece.ram'));
+    syncSteam();
   };
 
   // --- The lean-to ---------------------------------------------------------
@@ -140,9 +141,15 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     if (ctx.hotDrinkOffered()) setPrompt('ui.prompt.hotDrink', PROMPT_LINGER_MS);
   };
 
-  /** The flask. The free hot drink, each visit. */
+  /** Steam over the flask while the free hot drink can be taken: the one free charge each visit, shown. */
+  const syncSteam = (): void => ctx.setPropVisible('bar.steam', ctx.hotDrinkOffered());
+
+  /** The flask. The free hot drink, each visit. With nothing to give, Myko says why. */
   const flask = (): void => {
-    if (!ctx.hotDrinkOffered()) return;
+    if (!ctx.hotDrinkOffered()) {
+      void ctx.say(ctx.kit().hotDrink !== null ? 'c2.flask.held' : 'c2.flask.spent', { repeat: true });
+      return;
+    }
     clearPrompt('ui.prompt.hotDrink');
     openHotDrinkChoice();
     void ctx.say('c2.bar.hotDrink');
@@ -376,6 +383,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           level = to;
           maybeStumbleLesson();
         }),
+        ctx.bus.on(GameEvents.KitChanged, () => syncSteam()),
         ctx.bus.on(GameEvents.MoveUsed, ({ moveId, slot }) => {
           if (moveId === 'reflexTest' && !flag('reflex.done')) {
             setFlag('reflex.done');

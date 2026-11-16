@@ -69,6 +69,9 @@ export const C02: DialogueFile = {
       ['andrew', "I've nothing on me."],
       ['myko', 'Then the box is used to you.'],
     ),
+    // E at the flask when it has nothing to give (playtest 6).
+    box('c2.flask.held', ['myko', "You've one on you already. One at a time. It's a flask, not a well."]),
+    box('c2.flask.spent', ['myko', "That's it drained. It's full again every time we land back here. Don't ask me how."]),
     box('c2.bar.hotDrink', ['myko', "The flask's still warm. I don't know who fills it. I've never asked."]),
     box('c2.bar.return', ['myko', "Back at the chairs. Nobody saw. There's nobody to see. That's the good of a bog."]),
     scene('c2.open', ['andrew', "It's over here."], ['myko', "It's wet already. That's my good coat."]),

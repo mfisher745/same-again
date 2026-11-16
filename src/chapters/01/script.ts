@@ -47,6 +47,7 @@ const LIGHTS_TICK_MS = 100;
 type Flag =
   | 'pub.step'
   | 'intro.done'
+  | 'notYet.told'
   | 'machine.intro'
   | 'yard.told'
   | 'street.seen'
@@ -132,6 +133,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.setPropVisible('jacket', false);
     syncEastExit();
     ctx.setPropVisible('hurley', ctx.isComplete('c1.boss.bigtom') && !hasHurley());
+    syncSteam();
     // The lad who took the last spice bag stays in the queue until the row starts.
     ctx.setNpcVisible('queue3', !flag('chipper.started'));
   };
@@ -155,10 +157,12 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     await ctx.say('c1.pub.stool');
     if (disposed) return;
     ctx.setObjective(OBJ.dympna);
+    if (step() === STEP.atBar) setPrompt('ui.prompt.talk');
   };
 
   const talkedToDympna = async (): Promise<void> => {
     setStep(STEP.talked);
+    clearPrompt('ui.prompt.talk');
     await ctx.say('c1.pub.thursday');
     await ctx.say('c1.pub.pint');
     if (disposed) return;
@@ -213,10 +217,25 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.setObjective(OBJ.leave);
   };
 
-  /** The free hot drink, from the urn. Only once Dympna has got to it on the list, or on any later visit. */
+  /**
+   * The free hot drink, from the urn. Only once Dympna has got to it on the list, or on any later visit. When it has
+   * nothing to give, Dympna says why: not on the list yet, one already in his pocket, or this visit's one is gone.
+   */
   const urn = (): void => {
-    if (step() < STEP.hotDrink) return;
-    if (ctx.hotDrinkOffered()) openHotDrinkChoice();
+    if (step() < STEP.hotDrink) void ctx.say('c1.urn.notYet', { repeat: true });
+    else if (ctx.hotDrinkOffered()) openHotDrinkChoice();
+    else if (ctx.kit().hotDrink !== null) void ctx.say('c1.urn.held', { repeat: true });
+    else void ctx.say('c1.urn.spent', { repeat: true });
+  };
+
+  /** Steam over the urn while the free hot drink can be taken: the one free charge each visit, shown. */
+  const syncSteam = (): void => ctx.setPropVisible('urn.steam', ctx.hotDrinkOffered());
+
+  /** Q, G or the wheel before Dympna's pint. The first time, Myko says why and what to do; the HUD says it after. */
+  const drinkRefused = (): void => {
+    if (flag('notYet.told') || step() >= STEP.talked) return;
+    setFlag('notYet.told');
+    void ctx.say('c1.pub.notYet');
   };
 
   // --- Yard and street ----------------------------------------------------
@@ -449,9 +468,13 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
         onTabOpened(() => {
           if (step() === STEP.kit) void openedTheKit();
         }),
+        ctx.bus.on(GameEvents.KitUseRefused, ({ reason }) => {
+          if (reason === 'meterHidden') drinkRefused();
+        }),
         ctx.bus.on(GameEvents.KitChanged, ({ kit: next }) => {
           const hadHot = kit?.hotDrink ?? null;
           kit = next;
+          syncSteam();
           if (step() === STEP.hotDrink && hadHot === null && next.hotDrink !== null) void tookTheHotDrink();
         }),
         ctx.bus.on(GameEvents.WeaponGained, () => syncEastExit()),
