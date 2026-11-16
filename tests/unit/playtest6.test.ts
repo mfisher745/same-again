@@ -7,6 +7,8 @@
 import { describe, expect, it } from 'vitest';
 import { chapter1 } from '../../src/chapters/01/index';
 import { chapter2 } from '../../src/chapters/02/index';
+import { chapter3 } from '../../src/chapters/03/index';
+import { chapter4 } from '../../src/chapters/04/index';
 import { DialogueQueue } from '../../src/ui/model/dialogue';
 import type { DialogueSequence } from '../../src/core/types';
 import type { ChapterScript } from '../../src/systems';
@@ -133,7 +135,7 @@ describe('commentary never holds up a scene', () => {
 });
 
 describe('breakables are scattered, never in the way (playtest 6)', () => {
-  for (const module of [chapter1, chapter2]) {
+  for (const module of [chapter1, chapter2, chapter3, chapter4]) {
     for (const screen of module.screens) {
       const props = screen.dressing?.props ?? [];
       const breakables = props.filter((p) => p.breakable);

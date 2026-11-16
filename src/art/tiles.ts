@@ -269,6 +269,19 @@ function cities(): TileDef[] {
     t('barWood', planks('turf', 'turfDark')),
     t('greenWall', bricks('moss', 'mossDark', 'grass'), true, true),
     t('dockEdge', on(water('navyDark', 'navy'), (b) => void b.rect(0, 0, 16, 5, 'steel').hline(0, 5, 16, 'coal')), true),
+    // Chapter 4. Paddy O'Shamrock's is green everything on a wood floor; the common table, seat, counter and door
+    // strip are office lino, so the bar has its own.
+    t('barCounter', block('moss', 'mossDark', 'grass', 0, 6), true),
+    t('barStool', on(planks('turf', 'turfDark'), (b) => void b.ellipse(4, 3, 8, 7, 'moss').hline(6, 4, 4, 'grass').hline(5, 9, 6, 'mossDark').rect(7, 10, 2, 3, 'coal').hline(5, 13, 6, 'coal')), true),
+    t('barTable', on(planks('turf', 'turfDark'), block('peat', 'turfDark', 'grass', 2, 4)), true),
+    t('barBooth', on(planks('turf', 'turfDark'), block('moss', 'mossDark', 'grass', 1, 6)), true),
+    t('barShelf', on(bricks('moss', 'mossDark', 'grass'), (b) => {
+      b.hline(0, 6, 16, 'turf').hline(0, 13, 16, 'turf');
+      for (let x = 1; x < 16; x += 3) b.rect(x, 2, 2, 4, x % 2 === 0 ? 'grass' : 'amber').rect(x, 9, 2, 4, x % 2 === 0 ? 'bone' : 'grass');
+    }), true, true),
+    t('barDoorStrip', doorStrip(planks('turf', 'turfDark'), 'amberLight')),
+    // Pier Nine's side gate, shut: mesh on a steel frame with a chain. Swap it for `path` when it opens.
+    t('dockGate', on(mesh(concrete, 'coal'), (b) => void b.rect(0, 0, 16, 2, 'fog').rect(0, 14, 16, 2, 'slate').rect(0, 0, 2, 16, 'fog').rect(14, 0, 2, 16, 'slate').rect(6, 7, 4, 2, 'amber').set(7, 9, 'amber')), true),
   ];
 }
 

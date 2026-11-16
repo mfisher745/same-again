@@ -59,6 +59,7 @@ export const C04: DialogueFile = {
     caption('c4.caption.airport', 'Boston. Arrivals.'),
     caption('c4.caption.bar', "Paddy O'Shamrock's"),
     caption('c4.caption.docks', 'Pier Nine'),
+    caption('c4.caption.shelter', 'A bus shelter. Dawn.'),
 
     // --- The bar: Paddy O'Shamrock's ---
     scene(
@@ -81,6 +82,10 @@ export const C04: DialogueFile = {
       ['colleenAnn', 'You got it! Bag in, or on the side?'],
       ['andrew', 'I want to go home.'],
     ),
+    // E at the tea when there is none to give, and the shut side gate (integration, chapters 3 and 4).
+    box('c4.tea.held', ['colleenAnn', 'You still have the one I gave you, hon! Drink that one first.']),
+    box('c4.tea.spent', ['colleenAnn', "That was your tea! Come back in later and I'll do you another. Hot. Irish style."]),
+    box('c4.gate.shut', ['myko', "Chained on the pier side. There's a gap in the fence up the top of the alley. Go round.", 'by phone']),
     box('c4.bar.hotDrink', ['colleenAnn', 'Tea or coffee? I can do the tea Irish style! That means hot, right?']),
     box('c4.bar.return', ['colleenAnn', 'You’re back! You look terrible. That is SO authentic.']),
     box('c4.lightBeer', ['andrew', 'Is this beer?'], ['myko', "It's adjacent. It's had beer described to it."]),

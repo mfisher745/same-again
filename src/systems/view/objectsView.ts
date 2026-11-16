@@ -59,6 +59,10 @@ export class ObjectsView {
   private readonly sheepSprites = new Map<string, Phaser.GameObjects.Sprite>();
   /** The sheep puzzle's gates: the images drawn for a gate's current position, by `${sectionId}:${gateId}`. */
   private readonly gateImages = new Map<string, { pos: 0 | 1; images: Phaser.GameObjects.Image[] }>();
+  /** The slide puzzle's pieces, by `${sectionId}:${railId}`. */
+  private readonly slideImages = new Map<string, Phaser.GameObjects.Image>();
+  /** Sweep hazards: the shadow and the moving thing, by sweep index on this screen. */
+  private readonly sweepImages = new Map<number, { shadow: Phaser.GameObjects.Image; body: Phaser.GameObjects.Image }>();
   private examineIcon: Phaser.GameObjects.Image | null = null;
   private puff: Phaser.GameObjects.Sprite | null = null;
   private puffFadeMs = 0;
@@ -91,6 +95,8 @@ export class ObjectsView {
     this.syncPickups();
     this.syncPuzzles();
     this.syncSheep();
+    this.syncSlides();
+    this.syncSweeps();
     this.syncExamine();
     this.syncPuff(dtMs, mykoHead);
   }
@@ -126,6 +132,9 @@ export class ObjectsView {
     this.sheepSprites.clear();
     for (const g of this.gateImages.values()) for (const i of g.images) i.destroy();
     this.gateImages.clear();
+    for (const i of this.slideImages.values()) i.destroy();
+    this.slideImages.clear();
+    this.destroySweeps();
     this.floor.clear();
   }
 
@@ -207,6 +216,70 @@ export class ObjectsView {
         if (this.scene.anims.exists(anim) && sprite.anims.currentAnim?.key !== anim) sprite.play(anim);
       }
     }
+  }
+
+  /** Slide-puzzle pieces as their prop frame at the interpolated position, depth-sorted by their bottom edge. */
+  private syncSlides(): void {
+    if (!this.scene.textures.exists(PROPS_KEY)) return;
+    const frames = this.scene.textures.get(PROPS_KEY);
+    for (const { puzzle, placement } of this.run.slidePuzzlesHere()) {
+      for (const piece of puzzle.pieceDraw()) {
+        const key = `${placement.sectionId}:${piece.railId}`;
+        let img = this.slideImages.get(key);
+        if (!img) {
+          if (!frames.has(piece.frame)) continue;
+          img = this.scene.add.image(0, 0, PROPS_KEY, piece.frame).setOrigin(0, 0);
+          this.slideImages.set(key, img);
+        }
+        img.setPosition(Math.round(piece.pos.x), Math.round(piece.pos.y)).setDepth(piece.pos.y + piece.height);
+      }
+    }
+  }
+
+  /**
+   * Sweep hazards (`ChapterContext.sweepHazard`): the shadow frame stretched along the whole path while it telegraphs
+   * and as it travels, and the moving frame centred on its position, drawn above everything on the ground.
+   */
+  private syncSweeps(): void {
+    const sweeps = this.run.sweepsHere();
+    if (sweeps.length === 0 && this.sweepImages.size === 0) return;
+    if (!this.scene.textures.exists(PROPS_KEY)) return;
+    const frames = this.scene.textures.get(PROPS_KEY);
+    for (const [i, img] of [...this.sweepImages]) {
+      if (i < sweeps.length) continue;
+      img.shadow.destroy();
+      img.body.destroy();
+      this.sweepImages.delete(i);
+    }
+    sweeps.forEach((sw, i) => {
+      const o = sw.opts;
+      let imgs = this.sweepImages.get(i);
+      if (!imgs) {
+        if (!frames.has(o.frame) || !frames.has(o.shadowFrame)) return;
+        imgs = {
+          shadow: this.scene.add.image(0, 0, PROPS_KEY, o.shadowFrame).setOrigin(0.5, 0.5).setAlpha(0.55).setDepth(FLOOR_DEPTH + 1),
+          body: this.scene.add.image(0, 0, PROPS_KEY, o.frame).setOrigin(0.5, 0.5),
+        };
+        this.sweepImages.set(i, imgs);
+      }
+      const dx = o.to.x - o.from.x;
+      const dy = o.to.y - o.from.y;
+      if (frames.has(o.frame)) imgs.body.setFrame(o.frame);
+      if (frames.has(o.shadowFrame)) imgs.shadow.setFrame(o.shadowFrame);
+      imgs.shadow
+        .setPosition(Math.round((o.from.x + o.to.x) / 2), Math.round((o.from.y + o.to.y) / 2))
+        .setDisplaySize(Math.hypot(dx, dy) + o.width, o.width)
+        .setRotation(Math.atan2(dy, dx));
+      imgs.body.setPosition(Math.round(sw.pos.x), Math.round(sw.pos.y)).setDepth(ICON_DEPTH - 1).setVisible(sw.moving);
+    });
+  }
+
+  private destroySweeps(): void {
+    for (const img of this.sweepImages.values()) {
+      img.shadow.destroy();
+      img.body.destroy();
+    }
+    this.sweepImages.clear();
   }
 
   private syncPuzzles(): void {

@@ -105,22 +105,35 @@ describe('Deduction board', () => {
     const opened: boolean[] = [];
     const subs = record(bus, 'deduction:submitted');
     const b2 = new DeductionBoard(def, cb, host().h, { say: () => undefined, onOpenChanged: (o) => void opened.push(o) });
+    for (const id of [a, b, c]) cb.addEvidence(id, 3);
     b2.openBoard();
     expect(b2.submit([c, a, b], bus)).toBe(true);
     expect(b2.isComplete()).toBe(true);
     expect(opened).toEqual([true, false]);
-    expect(cb.entries()).toEqual([{ kind: 'lead', deductionId: def.id, chapter: 3 }]);
+    const leads = () => cb.entries().filter((e) => e.kind === 'lead');
+    expect(leads()).toEqual([{ kind: 'lead', deductionId: def.id, chapter: 3 }]);
     expect(subs.at(-1)?.correct).toBe(true);
     expect(b2.submit([a, b, c], bus)).toBe(true);
-    expect(cb.entries()).toHaveLength(1);
+    expect(leads()).toHaveLength(1);
     void board;
     void done;
   });
 
   it('completion is reported to the host with the player as source', () => {
-    const { bus, board, done } = make();
+    const { bus, cb, board, done } = make();
+    for (const id of [a, b, c]) cb.addEvidence(id, 3);
     board.submit([a, b, c], bus);
     expect(done).toEqual([{ id: def.id, by: 'player' }]);
+  });
+
+  it('the right links do not count until Andrew has found all three clues', () => {
+    const { bus, cb, board, done } = make();
+    cb.addEvidence(a, 3);
+    cb.addEvidence(b, 3);
+    expect(board.submit([a, b, c], bus)).toBe(false);
+    expect(done).toEqual([]);
+    cb.addEvidence(c, 3);
+    expect(board.submit([a, b, c], bus)).toBe(true);
   });
 
   it('completeNow (Myko, QA) puts the solution in the casebook and files the lead', () => {

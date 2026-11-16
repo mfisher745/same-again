@@ -137,7 +137,8 @@ export class DeductionBoard extends CompletableSection {
 
   submit(evidence: readonly EvidenceId[], bus: GameEventBus): boolean {
     if (this.isComplete()) return true;
-    const correct = deductionCorrect(this.def, evidence);
+    // A link to a clue Andrew has not found does not count.
+    const correct = evidence.every((id) => this.casebook.hasEvidence(id)) && deductionCorrect(this.def, evidence);
     bus.emit(GameEvents.DeductionSubmitted, { deductionId: this.def.id, evidenceIds: [...evidence], correct });
     if (correct) {
       this.casebook.addLead(this.def.id, this.def.chapter);

@@ -137,9 +137,19 @@ function sheep(): Sheet {
   );
 }
 
-/** Mr Halloran on the forklift, 32 x 32. */
-function forklift(): Sheet {
-  return objectSheet('boss.c3.boss.halloran', 32, 32, (anim) => (b, facing, frame) => {
+/** A pallet with `w` across and `h` deep, slats running across: Halloran's phase 2 shield, carried on the forks. */
+function shieldPallet(b: PixelBuffer, x: number, y: number, w: number, h: number): void {
+  b.rect(x, y, w, h, 'turfDark');
+  for (let j = 0; j < h; j += 2) b.hline(x, y + j, w, j === 0 ? 'tan' : 'peat');
+  b.vline(x, y, h, 'tan').vline(x + w - 1, y, h, 'turf');
+}
+
+/**
+ * Mr Halloran on the forklift, 32 x 32. `shield` is the phase 2 texture, same frames: a pallet stood up on the forks
+ * in front of him, forks held at chest height.
+ */
+function forklift(shield = false): Sheet {
+  return objectSheet(shield ? 'boss.c3.boss.halloran.shield' : 'boss.c3.boss.halloran', 32, 32, (anim) => (b, facing, frame) => {
     const bounce = anim === 'walk' && frame % 2 === 1 ? 1 : 0;
     if (facing === 'right') {
       b.rect(4, 14 + bounce, 16, 10, 'amber');
@@ -148,8 +158,10 @@ function forklift(): Sheet {
       // Halloran, seated.
       b.rect(10, 9 + bounce, 5, 5, 'slate').hline(10, 11 + bounce, 5, 'amberLight').rect(10, 5 + bounce, 5, 4, 'skin').hline(10, 5 + bounce, 5, 'fog');
       b.rect(21, 4, 2, 21, 'steel');
-      const forkY = anim === 'telegraph' ? 18 : 23;
+      const forkY = shield ? (anim === 'telegraph' ? 17 : 19) : anim === 'telegraph' ? 18 : 23;
       b.rect(23, forkY, 8, 1, 'fog').rect(23, forkY - 3, 1, 3, 'fog');
+      // The pallet on its edge against the carriage, as tall as he is.
+      if (shield) shieldPallet(b, 25, forkY - 13, 5, 13);
       b.ellipse(5, 23, 6, 6, 'ink').ellipse(15, 23, 6, 6, 'ink').set(7, 25, 'steel').set(17, 25, 'steel');
     } else {
       const up = facing === 'up';
@@ -164,6 +176,7 @@ function forklift(): Sheet {
       } else {
         b.rect(11, 24, 2, 7, 'fog').rect(19, 24, 2, 7, 'fog').rect(10, 12, 12, 2, 'steel');
       }
+      if (shield) shieldPallet(b, 7, up ? 0 : 24, 18, 7);
     }
     if (anim === 'down') b.set(14, 2, 'fog').set(16, 1, 'fog').set(18, 2, 'bone');
   });
@@ -228,5 +241,5 @@ function blastDoor(): Sheet {
 }
 
 export function machineSheets(): Sheet[] {
-  return [drone(), ram(), sheep(), forklift(), combine(), truck(), blastDoor()];
+  return [drone(), ram(), sheep(), forklift(), forklift(true), combine(), truck(), blastDoor()];
 }

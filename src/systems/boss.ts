@@ -134,6 +134,40 @@ export class BossRunner extends CompletableSection {
     b.damageTakenMultiplier = damageTakenMultiplier;
   }
 
+  /**
+   * Halloran's pallet shield: while `front`, a player hit from within 90 degrees either side of the body's facing does
+   * no damage and emits `boss:guarded` `{ bossId, tag }`. `null` lowers it. A stunned (dazed) body is not guarded.
+   */
+  guard(tag: string, side: 'front' | null): void {
+    const b = this.body(tag);
+    if (!b) return;
+    b.guardSide = side;
+    b.onGuarded = side === null ? null : () => this.world.bus.emit(GameEvents.BossGuarded, { bossId: this.def.id, tag });
+  }
+
+  /**
+   * The foreman in his control box: a pinned body stays at `at`, faces Andrew, and neither moves nor attacks; it can
+   * still be hit. `null` releases it. Pins are dropped by `reset()`.
+   */
+  pin(tag: string, at: Vec2 | null): void {
+    const b = this.body(tag);
+    if (!b) return;
+    b.pinned = at === null ? null : { ...at };
+    if (at !== null) b.pos = { ...at };
+  }
+
+  /**
+   * Jumps to the phase `phaseId` now (fires `onPhaseChanged` and `boss:phaseChanged`), whatever its trigger. A phase
+   * entered this way is not re-entered by its trigger; later phases still trigger as usual. Unknown ids and phases
+   * that are already current do nothing.
+   */
+  forcePhase(phaseId: string): void {
+    if (!this.active) return;
+    const i = this.def.phases.findIndex((p) => p.id === phaseId);
+    if (i < 0 || i === this.phaseIdx) return;
+    this.enterPhase(i);
+  }
+
   /** Swaps the texture the view draws for a body (Big Tom's `.jacketOff`). */
   setSprite(tag: string, textureKey: string): void {
     const b = this.body(tag);
