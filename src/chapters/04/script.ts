@@ -117,8 +117,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.setPropVisible('dockGate', !ctx.isComplete('c4.stealth.docks'));
     ctx.setPropVisible('lunchbox', !flag('lunchbox.taken'));
     const solved = ctx.isComplete('c4.puzzle.containers');
-    ctx.setPropVisible('hatch.0', !solved);
-    ctx.setPropVisible('hatch.1', !solved);
+    ctx.setPropVisible('hatch', !solved);
     ctx.setPropVisible('shillelagh', flag('foreman.done') && !flag('shillelagh.taken'));
     syncSteam();
     if (flag('docks.clean') && !flag('lunchbox.taken')) placeLunchboxWhiskey();
@@ -266,8 +265,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   const stealthActive = (): boolean => ctx.currentScreen() === 'c4.docks' && !ctx.isComplete('c4.stealth.docks');
 
   const puzzleDone = async (): Promise<void> => {
-    ctx.setPropVisible('hatch.0', false);
-    ctx.setPropVisible('hatch.1', false);
+    ctx.setPropVisible('hatch', false);
     await ctx.say('c4.containers.done');
   };
 

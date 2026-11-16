@@ -271,8 +271,7 @@ describe('chapter 4: the container puzzle needs exactly six pulls', () => {
     expect(pulled).toHaveLength(6);
     expect(run.isComplete('c4.puzzle.containers')).toBe(true);
     // The hatch is open, and a solved puzzle takes no more pulls.
-    expect(run.dressing.prop('hatch.0')?.visible).toBe(false);
-    expect(run.dressing.prop('hatch.1')?.visible).toBe(false);
+    expect(run.dressing.prop('hatch')?.visible).toBe(false);
     await pull(run, 0);
     expect(pulled).toHaveLength(6);
   });

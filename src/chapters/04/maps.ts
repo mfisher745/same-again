@@ -293,7 +293,8 @@ export function docksScreen(): ScreenLayout {
     // Levers, one for each rail.
     ...RAILS.map((r) => ({ id: `lever.${r.id}`, frame: PROP.lever.up, col: r.leverTile.col, row: r.leverTile.row })),
     // The hatch, shut until the staircase is built: two sections of gate.
-    ...HATCH.map((h, i) => ({ id: `hatch.${i}`, frame: PROP.fieldGate.across, col: h.col, row: h.row, solid: { width: 1, height: 1 } })),
+    // MAS-4471's shut doors, across both hatch tiles (one 32 x 16 frame); hidden once the staircase is built.
+    { id: 'hatch', frame: PROP.containerHatch, col: HATCH[0].col, row: HATCH[0].row, solid: { width: HATCH.length, height: 1 } },
     // Inside MAS-4471.
     { frame: PROP.container.mas4471, col: 58, row: 1 },
     { id: 'seizure', frame: PROP.seizureNotice, col: 52, row: 2 },

@@ -162,8 +162,7 @@ describe('chapter 4: back to the bar', () => {
     expect(run.isComplete('c4.deduction.dc')).toBe(true);
     expect(run.objective()).toBe('c4.foreman');
     await toDocks(run);
-    expect(run.dressing.prop('hatch.0')?.visible).toBe(false);
-    expect(run.dressing.prop('hatch.1')?.visible).toBe(false);
+    expect(run.dressing.prop('hatch')?.visible).toBe(false);
   });
 
   // Fragile by design: 'foreman.started' is never cleared, it just is not saved while the fight runs (nothing saves during it). Any
