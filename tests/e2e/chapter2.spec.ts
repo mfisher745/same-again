@@ -49,7 +49,7 @@ test('?chapter=2 starts at the lean-to and reaches the first beats', async ({ pa
   await page.locator('canvas').click({ position: { x: 5, y: 5 }, button: 'middle' });
   expect(await page.evaluate(() => (window as unknown as GameWindow).__game.state()?.chapter)).toBe(2);
   expect(await run(page, (r) => r.screenId)).toBe('c2.bog');
-  expect(await run(page, (r) => r.player.kit.bottles)).toBeGreaterThanOrEqual(2);
+  expect(await run(page, (r) => r.player.kit.bottles)).toBe(1); // one bottle at most (DESIGN.md 7.1, carry.bottleLimit)
 
   // The opening plays and sets the first objective.
   await clearScenes(page, async () => (await run(page, (r) => r.flag('intro.done'))) === true);
