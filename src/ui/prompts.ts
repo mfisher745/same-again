@@ -13,9 +13,12 @@ import type { PromptValues } from './model/promptText';
 import type { PromptRequest } from './scenes/HudScene';
 
 let host: Phaser.Game | null = null;
+/** The script prompt on screen. Scripts only ever clear this one, so HUD notices (the casebook line) are left alone. */
+let current: TextId | null = null;
 
 export function bindPromptHost(game: Phaser.Game): void {
   host = game;
+  current = null;
 }
 
 /**
@@ -24,13 +27,18 @@ export function bindPromptHost(game: Phaser.Game): void {
  */
 export function showPrompt(textId: TextId, values?: PromptValues): () => void {
   const req: PromptRequest = values === undefined ? { textId } : { textId, values };
-  host?.events.emit(PROMPT_EVENTS.hide, undefined);
+  hidePrompt();
+  current = textId;
   host?.events.emit(PROMPT_EVENTS.show, req);
   return () => hidePrompt(textId);
 }
 
+/** Hides the given script prompt, or the current one when no ID is given. Never touches HUD notices. */
 export function hidePrompt(textId?: TextId): void {
-  host?.events.emit(PROMPT_EVENTS.hide, textId);
+  const id = textId ?? current;
+  if (id === null) return;
+  if (id === current) current = null;
+  host?.events.emit(PROMPT_EVENTS.hide, id);
 }
 
 /**
