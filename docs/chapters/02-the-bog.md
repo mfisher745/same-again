@@ -66,6 +66,8 @@ Everything is in the props atlas (`PROPS_KEY`, names in `PROP`) unless marked. S
 | Field gate, one tile | `PROP.fieldGate.across`, `.along` | 16 × 16 | `across` repeats along a row, `along` down a column. One per tile the gate blocks. |
 | Field gate, whole | `PROP.fieldGate.across3`, `.along3` | 48 × 16, 16 × 48 | With posts. The lane gate: `along3` shut, `across3` open. |
 | Puddle | `PROP.puddle`, `PROP.puddleLarge` | 32 × 16, 48 × 32 | Floor. |
+| Shed door | `PROP.shedHurdle` | 32 × 16 | A timber sheep hurdle tied across the shed doorway with baler twine. Gone once the flock is penned. |
+| Yard gate, open | `PROP.farmGateOpen` | 48 × 16 | Brennan's red tubular yard gate, swung open against the hedge at the west end of `c2.lane`. |
 | Cattle grid | `PROP.cattleGrid` | 16 × 16 | Floor. Repeats; one per tile across the lane. |
 | Tyre tracks | `PROP.tyreTracks.across`, `.along` | 16 × 16 | Floor. Repeats; see-through between the ruts. |
 | The scorched ring | `PROP.scorchRing` | 144 × 144 | Floor. Nine tiles across, one tile to the metre. |

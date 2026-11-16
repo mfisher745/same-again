@@ -60,6 +60,10 @@ export const PROP = {
   sleepingDog: ['sleepingDog.0', 'sleepingDog.1'],
   van: { right: 'van.right', left: 'van.left' },
   leanTo: 'leanTo',
+  /** A timber sheep hurdle tied across the hay shed's doorway (32 x 16). Taken away when the flock is penned. */
+  shedHurdle: 'shedHurdle',
+  /** Brennan's yard gate: red-painted tubular steel, swung open flat against the hedge (48 x 16). */
+  farmGateOpen: 'farmGateOpen',
   honestyBox: 'honestyBox',
   coffeeJar: 'coffeeJar',
   hayBale: 'hayBale',
@@ -316,6 +320,26 @@ function addChapter2(atlas: AtlasBuilder): void {
     // Timber posts; the latch end is the right one.
     for (const x of [0, 45]) b.rect(x, 1, 3, 14, 'peat').vline(x + 2, 2, 13, 'turf').hline(x, 1, 3, 'tan');
     b.rect(43, 7, 2, 2, 'coal');
+  }));
+  // The shed's sheep hurdle: two posts, three rails, a brace and a middle upright, lashed with orange baler twine.
+  atlas.add(PROP.shedHurdle, 32, 16, outlined((b) => {
+    for (const x of [0, 29]) b.rect(x, 0, 3, 16, 'peat').vline(x + 2, 1, 15, 'turf').hline(x, 0, 3, 'tan');
+    for (const y of [3, 7, 11]) b.rect(3, y, 26, 2, 'peat').hline(3, y, 26, 'tan');
+    b.line(4, 13, 27, 2, 'turf').line(4, 12, 27, 1, 'peat');
+    b.rect(15, 2, 2, 12, 'peat').vline(16, 2, 12, 'turf');
+    for (const [x, y] of [[2, 4], [28, 4], [2, 11], [28, 11]] as const) b.rect(x, y, 2, 2, 'amber').set(x, y, 'amberLight');
+  }));
+  // Brennan's yard gate, open: red tubular bars, a stone hinge pillar on the left, a length of chain off the free end.
+  atlas.add(PROP.farmGateOpen, 48, 16, outlined((b) => {
+    b.rect(0, 0, 5, 16, 'slate').rect(1, 1, 3, 14, 'steel').hline(0, 0, 5, 'fog');
+    b.rect(5, 3, 2, 2, 'coal').rect(5, 11, 2, 2, 'coal');
+    b.hline(7, 3, 39, 'alarm').hline(7, 4, 39, 'brickDark');
+    for (const y of [6, 8, 10]) b.hline(7, y, 39, 'brick');
+    b.hline(7, 12, 39, 'alarm').hline(7, 13, 39, 'brickDark');
+    b.vline(7, 3, 11, 'alarm').vline(45, 3, 11, 'alarm');
+    b.line(8, 12, 44, 4, 'brick');
+    for (const x of [19, 32]) b.vline(x, 3, 10, 'brick');
+    b.set(46, 8, 'steel').set(47, 9, 'fog').set(46, 10, 'steel').set(47, 11, 'fog').set(46, 12, 'steel');
   }));
   atlas.add(PROP.fieldGate.along3, 16, 48, outlined((b) => {
     b.vline(6, 4, 40, 'fog').rect(7, 4, 2, 40, 'steel').vline(9, 4, 40, 'slate');
