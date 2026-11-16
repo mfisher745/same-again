@@ -1,16 +1,16 @@
 /**
  * The tile canvas the chapters paint their screens on: a grid of characters
  * turned into tile frames and a collision and sight grid derived from
- * `tileFlags`, so the art and the walls cannot drift. All chapters so far are
- * in the `kilnamoe` region.
+ * `tileFlags`, so the art and the walls cannot drift. Chapters 1 and 2 are in
+ * the `kilnamoe` region; chapter 4 paints in `cities` with its own legend.
  */
 
 import { tileFlags, tileIndex } from '../art/tiles';
 import type { ExitDef, ScreenAmbient, ScreenDressing, ScreenLayout } from '../core/chapter';
-import type { ScreenId, TileGrid, Vec2 } from '../core/types';
+import type { RegionId, ScreenId, TileGrid, Vec2 } from '../core/types';
 import { tileCentre } from '../systems';
 
-const REGION = 'kilnamoe';
+const REGION: RegionId = 'kilnamoe';
 
 /** Canvas character to kilnamoe tile name. */
 const LEGEND: Readonly<Record<string, string>> = {
@@ -51,6 +51,32 @@ const LEGEND: Readonly<Record<string, string>> = {
   M: 'mud',
 };
 
+/** Canvas character to `cities` tile name (chapter 4). */
+const CITIES_LEGEND: Readonly<Record<string, string>> = {
+  '#': 'wallTop',
+  W: 'wallFace',
+  g: 'greenWall',
+  b: 'barWood',
+  '.': 'floor',
+  a: 'floorAlt',
+  p: 'path',
+  c: 'counter',
+  t: 'table',
+  s: 'seat',
+  d: 'doorStrip',
+  w: 'window',
+  f: 'fence',
+  o: 'cover',
+  R: 'containerRed',
+  U: 'containerBlue',
+  r: 'rail',
+  L: 'floodlit',
+  e: 'dockEdge',
+  q: 'water',
+  m: 'marking',
+  x: 'rough',
+};
+
 export interface Extras {
   readonly mykoStart?: Vec2;
   readonly dressing?: ScreenDressing;
@@ -63,6 +89,7 @@ export class Canvas {
     readonly width: number,
     readonly height: number,
     fill: string,
+    private readonly region: RegionId = REGION,
   ) {
     this.cells = Array.from({ length: height }, () => Array.from({ length: width }, () => fill));
   }
@@ -87,15 +114,16 @@ export class Canvas {
     return this.cells[row]?.[col] ?? '#';
   }
   build(id: ScreenId, exits: readonly ExitDef[], playerStart: Vec2, extras: Extras = {}): ScreenLayout {
+    const legend = this.region === 'cities' ? CITIES_LEGEND : LEGEND;
     const tiles: number[] = [];
     const blocked: boolean[] = [];
     const blocksSight: boolean[] = [];
     for (let row = 0; row < this.height; row++) {
       for (let col = 0; col < this.width; col++) {
-        const name = LEGEND[this.char(col, row)];
+        const name = legend[this.char(col, row)];
         if (name === undefined) throw new Error(`Unknown tile character "${this.char(col, row)}" at ${id} ${col},${row}`);
-        const index = tileIndex(REGION, name);
-        const flags = tileFlags(REGION, index);
+        const index = tileIndex(this.region, name);
+        const flags = tileFlags(this.region, index);
         tiles.push(index);
         blocked.push(flags.blocked);
         blocksSight.push(flags.blocksSight);
