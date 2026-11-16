@@ -99,6 +99,17 @@ export class EnemyActor {
   invulnerable = false;
   /** Never moves (control boxes, cab lights). */
   stationary = false;
+  /** Never leaves this area (pixels): walking, knockback and charges are all clamped into it (`FightPlacement.zones`). */
+  leash: { readonly x: number; readonly y: number; readonly width: number; readonly height: number } | null = null;
+  /**
+   * While 'front', a player hit from within 90 degrees either side of `facingDeg` does no damage (`BossRunner.guard`).
+   * Unlike `frontalShieldDeg` it is switched at run time. A stunned body is not guarded.
+   */
+  guardSide: 'front' | null = null;
+  /** Called when a guarded hit is turned away. */
+  onGuarded: ((actor: EnemyActor) => void) | null = null;
+  /** Pinned in place by `BossRunner.pin`: faces Andrew, neither moves nor attacks; can still be hit. */
+  pinned: Vec2 | null = null;
   /** Frozen by a Myko call-in or a scene. */
   frozen = false;
   /** Extra damage taken while dazed (Big Tom after hitting the tractor). */
@@ -211,6 +222,10 @@ export class EnemyActor {
   /** Applies a hit. Shields block from the front unless `pierce` or the actor is stunned. */
   takeHit(hit: HitInfo, from: Vec2, opts: { pierceShield?: boolean } = {}): HitOutcome {
     if (this.down || this.invulnerable) return 'ignored';
+    if (this.guardSide === 'front' && this.status !== 'stunned' && shieldBlocks(180, this.pos, this.facingDeg, from)) {
+      this.onGuarded?.(this);
+      return 'blocked';
+    }
     if (!opts.pierceShield && this.status !== 'stunned' && shieldBlocks(this.stats.frontalShieldDeg, this.pos, this.facingDeg, from)) {
       return 'blocked';
     }
@@ -251,6 +266,18 @@ export class EnemyActor {
     const player = world.playerPosition();
     const dist = distance(this.pos, player);
     const targetable = world.playerTargetable();
+
+    if (this.pinned && this.status !== 'stunned') {
+      // Held at its post: no walking, no attacks; it still turns to face Andrew and can still be hit.
+      this.pos = this.pinned;
+      this.kb = { x: 0, y: 0 };
+      if (this.status !== 'down') {
+        this.current = null;
+        this.status = 'normal';
+      }
+      this.facingDeg = turnToward(this.facingDeg, angleTo(this.pos, player), TUNING.stealth.turnDegPerSecond * (dtMs / 1000) * 2);
+      return;
+    }
 
     switch (this.status) {
       case 'stunned':
@@ -482,6 +509,13 @@ export class EnemyActor {
   }
 
   private moveBy(delta: Vec2, world: CombatWorld): { blocked: boolean } {
+    const res = this.moveByUnleashed(delta, world);
+    const l = this.leash;
+    if (l) this.pos = { x: Math.min(l.x + l.width, Math.max(l.x, this.pos.x)), y: Math.min(l.y + l.height, Math.max(l.y, this.pos.y)) };
+    return res;
+  }
+
+  private moveByUnleashed(delta: Vec2, world: CombatWorld): { blocked: boolean } {
     if (this.stats.flies) {
       const g = world.grid;
       const nx = Math.min(g.widthTiles * 16 - 4, Math.max(4, this.pos.x + delta.x));
