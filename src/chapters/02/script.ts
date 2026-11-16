@@ -9,7 +9,7 @@ import { GameEvents } from '../../core/types';
 import type { SectionId, SpecialSlotIndex, TextId } from '../../core/types';
 import { hidePrompt, openHotDrinkChoice, showPrompt, showSlotPrompt } from '../../ui/prompts';
 import { PROP } from '../../art/props';
-import { BAR_ARRIVAL, BUCKETS_AREA, FARM_DOG, KEY_CLUES, PRACTICE_BUCKETS_AREA, LANE_GATE_COL, LANE_GATE_OPEN_ROW, LANE_GATE_ROW, LANE_GATE_SEAT, MYKO_CHAIR } from './maps';
+import { BAR_ARRIVAL, BUCKETS_AREA, KEY_CLUES, PRACTICE_BUCKETS_AREA, LANE_GATE_COL, LANE_GATE_OPEN_ROW, LANE_GATE_ROW, LANE_GATE_SEAT, MYKO_CHAIR } from './maps';
 
 const OBJ = {
   ring: 'c2.ring',
@@ -52,6 +52,8 @@ const LURCH_MAX_PX = 112;
 const LURCH_PAST_PX = 12;
 /** A solid this close to the line (px, from its centre) blocks the lurch: the lane is 20 wide and the dog is a tile. */
 const LURCH_CLEARANCE_PX = 22;
+/** Half a tile: the dog's tile edge is this much nearer the line than its centre. */
+const TILE_HALF_PX = 8;
 /** No lurch from the yard's east side: the practice stack is there. */
 const LURCH_EAST_LIMIT_PX = 6 * 16;
 
@@ -276,10 +278,10 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     if (d < LURCH_MIN_PX || d > LURCH_MAX_PX) return;
     // Only from the west of the yard (clear of the practice stack and the field fence), and only with a clear line: never a lurch at nothing.
     if (p.x >= LURCH_EAST_LIMIT_PX) return;
-    const gx = (FARM_DOG.col + 0.5) * 16 - p.x;
-    const gy = (FARM_DOG.row + 0.5) * 16 - p.y;
-    const along = Math.max(0, Math.min(1, (gx * dx + gy * dy) / (d * d)));
-    if (Math.hypot(gx - dx * along, gy - dy * along) < LURCH_CLEARANCE_PX) return;
+    // The dog (solid) must not lie across the line: a band about the old dog clearance wide, with the buckets themselves
+    // (which the lurch smashes) counting as clear.
+    const centre = { x: BUCKETS_AREA.x + BUCKETS_AREA.width / 2, y: BUCKETS_AREA.y + BUCKETS_AREA.height / 2 };
+    if (!ctx.lineClear(p, centre, 2 * (LURCH_CLEARANCE_PX - TILE_HALF_PX), { ignoreBreakables: true })) return;
     void stumbleLesson({ angleDeg: (Math.atan2(dy, dx) * 180) / Math.PI, distance: d + LURCH_PAST_PX });
   };
 

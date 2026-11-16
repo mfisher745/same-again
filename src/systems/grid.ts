@@ -214,3 +214,73 @@ export function findPath(
   }
   return null;
 }
+
+/** Shortest distance from point (`px`, `py`) to segment a-b. */
+function pointSegmentDistance(px: number, py: number, a: Vec2, b: Vec2): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / len2));
+  return Math.hypot(px - (a.x + dx * t), py - (a.y + dy * t));
+}
+
+/** Whether segment a-b crosses the axis-aligned box (touching counts). */
+function segmentTouchesBox(a: Vec2, b: Vec2, x0: number, y0: number, x1: number, y1: number): boolean {
+  let tMin = 0;
+  let tMax = 1;
+  for (const [o, d, lo, hi] of [
+    [a.x, b.x - a.x, x0, x1],
+    [a.y, b.y - a.y, y0, y1],
+  ] as const) {
+    if (d === 0) {
+      if (o < lo || o > hi) return false;
+      continue;
+    }
+    let t0 = (lo - o) / d;
+    let t1 = (hi - o) / d;
+    if (t0 > t1) [t0, t1] = [t1, t0];
+    tMin = Math.max(tMin, t0);
+    tMax = Math.min(tMax, t1);
+    if (tMin > tMax) return false;
+  }
+  return true;
+}
+
+/**
+ * Whether a band `width` px wide along segment `from`-`to` (round ends: it also reaches `width / 2` past each end)
+ * touches no tile for which `blocked` is true. A tile just grazed by the band's edge does not count.
+ */
+export function bandClear(from: Vec2, to: Vec2, width: number, blocked: (col: number, row: number) => boolean): boolean {
+  const half = Math.max(0, width / 2);
+  const c0 = Math.floor((Math.min(from.x, to.x) - half) / TILE);
+  const c1 = Math.floor((Math.max(from.x, to.x) + half) / TILE);
+  const r0 = Math.floor((Math.min(from.y, to.y) - half) / TILE);
+  const r1 = Math.floor((Math.max(from.y, to.y) + half) / TILE);
+  for (let r = r0; r <= r1; r++) {
+    for (let c = c0; c <= c1; c++) {
+      if (!blocked(c, r)) continue;
+      const x0 = c * TILE;
+      const y0 = r * TILE;
+      const x1 = x0 + TILE;
+      const y1 = y0 + TILE;
+      if (segmentTouchesBox(from, to, x0, y0, x1, y1)) return false;
+      const corners: readonly Vec2[] = [
+        { x: x0, y: y0 },
+        { x: x1, y: y0 },
+        { x: x0, y: y1 },
+        { x: x1, y: y1 },
+      ];
+      const d = Math.min(
+        ...corners.map((p) => pointSegmentDistance(p.x, p.y, from, to)),
+        pointBoxDistance(from, x0, y0, x1, y1),
+        pointBoxDistance(to, x0, y0, x1, y1),
+      );
+      if (d < half) return false;
+    }
+  }
+  return true;
+}
+
+function pointBoxDistance(p: Vec2, x0: number, y0: number, x1: number, y1: number): number {
+  return Math.hypot(Math.max(x0 - p.x, 0, p.x - x1), Math.max(y0 - p.y, 0, p.y - y1));
+}

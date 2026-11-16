@@ -26,6 +26,9 @@ export type {
   PropPlacement,
   PushPuzzlePlacement,
   SheepPuzzlePlacement,
+  SlidePuzzlePlacement,
+  SlideRail,
+  SweepHazardOptions,
   ScreenAmbient,
   ScreenDressing,
   ScreenLayout,
@@ -57,6 +60,7 @@ export { Myko, evaluateCall } from './myko';
 export { Player } from './player';
 export { PushPuzzle, cardinalOf } from './puzzles';
 export { SheepPuzzle } from './sheep';
+export { SlidePuzzle, slotOrigin } from './slide';
 export type { SheepPuzzleLayout, SheepGateDef, LiveSheep, TileRect } from './sheep';
 export type { PushPuzzleLayout, PushPiece } from './puzzles';
 export { CompletableSection, ScriptedCompletable } from './sections';
