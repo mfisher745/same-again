@@ -291,6 +291,7 @@ export const COMMON: DialogueFile = {
     'drink.lager.name': 'Can of lager',
     'drink.lager.pickup': 'Can of lager. Buzz +10. Warm. It was always going to be warm.',
     'drink.lightBeer.name': 'American light beer',
+    'drink.lightBeer.short': 'Light beer',
     'drink.lightBeer.pickup': 'American light beer. Buzz +2. Andrew isn’t angry. He’s just disappointed.',
     'drink.craftIpa.name': 'Craft IPA',
     'drink.craftIpa.pickup': 'Craft IPA. Buzz +20. The can has a paragraph on it.',
