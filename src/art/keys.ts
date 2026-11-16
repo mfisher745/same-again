@@ -125,7 +125,8 @@ export const fx = {
   bale: 'bale',
   fire: ['fire.0', 'fire.1', 'fire.2'],
   stunRing: ['stun.0', 'stun.1'],
-  smokePuff: ['puff.0', 'puff.1', 'puff.2'],
+  /** Myko's standing-still smoke: a looping, churning cloud (playtest 6: more than one oval). */
+  smokePuff: ['puff.0', 'puff.1', 'puff.2', 'puff.3', 'puff.4', 'puff.5'],
   shadow: 'shadow',
   groundMarker: 'marker',
   pickupGlint: ['glint.0', 'glint.1'],

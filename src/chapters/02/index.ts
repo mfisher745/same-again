@@ -95,7 +95,7 @@ export const chapter2: ChapterModule = {
   screens: [bogScreen(), farmScreen(), laneScreen()],
   pickups: [{ id: 'c2.pickup.whiskey', item: { kind: 'drink', drinkId: 'whiskey', count: 1 }, screenId: 'c2.farm', position: T(17, 2), commentDialogueId: 'c2.shed.whiskey' }],
   examinables: [
-    { id: 'c2.flask', screenId: 'c2.bog', position: FLASK_SPOT },
+    { id: 'c2.flask', screenId: 'c2.bog', position: FLASK_SPOT, objective: true },
     { id: 'c2.ring', screenId: 'c2.bog', position: CLUE_SPOTS.ring, objective: true, faint: true },
     { id: 'c2.fragment', screenId: 'c2.bog', position: CLUE_SPOTS.fragment, objective: true, faint: true },
     { id: 'c2.tracks', screenId: 'c2.bog', position: CLUE_SPOTS.tracks, objective: true, faint: true },

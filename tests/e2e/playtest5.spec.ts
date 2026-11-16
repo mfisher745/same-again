@@ -182,7 +182,7 @@ test('no drinking before the first pint: Q and G refuse and the items stay', asy
     await page.keyboard.press(key);
     await page.waitForTimeout(250);
     await shot(page, `refusal-${key}`);
-    expect((await visibleTexts(page)).some((t) => t.text.includes('Not yet. The first one is')), `refusal text for ${key}`).toBe(true);
+    expect((await visibleTexts(page)).some((t) => t.text.includes('Not yet. Dympna pours')), `refusal text for ${key}`).toBe(true);
     await page.waitForTimeout(2500);
   }
   expect(JSON.stringify(await run(page, (r) => r.player.kit))).toBe(before);

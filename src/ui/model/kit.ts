@@ -6,7 +6,7 @@
  */
 
 import type { CarriedDrinkId, HotDrinkId, Kit, MoveId, SpecialLevel, SpecialSlotIndex, TextId, WeaponId } from '../../core/types';
-import { CARRIED_DRINK_ORDER, WEAPON_ORDER, carriedCount, isSpirit } from '../../systems/kit';
+import { CARRIED_DRINK_ORDER, WEAPON_ORDER, beerCount, isSpirit, spiritCount, spiritLimit } from '../../systems/kit';
 import { overhaulTuning } from '../../systems/meter';
 import type { UiStateSource } from '../contract';
 
@@ -49,8 +49,10 @@ export interface KitView {
   readonly weapons: readonly Extract<KitItem, { kind: 'weapon' }>[];
   readonly moves: readonly Extract<KitItem, { kind: 'move' }>[];
   readonly bottles: number;
-  /** Drinks carried against the carry limit. */
+  /** Beers carried against the beer limit. */
   readonly places: { readonly n: number; readonly max: number };
+  /** Spirits carried against the spirit limit. */
+  readonly spiritPlaces: { readonly n: number; readonly max: number };
   /** Everything selectable, in the order the lists are drawn. */
   readonly items: readonly KitItem[];
 }
@@ -71,7 +73,8 @@ export function buildKitView(kit: Kit): KitView {
     weapons,
     moves: learned,
     bottles: kit.bottles,
-    places: { n: carriedCount(kit), max: kit.carryLimit },
+    places: { n: beerCount(kit), max: kit.carryLimit },
+    spiritPlaces: { n: spiritCount(kit), max: spiritLimit() },
     items: [...drinks, ...hot, ...weapons, ...learned],
   };
 }

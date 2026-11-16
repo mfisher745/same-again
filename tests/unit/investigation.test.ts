@@ -259,10 +259,12 @@ describe('push puzzle rules', () => {
 
 function solvable(layout: PushPuzzleLayout, grid: TileGrid, playerStart: TileCoord): boolean {
   const key = (pieces: TileCoord[], player: TileCoord) => `${pieces.map((p) => `${p.col},${p.row}`).sort().join(';')}|${player.col},${player.row}`;
+  const goal = layout.goal;
+  if (goal.kind === 'reach') throw new Error('solvable() checks clear and cover goals; chapter1.test.ts searches the reach goal');
   const goalMet = (pieces: TileCoord[]) =>
-    layout.goal.kind === 'clear'
-      ? layout.goal.cells.every((c) => !pieces.some((p) => p.col === c.col && p.row === c.row))
-      : layout.goal.cells.every((c) => pieces.some((p) => p.col === c.col && p.row === c.row));
+    goal.kind === 'clear'
+      ? goal.cells.every((c) => !pieces.some((p) => p.col === c.col && p.row === c.row))
+      : goal.cells.every((c) => pieces.some((p) => p.col === c.col && p.row === c.row));
   const inArea = (c: number, r: number) => c >= layout.area.col && r >= layout.area.row && c < layout.area.col + layout.area.width && r < layout.area.row + layout.area.height;
   const D = [[0, -1], [0, 1], [-1, 0], [1, 0]] as const;
   const fixed = (c: number, r: number) => layout.fixed.some((f) => f.col === c && f.row === r);

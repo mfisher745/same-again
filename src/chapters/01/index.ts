@@ -6,7 +6,21 @@ import { hasSequence } from '../../content/dialogue';
 import type { ChapterModule } from '../../core/chapter';
 import type { ChapterDef, ObjectiveDef } from '../../core/types';
 import { createChapterScript } from './script';
-import { HURLEY_TILE, KEG_AREA, PUB_ARRIVAL, T, URN_SPOT, kegTile, pubScreen, roadScreen, streetScreen, tilesArea, yardScreen } from './maps';
+import {
+  HURLEY_TILE,
+  KEG_AREA,
+  PUB_ARRIVAL,
+  T,
+  URN_SPOT,
+  YARD_GATE_FRONT,
+  YARD_PATH_MOUTH,
+  kegTile,
+  pubScreen,
+  roadScreen,
+  streetScreen,
+  tilesArea,
+  yardScreen,
+} from './maps';
 
 const objective = (key: string, id: string): ObjectiveDef => ({
   id,
@@ -120,18 +134,26 @@ export const chapter1: ChapterModule = {
       screenId: 'c1.yard',
       pieceKind: 'keg',
       layout: {
+        // Playtest 6. The walled path to the gate, three tiles wide. Three kegs stand across its yard end and three
+        // crates are stacked on it for good; kegs never leave the path. Solved when Andrew can walk to the gate.
+        //   col 12 13 14 15 16 17
+        //   r6   1  .  .  #  .  =
+        //   r7   2  3  .  .  .  ·  gate
+        //   r8   .  #  #  .  .  =
         area: KEG_AREA,
-        // Two kegs sit in the lane to the gate; the crate beside the gate-side keg cannot be moved.
         pieces: [
-          { id: 'keg1', ...k(4, 2) },
-          { id: 'keg2', ...k(5, 2) },
+          { id: 'keg1', ...k(0, 0) },
+          { id: 'keg2', ...k(0, 1) },
+          { id: 'keg3', ...k(1, 1) },
         ],
-        fixed: [k(5, 3)],
-        goal: { kind: 'clear', cells: [k(5, 2), k(4, 2), k(3, 2)] },
-        // Four pushes: keg1 up, keg1 left, keg2 left, keg2 up.
+        fixed: [k(3, 0), k(1, 2), k(2, 2)],
+        goal: { kind: 'reach', from: YARD_PATH_MOUTH, to: YARD_GATE_FRONT },
+        // Six pushes: keg1 right, keg2 up, keg3 right three times to the end of the path, keg3 up into the corner.
+        // The search in tests/unit/chapter1.test.ts finds no position it cannot be solved from.
         solution: [
-          { id: 'keg1', ...k(3, 1) },
-          { id: 'keg2', ...k(4, 1) },
+          { id: 'keg1', ...k(1, 0) },
+          { id: 'keg2', ...k(0, 0) },
+          { id: 'keg3', ...k(4, 0) },
         ],
       },
     },

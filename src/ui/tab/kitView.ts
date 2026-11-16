@@ -98,6 +98,7 @@ export class KitView {
   private readonly moveRows: Row[] = [];
   private readonly slotBoxes: SlotBox[] = [];
   private readonly places: Label;
+  private readonly spiritPlaces: Label;
   private readonly beersNone: Label;
   private readonly spiritsNone: Label;
   private readonly hotNone: Label;
@@ -130,6 +131,7 @@ export class KitView {
     this.beersNone = L.label(COL1.x, y, '', 'steel');
     y += 4 * ROW + 3;
     L.label(COL1.x, y, text('ui.kit.spirits'), 'slate');
+    this.spiritPlaces = L.label(COL1.x + COL1.width, y, '', 'slate', { anchor: 'right' });
     y += SUB;
     for (let i = 0; i < 2; i++) this.spiritRows.push(this.makeRow(L, COL1.x, y + i * ROW, COL1.width));
     this.spiritsNone = L.label(COL1.x, y, '', 'steel');
@@ -271,6 +273,8 @@ export class KitView {
     if (this.cursorKey === null && this.current[0] !== undefined) this.cursorKey = itemKey(this.current[0]);
     setLabelText(this.places, format('ui.kit.places', { n: v.places.n, max: v.places.max }));
     setLabelColour(this.places, v.places.n >= v.places.max ? 'alarm' : 'slate');
+    setLabelText(this.spiritPlaces, format('ui.kit.places', { n: v.spiritPlaces.n, max: v.spiritPlaces.max }));
+    setLabelColour(this.spiritPlaces, v.spiritPlaces.n >= v.spiritPlaces.max ? 'alarm' : 'slate');
     this.beerRows.forEach((r, i) => {
       const item = v.beers[i] ?? null;
       this.paintRow(r, kit, item, item === null ? '' : `×${item.count}`);

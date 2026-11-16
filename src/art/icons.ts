@@ -476,6 +476,48 @@ export function iconSheet(): Sheet {
   return sheet.build();
 }
 
+/** Lobes of Myko's smoke: centre and radius in a 16x16 cell, and how far each rolls round over the loop. */
+const PUFF_LOBES: readonly (readonly [x: number, y: number, r: number, roll: number])[] = [
+  [8, 10.5, 3.6, 0.6],
+  [4.8, 9.5, 2.8, 0.9],
+  [11.4, 9.2, 2.9, 0.8],
+  [6.6, 6.6, 2.9, 1],
+  [10, 6.2, 2.4, 1.1],
+  [8.2, 4, 1.7, 0.8],
+];
+
+/** One frame of the standing-still smoke. Each lobe circles on its own phase, so the outline changes but the mass does not. */
+export function drawSmokePuff(b: PixelBuffer, frame: number, frames: number): void {
+  const phase = (frame / frames) * Math.PI * 2;
+  const lobes = PUFF_LOBES.map(([x, y, r, roll], k) => {
+    const a = phase + k * 1.7;
+    return { x: x + Math.cos(a) * roll, y: y + Math.sin(a) * roll * 0.6, r: r + Math.sin(a * 2) * 0.25 };
+  });
+  const inLobe = (px: number, py: number, dy = 0): boolean => lobes.some((l) => (px + 0.5 - l.x) ** 2 + (py + 0.5 - l.y - dy) ** 2 <= l.r * l.r);
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      if (!inLobe(x, y)) continue;
+      // Underside: the pixel just above is outside a lobe shifted down, i.e. it is the bottom edge of the mass.
+      const under = !inLobe(x, y + 1) || !inLobe(x, y, -1.2);
+      // Top: open air above it, lit from the upper left.
+      const top = !inLobe(x, y - 1);
+      b.set(x, y, under ? 'steel' : top && x < 10 ? 'white' : 'fog');
+    }
+  }
+  // Seams between the lobes: a darker fleck where two lobes overlap near their edges.
+  for (const l of lobes.slice(1, 4)) {
+    const sx = Math.round(l.x + l.r * 0.5);
+    const sy = Math.round(l.y + l.r * 0.6);
+    if (inLobe(sx, sy) && inLobe(sx, sy + 1)) b.set(sx, sy, 'steel');
+  }
+  // The wisp: three or four pixels curling up off the top, swaying with the loop.
+  for (let k = 0; k < 4; k++) {
+    const wy = 3 - k;
+    const wx = Math.round(8 + Math.sin(phase + k * 0.9) * 1.5 + k * 0.4);
+    if (wy >= 0 && !inLobe(wx, wy)) b.set(wx, wy, k === 3 ? 'steel' : 'fog');
+  }
+}
+
 export function fxSheet(): Sheet {
   const sheet = new SheetBuilder(TEX.fx, 16, 16, 8);
   sheet.cell(fx.bottle, outlined((b) => void b.rect(6, 4, 3, 7, 'moss').rect(7, 2, 1, 2, 'mossDark').vline(6, 5, 5, 'grass')));
@@ -504,8 +546,9 @@ export function fxSheet(): Sheet {
       b.ellipse(1 + i, 1 + i, 14 - i * 2, 14 - i * 2, c).ellipse(3 + i, 3 + i, 10 - i * 2, 10 - i * 2, null);
     }),
   );
-  // A 16x16 cell, filled by the last frame: the puff grows from 8x8 to 16x12 as it rises.
-  fx.smokePuff.forEach((name, i) => sheet.cell(name, (b) => void b.ellipse(4 - i * 2, 6 - i * 3, 8 + i * 4, 8 + i * 2, i === 2 ? 'steel' : 'fog')));
+  // Myko's smoke, a 16x16 loop: a lumpy cloud whose lobes roll round, a shaded underside, a lit top and a thin
+  // wisp curling off it. The cloud keeps its size; it churns instead of pulsing.
+  fx.smokePuff.forEach((name, i) => sheet.cell(name, (b) => drawSmokePuff(b, i, fx.smokePuff.length)));
   sheet.cell(fx.shadow, (b) => void b.ellipse(2, 10, 12, 5, 'ink'));
   sheet.cell(fx.groundMarker, (b) => {
     b.ellipse(0, 0, 16, 16, 'alarm').ellipse(1, 1, 14, 14, null);

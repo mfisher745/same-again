@@ -491,10 +491,11 @@ describe('Kit tab model', () => {
     return s;
   };
 
-  it('lists drinks against the carry limit, the hot drink, weapons in order and moves by level', () => {
+  it('lists beers and spirits against their own limits, the hot drink, weapons in order and moves by level', () => {
     const v = buildKitView(richKit().kit());
     expect(v.drinks.map((d) => [d.id, d.count])).toEqual([['stout', 2], ['whiskey', 1]]);
-    expect(v.places).toEqual({ n: 3, max: 6 });
+    expect(v.places).toEqual({ n: 2, max: 6 });
+    expect(v.spiritPlaces).toEqual({ n: 1, max: 2 });
     expect(v.hot).toBe('tea');
     expect(v.bottles).toBe(3);
     expect(v.weapons.map((w) => w.id)).toEqual(['fists', 'hurley']);

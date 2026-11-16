@@ -24,6 +24,7 @@ import type {
 /** Why the kit said no. The UI maps each code to a text id. */
 export type KitRefusal =
   | 'carryFull'
+  | 'spiritsFull'
   | 'hotDrinkHeld'
   | 'notHeld'
   | 'notConsumable'
@@ -33,7 +34,7 @@ export type KitRefusal =
   | 'unchanged'
   | 'unknown';
 
-/** Every drink that counts toward the carry limit, in cycle order. */
+/** Every carried drink (beers, then spirits), in cycle order. Beers count toward `carryLimit`, spirits toward `carry.spiritLimit`. */
 export const CARRIED_DRINK_ORDER: readonly CarriedDrinkId[] = ['stout', 'lager', 'lightBeer', 'craftIpa', 'whiskey', 'tequila'];
 
 /** Beers, in cycle order: the drink slot's own category. */
@@ -97,7 +98,7 @@ export function createKit(tuning?: OverhaulTuning): Kit {
   };
 }
 
-/** Drinks carried, counting toward the limit (not the hot drink, not bottles). */
+/** Beers and spirits carried (not the hot drink, not bottles). Each kind has its own limit: see `isFull`, `spiritsFull`. */
 export function carriedCount(kit: Kit): number {
   let n = 0;
   for (const id of CARRIED_DRINK_ORDER) n += kit.drinks[id] ?? 0;
@@ -106,7 +107,17 @@ export function carriedCount(kit: Kit): number {
 
 export const drinkCount = (kit: Kit, id: CarriedDrinkId): number => kit.drinks[id] ?? 0;
 
-export const isFull = (kit: Kit): boolean => carriedCount(kit) >= kit.carryLimit;
+/** Spirits carried, against `carry.spiritLimit`. */
+export const spiritCount = (kit: Kit): number => SPIRIT_ORDER.reduce((n, id) => n + drinkCount(kit, id), 0);
+
+/** The most spirits Andrew carries (2). Playtest 6: beers and spirits have separate limits. */
+export const spiritLimit = (tuning?: OverhaulTuning): number => t(tuning).carry.spiritLimit;
+
+/** No room for another beer: `carryLimit` (6) counts beers only. */
+export const isFull = (kit: Kit): boolean => beerCount(kit) >= kit.carryLimit;
+
+/** No room for another spirit. */
+export const spiritsFull = (kit: Kit, tuning?: OverhaulTuning): boolean => spiritCount(kit) >= spiritLimit(tuning);
 
 /** True when Andrew holds the drink: a count above 0, or the hot drink itself. */
 export function holds(kit: Kit, id: OverhaulDrinkId): boolean {
@@ -157,15 +168,17 @@ function settleSlots(kit: Kit): Kit {
 }
 
 /**
- * Pick up a drink. A carried drink is refused when the kit is full; a hot drink
- * is refused when one is already held. The pickup stays where it is on refusal.
+ * Pick up a drink. A beer is refused when Andrew has his six beers (`carryFull`), a spirit when he has his two
+ * spirits (`spiritsFull`), a hot drink when one is already held. The pickup stays where it is on refusal.
  * The first drink picked up goes into an empty drink slot.
  */
-export function pickUpDrink(kit: Kit, id: OverhaulDrinkId): KitChange {
+export function pickUpDrink(kit: Kit, id: OverhaulDrinkId, tuning?: OverhaulTuning): KitChange {
   if (id === 'coffee' || id === 'tea') {
     return takeHotDrink(kit, id);
   }
-  if (isFull(kit)) return refuse(kit, 'carryFull');
+  if (isSpirit(id)) {
+    if (spiritsFull(kit, tuning)) return refuse(kit, 'spiritsFull');
+  } else if (isFull(kit)) return refuse(kit, 'carryFull');
   const next: Kit = { ...kit, drinks: { ...kit.drinks, [id]: drinkCount(kit, id) + 1 } };
   return ok(settleSlots(next));
 }
@@ -346,7 +359,7 @@ export function topUpBeers(kit: Kit, beer: BeerId, tuning?: OverhaulTuning): Kit
   const min = t(tuning).carry.minBeersOnLeavingBar;
   let next = kit;
   while (beerCount(next) < min) {
-    const r = pickUpDrink(next, beer);
+    const r = pickUpDrink(next, beer, tuning);
     if (!r.changed) break;
     next = r.kit;
   }

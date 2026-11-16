@@ -307,7 +307,9 @@ export const COMMON: DialogueFile = {
     'drink.bottle.desc': 'Empty. Hold right click to aim, let go to throw. One only. Two would be a habit.',
 
     // Pickups
-    'pickup.refused.kitFull': 'The anorak holds {max}. He has counted the pockets.',
+    'pickup.refused.kitFull': 'The anorak holds {max} beers. He has counted the pockets.',
+    // Playtest 6: spirits have their own limit, apart from the beers.
+    'pickup.refused.spiritsFull': 'He has {max} spirits on him already. The inside pocket is for emergencies.',
     'pickup.refused.hotDrinkHeld': 'He has one already. It is still warm.',
     'pickup.bottles': 'Bottles +{n}.',
 
@@ -317,7 +319,7 @@ export const COMMON: DialogueFile = {
     'ui.use.notADrink': 'He considers drinking it. No.',
     'ui.use.nothing': 'Nothing picked. Tab for the kit.',
     // Chapter 1, before Dympna's first pint (the meter is still hidden): Q, G and the wheel refuse. Playtest 5.
-    'ui.use.notYet': 'Not yet. The first one is Dympna’s.',
+    'ui.use.notYet': 'Not yet. Dympna pours the first one. Talk to her: E at the bar.',
     'ui.spirit.none': 'No spirits. He pats the pocket anyway.',
     'ui.move.dark': 'He’d want a few more in him for that one.',
     'ui.move.cooldown': 'Not yet.',

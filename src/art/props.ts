@@ -36,6 +36,8 @@ export const PROP = {
   telly: 'telly',
   tractor: 'tractor',
   churchGate: 'churchGate',
+  /** Playtest 6: the keg yard's stuck gate, a boarded wooden gate filling the one-tile gateway. */
+  yardGate: 'yardGate',
   chipperSign: 'chipperSign',
   bookiesSign: 'bookiesSign',
   pubSign: 'pubSign',
@@ -68,6 +70,8 @@ export const PROP = {
   docket: 'docket',
   // Overhaul: the bar's hot drinks (DESIGN.md 7.1).
   hotDrinkUrn: 'hotDrinkUrn',
+  /** Playtest 6: steam over a bar's urn or flask while its free hot drink can be taken. Three frames, looping. */
+  steam: ['steam.0', 'steam.1', 'steam.2'],
   flask: 'flask',
   kettle: 'kettle',
   coffeePot: 'coffeePot',
@@ -542,6 +546,28 @@ export function propsSheet(): Sheet {
     for (let x = 8; x < 25; x += 3) b.rect(x, 9, 1, 21, 'coal').set(x, 8, 'fog');
     b.hline(6, 12, 20, 'coal').hline(6, 26, 20, 'coal');
     b.rect(15, 1, 2, 6, 'fog').rect(13, 3, 6, 1, 'fog');
+  }));
+  // Steam off the urn or the flask: two thin wisps rising and leaning, low in the cell so it sits on the lid.
+  PROP.steam.forEach((name, i) => {
+    atlas.add(name, 16, 16, (b) => {
+      for (let k = 0; k < 2; k++) {
+        const x0 = 6 + k * 4;
+        for (let y = 15; y >= 5; y--) {
+          const x = Math.round(x0 + Math.sin((y + i * 3 + k * 5) * 0.7) * 1.2);
+          if ((y + i + k) % 5 === 0) continue;
+          b.set(x, y, y < 9 ? 'fog' : 'white');
+        }
+      }
+    });
+  });
+  // The keg yard gate: boards top to bottom, two rails and a brace, a steel bolt shot across. It fills the gateway.
+  atlas.add(PROP.yardGate, 16, 16, outlined((b) => {
+    b.rect(1, 0, 14, 16, 'peat');
+    for (let x = 4; x < 15; x += 3) b.vline(x, 0, 16, 'turfDark');
+    b.rect(1, 2, 14, 2, 'turf').rect(1, 12, 14, 2, 'turf').line(2, 11, 13, 4, 'turf');
+    b.hline(1, 2, 14, 'tan').hline(1, 12, 14, 'tan');
+    b.rect(5, 7, 8, 2, 'steel').rect(11, 6, 2, 4, 'fog').set(5, 7, 'fog');
+    b.rect(1, 1, 2, 4, 'coal').rect(1, 11, 2, 4, 'coal');
   }));
   const sign = (name: string, base: 'amberLight' | 'grass' | 'brick', accent: 'alarm' | 'white' | 'amberLight'): void => {
     atlas.add(name, 32, 16, outlined((b) => {

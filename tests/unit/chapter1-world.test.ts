@@ -39,7 +39,7 @@ describe('the keg puzzle through a return to the bar', () => {
     const { run } = await inYard();
     const p = kegs(run);
     const start = at(p.piecePositions());
-    expect(p.push({ col: 4 + 11, row: 2 + 5 }, 'up')).toBe(true); // keg1 up (yard area origin col 11, row 5)
+    expect(p.push({ col: 12, row: 6 }, 'right')).toBe(true); // keg1 right
     const moved = at(p.piecePositions());
     expect(moved).not.toEqual(start);
     await returnToBar(run);
@@ -80,7 +80,7 @@ describe('the keg puzzle through a return to the bar', () => {
   it('a half-finished puzzle resets on a load (puzzle state is not saved)', async () => {
     const { run, store } = await inYard();
     const start = at(kegs(run).piecePositions());
-    kegs(run).push({ col: 15, row: 7 }, 'up');
+    kegs(run).push({ col: 12, row: 6 }, 'right');
     expect(at(kegs(run).piecePositions())).not.toEqual(start);
     run.learnMove('shoulder'); // writes a save
     const loaded = startChapterGame(chapter1, 'continue', store);
@@ -113,36 +113,41 @@ describe('the keg puzzle by walking', () => {
   };
 
   /** Stands on `from` (which must be reachable), holds `dir` for a second, and returns where the pieces are. */
-  const pushBy = (run: ChapterRun, from: { col: number; row: number }, dir: 'up' | 'left'): void => {
+  const pushBy = (run: ChapterRun, from: { col: number; row: number }, dir: 'up' | 'left' | 'right'): void => {
     expect(reachable(run, from), `can walk to ${from.col},${from.row}`).toBe(true);
     placeAt(run, from.col, from.row);
-    const move = dir === 'up' ? { x: 0, y: -1 } : { x: -1, y: 0 };
+    const move = dir === 'up' ? { x: 0, y: -1 } : dir === 'left' ? { x: -1, y: 0 } : { x: 1, y: 0 };
     const before = JSON.stringify(kegs(run).piecePositions());
     // Hold until the keg has moved one tile, then let go, so a second push cannot follow.
     for (let i = 0; i < 120 && JSON.stringify(kegs(run).piecePositions()) === before; i++) run.tick(16, frame({ move }));
     for (let i = 0; i < 30; i++) run.tick(16, NO_INPUT);
   };
 
-  it('is solved by walking: keg1 up, keg1 left, keg2 left (from the tile east of it), keg2 up', async () => {
+  it('is solved by walking: keg1 right, keg2 up, keg3 right to the end of the path, keg3 up into the corner', async () => {
     const { run } = await inYard();
     const p = kegs(run);
     const start = p.piecePositions();
-    expect(start.map((k) => `${k.id}@${k.col},${k.row}`)).toEqual(['keg1@15,7', 'keg2@16,7']);
-    pushBy(run, { col: 15, row: 8 }, 'up');
-    expect(at(p.piecePositions())).toContain('keg1@15,6');
-    pushBy(run, { col: 16, row: 6 }, 'left');
-    expect(at(p.piecePositions())).toContain('keg1@14,6');
-    pushBy(run, { col: 17, row: 7 }, 'left');
-    expect(at(p.piecePositions())).toContain('keg2@15,7');
-    pushBy(run, { col: 15, row: 8 }, 'up');
-    expect(p.piecePositions().map((k) => `${k.id}@${k.col},${k.row}`)).toEqual(['keg1@14,6', 'keg2@15,6']);
+    expect(start.map((k) => `${k.id}@${k.col},${k.row}`)).toEqual(['keg1@12,6', 'keg2@12,7', 'keg3@13,7']);
+    pushBy(run, { col: 11, row: 6 }, 'right');
+    expect(at(p.piecePositions())).toContain('keg1@13,6');
+    pushBy(run, { col: 12, row: 8 }, 'up');
+    expect(at(p.piecePositions())).toContain('keg2@12,6');
+    pushBy(run, { col: 12, row: 7 }, 'right');
+    pushBy(run, { col: 13, row: 7 }, 'right');
+    pushBy(run, { col: 14, row: 7 }, 'right');
+    expect(at(p.piecePositions())).toContain('keg3@16,7');
+    expect(p.isComplete()).toBe(false); // the last keg is on the gate's step
+    pushBy(run, { col: 16, row: 8 }, 'up');
+    expect(p.piecePositions().map((k) => `${k.id}@${k.col},${k.row}`)).toEqual(['keg1@13,6', 'keg2@12,6', 'keg3@16,6']);
     expect(p.isComplete()).toBe(true);
+    expect(reachable(run, { col: 17, row: 7 })).toBe(true);
   });
 
-  it('the tile east of keg2 can be reached from the yard while the gate is shut', async () => {
+  it('the kegs close the path: the gate step cannot be reached until they are moved, and the gateway is shut', async () => {
     const { run } = await inYard();
-    expect(reachable(run, { col: 17, row: 7 })).toBe(true);
-    expect(run.grid.blocked[7 * run.grid.widthTiles + 18]).toBe(true); // the gateway itself is still shut
+    expect(reachable(run, { col: 17, row: 7 })).toBe(false);
+    expect(reachable(run, { col: 11, row: 7 })).toBe(true);
+    expect(run.grid.blocked[7 * run.grid.widthTiles + 18]).toBe(true); // the gateway itself is shut
   });
 });
 
@@ -153,9 +158,9 @@ describe('the Shoulder on the stuck yard gate', () => {
     await settleDialogue(run);
     expect(run.player.kit.moves).toContain('shoulder');
     expect(run.isComplete('c1.explore.yard')).toBe(false);
-    // Below the gate prop (cols 17 and 18, row 7), facing it.
-    placeAt(run, 17, 9);
-    const aim = { x: 17 * 16 + 8, y: 6 * 16 };
+    // On the path, past where the kegs were, facing the gate in the gateway (18, 7).
+    placeAt(run, 16, 7);
+    const aim = { x: 18 * 16 + 8, y: 7 * 16 + 8 };
     run.tick(16, frame({ aim }));
     run.tick(16, frame({ pressed: ['special1'], aim }));
     await settleDialogue(run);

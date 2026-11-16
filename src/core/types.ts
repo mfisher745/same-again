@@ -426,9 +426,9 @@ export type PickupItem =
 
 /**
  * Why a pickup stayed on the ground. DESIGN.md section 7.1 "The kit". The text
- * is `pickup.refused.<reason>`; `kitFull` takes `{max}`.
+ * is `pickup.refused.<reason>`; `kitFull` and `spiritsFull` take `{max}`.
  */
-export type PickupRefusal = 'kitFull' | 'hotDrinkHeld';
+export type PickupRefusal = 'kitFull' | 'spiritsFull' | 'hotDrinkHeld';
 
 /** A pickup placed in a level. DESIGN.md section 7.1. */
 export interface PickupDef {
@@ -1513,6 +1513,8 @@ export interface UiTuning {
   readonly revealMs: number;
   /** How long a refusal ("Not yet.") stays on screen. */
   readonly refusalMs: number;
+  /** How long the refusal to drink before the first pint stays up (it says what to do). Playtest 6. */
+  readonly notYetMs: number;
   /** The flat-colour look under `lowWarningBelow`: 0..1 desaturation reached at 0 Buzz. */
   readonly flatAtZero: number;
   /** Throw preview dots: the last dot's alpha (the first is 1). */
@@ -2049,7 +2051,7 @@ export interface KitSlots {
 
 /** What Andrew carries. Carries over between chapters; Buzz does not. DESIGN.md 7.1. */
 export interface Kit {
-  /** Count per carried drink. The sum may not exceed `carryLimit`. */
+  /** Count per carried drink. Beers may not exceed `carryLimit`; spirits may not exceed `carry.spiritLimit`. */
   readonly drinks: Readonly<Partial<Record<CarriedDrinkId, number>>>;
   /** Most drinks carried at once (starting number 6). Hot drink and bottles do not count. */
   readonly carryLimit: number;
@@ -2147,8 +2149,10 @@ export interface SunTuning {
 
 /** Carry rules. DESIGN.md 7.1 "The kit". */
 export interface CarryTuning {
-  /** Drinks at most (6). */
+  /** Beers at most (6). Spirits have their own limit; the hot drink and bottles have theirs. */
   readonly limit: number;
+  /** Spirits (whiskey, tequila) at most (2). Playtest 6. */
+  readonly spiritLimit: number;
   /** Hot drinks at most (1). */
   readonly hotDrinkLimit: number;
   /** Bottles Andrew has on leaving the bar, at least (2). */

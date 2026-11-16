@@ -234,7 +234,10 @@ export class HudScene extends Phaser.Scene {
           this.time.delayedCall(FALLBACK_PROMPT_MS, () => this.prompts.hide('ui.prompt.spirit'));
         }
       }),
-      bus.on(GameEvents.KitUseRefused, ({ textId }) => this.setNotice(this.refusalNotice, text(textId), uiTuning().refusalMs)),
+      // The "not yet" refusal before the first pint explains what to do, so it stays up longer than a plain refusal.
+      bus.on(GameEvents.KitUseRefused, ({ textId, reason }) =>
+        this.setNotice(this.refusalNotice, text(textId), reason === 'meterHidden' ? uiTuning().notYetMs : uiTuning().refusalMs),
+      ),
       // A clue went in the casebook. The first one stays up until Tab opens; later ones are a short flash.
       // Prompts stack above the dialogue box, so neither covers a line being said.
       bus.on(GameEvents.EvidenceFound, ({ first }) => {

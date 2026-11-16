@@ -102,7 +102,7 @@ import { FightRunner } from './fight';
 import { add, angleFromFacing, distance, fromAngle, normalize, rectContains, scale } from './geometry';
 import { TILE, isShade, moveBox, tileOf } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
-import { assignMove, assignWeapon, clampBottles, cycleDrink, gainWeapon, learnMove, selectItem, topUpForLeaving, useSelected, useSpirit } from './kit';
+import { assignMove, assignWeapon, clampBottles, cycleDrink, gainWeapon, learnMove, selectItem, spiritLimit, topUpForLeaving, useSelected, useSpirit } from './kit';
 import { GlintTracker } from './glint';
 import type { ObjectiveMark } from './glint';
 import { takeItem } from './pickups';
@@ -2037,7 +2037,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   private refuse(id: PickupId, reason: PickupRefusal): void {
     this.refusedNear.add(id);
-    this.bus.emit(GameEvents.PickupRefused, { pickupId: id, reason, max: this.player.kit.carryLimit });
+    const max = reason === 'spiritsFull' ? spiritLimit() : this.player.kit.carryLimit;
+    this.bus.emit(GameEvents.PickupRefused, { pickupId: id, reason, max });
   }
 
   private collect(live: LivePickup, taken: PickupItem, leftover: PickupItem | null): void {

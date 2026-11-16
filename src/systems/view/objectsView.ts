@@ -18,8 +18,13 @@ import type { ChapterRun } from '../run';
 
 /** Presentation timings (not balance). */
 const GLINT_FPS = 2;
-const PUFF_FPS = 1.5;
+/** Myko's smoke: six frames churning at this rate, fading in when he stops and out when he moves. */
+const PUFF_FPS = 4;
 const PUFF_FADE_MS = 600;
+const PUFF_FADE_IN_MS = 500;
+/** It drifts up and back by this many pixels, once every `PUFF_DRIFT_MS`. */
+const PUFF_DRIFT_PX = 1.5;
+const PUFF_DRIFT_MS = 3200;
 const PICKUP_BOB_PX = 1;
 const FLOOR_DEPTH = -900;
 /** A sheep's position is the centre of its 16px sprite; its feet are half that lower (depth sorts by feet). */
@@ -57,6 +62,8 @@ export class ObjectsView {
   private examineIcon: Phaser.GameObjects.Image | null = null;
   private puff: Phaser.GameObjects.Sprite | null = null;
   private puffFadeMs = 0;
+  private puffInMs = 0;
+  private puffClock = 0;
   private screenId = '';
 
   constructor(
@@ -127,8 +134,9 @@ export class ObjectsView {
     this.screenId = this.run.screenId;
     const props = this.scene.textures.exists(PROPS_KEY);
     for (const { placement } of this.run.pushPuzzlesHere()) {
-      // A faint floor mark on the cells the pieces must clear or fill.
-      for (const c of placement.layout.goal.cells) this.floor.fillStyle(PALETTE.ink, 0.18).fillRect(c.col * TILE + 2, c.row * TILE + 2, TILE - 4, TILE - 4);
+      // A faint floor mark on the cells the pieces must clear or fill, or on where Andrew must get to.
+      const goal = placement.layout.goal;
+      for (const c of goal.kind === 'reach' ? [goal.to] : goal.cells) this.floor.fillStyle(PALETTE.ink, 0.18).fillRect(c.col * TILE + 2, c.row * TILE + 2, TILE - 4, TILE - 4);
       if (!props) continue;
       for (const f of placement.layout.fixed) {
         this.fixed.push(this.scene.add.image(f.col * TILE, f.row * TILE, PROPS_KEY, PROP.crate).setOrigin(0, 0).setDepth(f.row * TILE + TILE));
@@ -231,21 +239,27 @@ export class ObjectsView {
   /** A puff that hangs round Myko's head while he smokes and fades once he moves. */
   private syncPuff(dtMs: number, head: Vec2): void {
     const smoking = this.run.myko.smoking;
+    this.puffClock += dtMs;
     if (smoking) {
       if (!this.puff) {
         this.puff = this.scene.add.sprite(0, 0, TEX.fx, fx.smokePuff[0]).setOrigin(0.5, 0.5);
         if (this.scene.anims.exists(PUFF_ANIM)) this.puff.play(PUFF_ANIM);
+        this.puffInMs = 0;
       }
       this.puffFadeMs = PUFF_FADE_MS;
-      this.puff.setAlpha(1).setVisible(true);
+      this.puffInMs = Math.min(PUFF_FADE_IN_MS, this.puffInMs + dtMs);
+      this.puff.setAlpha(0.85 * (this.puffInMs / PUFF_FADE_IN_MS)).setVisible(true);
     } else if (this.puff) {
       this.puffFadeMs = Math.max(0, this.puffFadeMs - dtMs);
-      this.puff.setAlpha(this.puffFadeMs / PUFF_FADE_MS);
+      this.puff.setAlpha(0.85 * (this.puffFadeMs / PUFF_FADE_MS));
       if (this.puffFadeMs === 0) {
         this.puff.destroy();
         this.puff = null;
       }
     }
-    this.puff?.setPosition(Math.round(head.x + 4), Math.round(head.y + 7)).setDepth(this.run.myko.pos.y + 1);
+    // Hanging round his head, drifting up and back a little; it rises a few pixels more as it fades.
+    const drift = Math.sin((this.puffClock / PUFF_DRIFT_MS) * Math.PI * 2) * PUFF_DRIFT_PX;
+    const rise = smoking ? 0 : 4 * (1 - this.puffFadeMs / PUFF_FADE_MS);
+    this.puff?.setPosition(Math.round(head.x + 4 + drift * 0.5), Math.round(head.y + 6 + drift - rise)).setDepth(this.run.myko.pos.y + 1);
   }
 }
