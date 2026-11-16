@@ -1,5 +1,5 @@
 /**
- * Engine features for chapters 3 and 4 (docs/build/c3c4.md "Systems"): the slide puzzle, boss guard / pin / forcePhase,
+ * Engine features for chapters 3 and 4: the slide puzzle, boss guard / pin / forcePhase,
  * the sweep hazard, leashed fight enemies, `lineClear`, and the deduction board using a clue from an earlier chapter.
  */
 

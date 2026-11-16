@@ -1,8 +1,7 @@
 /**
  * Props for chapter 3 (Regional Office) and chapter 4 (Southie). Owner: creative-director.
  *
- * The keys and sizes are the build contract in docs/build/c3c4.md: level-builder places these names, so a key or a
- * size changes only through that file.
+ * Chapters 3 and 4 place these keys at these sizes, so change a key or a size only together with the maps that use it.
  *
  * Style (docs/style-guide.md): palette colours only, light from the top left, three tones a surface, an ink outline
  * on anything Andrew can use or bump into, and no lettering: writing is suggested with blocks and rules.
