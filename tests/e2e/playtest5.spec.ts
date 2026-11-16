@@ -26,6 +26,7 @@ interface Run {
   useSelected(): boolean;
   useSpirit(): boolean;
   isComplete(id: string): boolean;
+  assignWeapon(id: string): boolean;
 }
 interface GameWindow {
   __game: { session: { run: Run | null; bus: { on(ev: string, fn: (p: unknown) => void): () => void } }; state(): { screenId: string | null } | null };
@@ -151,10 +152,8 @@ test('casebook notice: first stays until Tab, later ones flash for ~3.2s, clear 
   expect(errors).toEqual([]);
 });
 
-// KNOWN BUG (playtest 5 verify): the chapter scripts' prompt sync() calls hidePrompt() with no id whenever a scene opens, which
-// wipes the casebook notice. test.fail() flips to a failure when it is fixed, so remove the annotation then.
-test('casebook notice survives a scripted scene opening (known bug)', async ({ page }) => {
-  test.fail();
+// Fixed: a script's prompt sync used to hide every prompt when a scene opened, wiping the casebook notice.
+test('casebook notice survives a scripted scene opening and sits above its dialogue box', async ({ page }) => {
   await start(page, 2);
   await until(page, 'intro', async () => (await run(page, (r) => r.flag('intro.done'))) === true, 60_000);
   while (await blocking(page)) await page.keyboard.press('KeyE');
@@ -163,8 +162,13 @@ test('casebook notice survives a scripted scene opening (known bug)', async ({ p
   await run(page, (r) => void (r as unknown as { say(id: string): Promise<void> }).say('c2.throw.reminder'));
   await until(page, 'scene box', async () => blocking(page));
   await page.waitForTimeout(400);
-  await shot(page, 'notice-wiped-by-scene');
-  expect((await visibleTexts(page)).some((t) => t.text.includes('went in the casebook'))).toBe(true);
+  await shot(page, 'notice-with-scene-box');
+  const texts = await visibleTexts(page);
+  const notice = texts.find((t) => t.text.includes('went in the casebook'));
+  expect(notice, 'notice still up with a scene showing').toBeTruthy();
+  const boxText = texts.filter((t) => t !== notice && t.y > (notice?.y ?? 0) && t.y < 330);
+  expect(boxText.length, 'scene box text is below the notice').toBeGreaterThan(0);
+  for (const t of boxText) expect(notice?.bottom, `notice overlaps "${t.text}"`).toBeLessThanOrEqual(t.y);
 });
 
 test('no drinking before the first pint: Q and G refuse and the items stay', async ({ page }) => {
@@ -290,3 +294,26 @@ for (const chapter of [1, 2] as const) {
     expect(errors).toEqual([]);
   });
 }
+
+test('Tab kit list and slot show the short name; the description heading shows the full name', async ({ page }) => {
+  await start(page, 1);
+  await until(page, 'intro', async () => (await run(page, (r) => r.flag('intro.done'))) === true, 60_000);
+  await run(page, (r) => { r.gainWeapon('clipboard'); r.gainWeapon('shillelagh'); r.assignWeapon('clipboard'); });
+  while (await blocking(page)) await page.keyboard.press('KeyE');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Digit2');
+  await page.waitForTimeout(400);
+  // Move the cursor to the clipboard (fists, hurley is not held: fists then clipboard).
+  for (let i = 0; i < 12; i++) {
+    const heading = (await visibleTexts(page)).some((t) => t.text === 'Halloran’s clipboard');
+    if (heading) break;
+    await page.keyboard.press('KeyS');
+    await page.waitForTimeout(100);
+  }
+  await shot(page, 'tab-short-names');
+  const texts = (await visibleTexts(page)).map((t) => t.text);
+  expect(texts.filter((t) => t === 'Clipboard').length, 'short name in the list and in the melee slot').toBeGreaterThanOrEqual(2);
+  expect(texts.includes('Shillelagh'), 'short name in the list').toBe(true);
+  expect(texts.includes('Halloran’s clipboard'), 'full name as the description heading').toBe(true);
+  expect(errors).toEqual([]);
+});
