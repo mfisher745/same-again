@@ -44,7 +44,6 @@ type Flag =
   | 'bay.started'
   | 'board.started'
   | 'ftr.done'
-  | 'halloran.started'
   | 'yard.clean';
 
 type ClueKey = 'map' | 'brochure' | 'certificate' | 'visitors';
@@ -62,6 +61,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   /** Swings left on Same Again (it is on for the next few). Run-time only. */
   let armed = 0;
   let bossEnding = false;
+  /** Halloran's arrival scene is under way or he has been started this attempt. Run-time only: a return to the bar clears it. */
+  let hallorannUp = false;
 
   const flag = (key: Flag): boolean => ctx.flag(key) === true;
   const setFlag = (key: Flag, value = true): void => ctx.setFlag(key, value);
@@ -106,7 +107,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.setPropFrame('office.cabinet', flag('cabinet.open') ? PROP.filingCabinet.open : flag('cabinet.dented') ? PROP.filingCabinet.dented : PROP.filingCabinet.shut);
     ctx.setPropFrame('bay.lever', flag('lever.down') ? PROP.lever.down : PROP.lever.up);
     ctx.setPropVisible('yard.logbook', flag('yard.clean'));
-    ctx.setAmbient(flag('lights.on') ? BAY_LIT : BAY_DARK, 'c3.bay');
+    ctx.setAmbient(flag('manifest.found') || flag('lights.on') ? BAY_LIT : BAY_DARK, 'c3.bay');
     if (flag('cabinet.open') && !flag('whiskey.taken')) spawnWhiskey();
     syncSteam();
   };
@@ -204,7 +205,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     await ctx.say('c3.sameAgain.lesson');
     if (disposed) return;
     ctx.learnMove('sameAgain');
-    setPrompt('ui.prompt.kit', PROMPT_LINGER_MS);
+    if (wanted !== 'ui.prompt.kit') setPrompt('ui.prompt.kit', PROMPT_LINGER_MS);
   };
 
   // --- The bay: crates, manifest, night shift, board ------------------------
@@ -212,6 +213,13 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   const enteredBay = async (): Promise<void> => {
     ctx.setMykoScripted(null);
     restoreObjective();
+    // A night shift under way when he went back to the bar starts again from the beginning.
+    if (flag('manifest.found') && !ctx.isComplete('c3.fight.bay') && ctx.fight('c3.fight.bay')?.active !== true) {
+      ctx.setObjective(OBJ.bay);
+      ctx.startSection('c3.fight.bay');
+      return;
+    }
+    if (!ctx.isComplete('c3.puzzle.crates')) ctx.startSection('c3.puzzle.crates');
     if (flag('crates.intro') || ctx.isComplete('c3.puzzle.crates')) return;
     setFlag('crates.intro');
     ctx.setObjective(OBJ.crates);
@@ -278,8 +286,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   };
 
   const hallorannArrives = async (): Promise<void> => {
-    if (flag('halloran.started')) return;
-    setFlag('halloran.started');
+    if (hallorannUp) return;
+    hallorannUp = true;
     await roadLesson();
     if (disposed) return;
     await ctx.say('c3.halloran.intro');
@@ -296,7 +304,6 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     onStart: (boss) => {
       // A fresh attempt: no shield, phase 1.
       boss.guard('halloran', null);
-      setFlag('halloran.started');
     },
     onChargeBlocked: (boss, body, col, row) => {
       if (!stackTiles.some((t) => t.col === col && t.row === row)) return;
@@ -383,6 +390,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       scenesOpen = 0;
       armed = 0;
       bossEnding = false;
+      hallorannUp = false;
       clearPrompt();
       restoreWorld();
       ctx.setMykoScripted(MYKO_CHAIR);
@@ -488,7 +496,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     bossHooks: { 'c3.boss.halloran': hallorannHooks },
 
     debugWalk: () => {
-      for (const f of ['intro.done', 'open.seen', 'office.seen', 'clue.map', 'clue.brochure', 'cabinet.open', 'manifest.found', 'lights.on', 'ftr.done', 'halloran.started'] as const) setFlag(f);
+      for (const f of ['intro.done', 'open.seen', 'office.seen', 'clue.map', 'clue.brochure', 'cabinet.open', 'manifest.found', 'lights.on', 'ftr.done'] as const) setFlag(f);
       ctx.setExitLocked('c3.office.bay', false);
       ctx.setMykoScripted(null);
     },
