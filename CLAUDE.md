@@ -45,16 +45,6 @@ Never self-escalate.
 - Follow the tone rules in section 2 of DESIGN.md.
 - Model upgrades require creative-director approval. (See Model Escalation)
 
-## Commands
-
-```
-pnpm dev         # local server at localhost:5173
-pnpm build       # production build
-pnpm test        # unit tests
-pnpm test:e2e    # Playwright playthroughs
-pnpm lint
-pnpm typecheck
-```
 ## Context rules (token efficiency)
 - Every agent starts with only: this file + DESIGN.md + the files in the directories it owns + the specific task.
 - Do not dump the entire conversation history or full repo state into every agent.
