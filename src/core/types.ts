@@ -2243,6 +2243,8 @@ export interface OverhaulTuning {
   readonly barReturnFailsafeMs?: number;
   /** How long the ram stands at a closed gate before it batters through (`PropPlacement.bossBreaksAfterMs`), ms. Chapter 2. */
   readonly ramGatePauseMs?: number;
+  /** Chapter 4's crane sweeps, ms: a pass, the slow pass on foot, the gap before the slow pass, the first sweep. */
+  readonly crane?: { readonly travelMs: number; readonly slowTravelMs: number; readonly slowDelayMs: number; readonly firstMs: number };
   /** How long a scripted involuntary lurch (`ChapterContext.forceLurch`) takes, ms. Chapter 2. */
   readonly forcedLurchMs?: number;
   /** The thrown bottle. Optional until phase 2 switches the systems over. */

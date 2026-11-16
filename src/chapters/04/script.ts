@@ -26,13 +26,12 @@ const OBJ = {
 const PROMPT_LINGER_MS = 7000;
 /** Within this of Kev (px), Bedside Manner counts as said to him. */
 const MANNER_REACH_PX = 96;
-/** Presentation only: the crane's container takes this long to cross the arena, and the slow pass of phase 2 this long. */
-const CRANE_TRAVEL_MS = 900;
-const CRANE_SLOW_TRAVEL_MS = 2600;
-/** Presentation only: the slow pass of phase 2 comes this long after the foreman steps down. */
-const CRANE_SLOW_DELAY_MS = 3000;
-/** Presentation only: first sweep after the foreman's intro. */
-const CRANE_FIRST_MS = 1500;
+/** The crane's timings (`TUNING.overhaul.crane`): a pass, the slow pass on foot, the gap before it, the first sweep. */
+const CRANE = TUNING.overhaul?.crane ?? { travelMs: 900, slowTravelMs: 2600, slowDelayMs: 3000, firstMs: 1500 };
+const CRANE_TRAVEL_MS = CRANE.travelMs;
+const CRANE_SLOW_TRAVEL_MS = CRANE.slowTravelMs;
+const CRANE_SLOW_DELAY_MS = CRANE.slowDelayMs;
+const CRANE_FIRST_MS = CRANE.firstMs;
 /** Top and bottom of a crane lane (tiles). */
 const LANE_FROM_ROW = 14;
 const LANE_TO_ROW = 27;
@@ -144,8 +143,18 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
 
   let teaBusy = false;
   /** E at the tea. Colleen-Ann asks hot or iced, and it is always hot. One free tea each visit. */
+  let teaLineOpen = false;
   const tea = async (): Promise<void> => {
-    if (teaBusy || !ctx.hotDrinkOffered()) return;
+    if (teaBusy) return;
+    if (!ctx.hotDrinkOffered()) {
+      // None to give: she says why, once at a time however often E is pressed.
+      if (teaLineOpen) return;
+      teaLineOpen = true;
+      void ctx.say(ctx.kit().hotDrink !== null ? 'c4.tea.held' : 'c4.tea.spent', { repeat: true }).finally(() => {
+        teaLineOpen = false;
+      });
+      return;
+    }
     teaBusy = true;
     clearPrompt('ui.prompt.hotDrink');
     ctx.completeMark('c4.tea');
@@ -361,6 +370,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     if (disposed) return;
     // A bus shelter at dawn.
     ctx.setAmbient(DAWN, 'c4.docks');
+    void ctx.say('c4.caption.shelter');
     await ctx.say('c4.closing');
     if (disposed) return;
     ctx.completeChapter();
@@ -449,6 +459,10 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
 
     onTrigger: (id) => {
       switch (id) {
+        case 'c4.trig.gate':
+          // The side gate is shut until the docks are passed: Myko says the way round, each approach.
+          if (!ctx.isComplete('c4.stealth.docks')) void ctx.say('c4.gate.shut', { repeat: true });
+          break;
         case 'c4.trig.manner':
           if (flag('manner.ready') && !flag('manner.taught')) void mannerLesson();
           break;

@@ -851,6 +851,9 @@ const overhaul: OverhaulTuning = {
   barReturnFailsafeMs: 6300,
   // stand-in: creative director to set
   ramGatePauseMs: 1000,
+  // Chapter 4: the crane's container crosses the arena in `travelMs`; on foot, the foreman's crane makes a slow pass
+  // (`slowTravelMs`) `slowDelayMs` after he steps down. `firstMs` is the first sweep after his intro. First guesses.
+  crane: { travelMs: 900, slowTravelMs: 2600, slowDelayMs: 3000, firstMs: 1500 },
   // stand-in: creative director to set
   forcedLurchMs: 220,
   // Carried over from the old bottle throw (range 220, damage 10, noise 90). First guesses.

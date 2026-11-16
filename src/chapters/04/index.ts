@@ -18,6 +18,7 @@ import {
   FOREMAN_ENTRANCE,
   FOREMAN_PIN,
   FOREMAN_TRIGGER,
+  GATE,
   GATE_SEAT,
   LIGHT_BEER_SPOT,
   MANNER_AREA,
@@ -174,6 +175,8 @@ export const chapter4: ChapterModule = {
   ],
   triggers: [
     { id: 'c4.trig.manner', screenId: 'c4.bar', area: MANNER_AREA, once: false },
+    // The tiles in front of the shut side gate, on the alley side.
+    { id: 'c4.trig.gate', screenId: 'c4.docks', area: tilesArea(GATE.col - 2, GATE.row, 2, GATE.height), once: false },
     { id: 'c4.trig.over1', screenId: 'c4.docks', area: tilesArea(20, 3, 2, 4), once: false },
     { id: 'c4.trig.over2', screenId: 'c4.docks', area: tilesArea(26, 11, 2, 4), once: false },
     { id: 'c4.trig.puzzle', screenId: 'c4.docks', area: tilesArea(40, 8, 2, 4), once: false },
