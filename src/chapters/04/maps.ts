@@ -52,6 +52,8 @@ export function barScreen(): ScreenLayout {
   c.rect(1, 1, 38, 1, 'g').rect(1, 20, 38, 1, 'g').rect(1, 1, 1, 20, 'g').rect(38, 1, 1, 20, 'g');
   // The front door, west wall; the back door onto the pier, east wall.
   c.rect(1, 6, 1, 2, 'd').rect(38, 14, 1, 2, 'd');
+  // The back bar: shelves behind the counter.
+  c.rect(4, 2, 29, 1, 'S');
   // The bar: the counter along the top with the staff side shut off at both ends, and a stool at each seat.
   c.rect(3, 2, 1, 4, 'g').rect(33, 2, 1, 4, 'g').rect(4, 5, 29, 1, 'c');
   for (const col of [4, 12, 16, 20, 24, 28]) c.set(col, 6, 's');
@@ -98,10 +100,10 @@ export function barScreen(): ScreenLayout {
     props,
     npcs: [
       { id: 'colleen', npc: 'colleenAnn', col: PATRON_TILES.colleen.col, row: PATRON_TILES.colleen.row, facing: 'down', examinableId: 'c4.colleen' },
-      { id: 'doug', npc: 'americanA', col: PATRON_TILES.doug.col, row: PATRON_TILES.doug.row, facing: 'down', examinableId: 'c4.doug' },
-      { id: 'kev', npc: 'americanB', col: PATRON_TILES.kev.col, row: PATRON_TILES.kev.row, facing: 'down', examinableId: 'c4.kev' },
-      { id: 'barb', npc: 'touristB', col: PATRON_TILES.barb.col, row: PATRON_TILES.barb.row, facing: 'down', examinableId: 'c4.barb' },
-      { id: 'sully', npc: 'localA', col: PATRON_TILES.sully.col, row: PATRON_TILES.sully.row, facing: 'left', examinableId: 'c4.sully' },
+      { id: 'doug', npc: 'americanB', col: PATRON_TILES.doug.col, row: PATRON_TILES.doug.row, facing: 'down', examinableId: 'c4.doug' },
+      { id: 'kev', npc: 'americanA', col: PATRON_TILES.kev.col, row: PATRON_TILES.kev.row, facing: 'down', examinableId: 'c4.kev' },
+      { id: 'barb', npc: 'americanC', col: PATRON_TILES.barb.col, row: PATRON_TILES.barb.row, facing: 'down', examinableId: 'c4.barb' },
+      { id: 'sully', npc: 'americanD', col: PATRON_TILES.sully.col, row: PATRON_TILES.sully.row, facing: 'left', examinableId: 'c4.sully' },
     ],
   };
   return c.build('c4.bar', exits, BAR_ARRIVAL, { mykoStart: MYKO_CHAIR, dressing });
@@ -253,7 +255,7 @@ export function docksScreen(): ScreenLayout {
   // The quay: the edge, then water.
   c.rect(1, 29, 68, 1, 'e').rect(1, 30, 68, 3, 'q');
   // The door back into the bar, west wall of the alley.
-  c.rect(0, 21, 1, 2, 'd');
+  c.rect(0, 21, 1, 2, 'D');
   // The alley's fence along col 8, with a gap at the top where Andrew goes in and the shut gate lower down.
   c.rect(8, 1, 1, 28, 'f').rect(8, 3, 1, 3, 'p').rect(GATE.col, GATE.row, 1, GATE.height, 'p');
   // The stacks in the yard: red and blue, each a block of containers four rows tall (three on the bottom row).

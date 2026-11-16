@@ -10,7 +10,7 @@ import type { BossHooks, ChapterContext, ChapterScript, FightHooks } from '../..
 import { GameEvents } from '../../core/types';
 import type { AttackDef, SectionId, SpecialSlotIndex, TextId } from '../../core/types';
 import { hidePrompt, showPrompt, showSlotPrompt } from '../../ui/prompts';
-import { BAR_ARRIVAL, BOX_REACH_PX, CRANE_LANES, DAWN, DOCKER_ADDS, FOREMAN_PIN, GATE_SEAT, LUNCHBOX_PICKUP, MYKO_CHAIR, PATRON_TILES, RAILS, T } from './maps';
+import { BOX_REACH_PX, CRANE_LANES, DAWN, DOCKER_ADDS, FOREMAN_PIN, GATE_SEAT, LUNCHBOX_PICKUP, MYKO_CHAIR, PATRON_TILES, RAILS, T } from './maps';
 
 const OBJ = {
   bar: 'c4.bar',
@@ -183,8 +183,6 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   };
 
   const stoutPint = async (): Promise<void> => {
-    const first = !ctx.kit().weapons && false;
-    void first;
     ctx.addEvidence('c4.clue.stout');
     await ctx.say('c4.bar.stout');
   };
@@ -554,6 +552,3 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     },
   };
 }
-
-// Kept for the bar's arrival check in later tuning of Myko's chair (not used yet).
-void BAR_ARRIVAL;

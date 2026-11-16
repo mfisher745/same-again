@@ -176,6 +176,7 @@ export const chapter4: ChapterModule = {
     { id: 'c4.trig.manner', screenId: 'c4.bar', area: MANNER_AREA, once: false },
     { id: 'c4.trig.over1', screenId: 'c4.docks', area: tilesArea(20, 3, 2, 4), once: false },
     { id: 'c4.trig.over2', screenId: 'c4.docks', area: tilesArea(26, 11, 2, 4), once: false },
+    { id: 'c4.trig.puzzle', screenId: 'c4.docks', area: tilesArea(40, 8, 2, 4), once: false },
     { id: 'c4.trig.inside', screenId: 'c4.docks', area: CONTAINER_INSIDE, once: false },
     { id: 'c4.trig.foreman', screenId: 'c4.docks', area: FOREMAN_TRIGGER, once: false },
   ],
