@@ -7,7 +7,8 @@ import { describe, expect, it } from 'vitest';
 import { chapter3 } from '../../src/chapters/03/index';
 import { chapter4 } from '../../src/chapters/04/index';
 import type { ChapterModule } from '../../src/core/chapter';
-import type { AreaRect, ScreenId, StealthSectionId } from '../../src/core/types';
+import type { AreaRect } from '../../src/core/chapter';
+import type { ScreenId, StealthSectionId } from '../../src/core/types';
 import { FRAME_MS, STEP_FRAMES, planRoute } from './stealthPlanner';
 import type { Route } from './stealthPlanner';
 import { NO_INPUT, frame, record, settleDialogue, startChapterGame } from './helpers';
@@ -46,7 +47,6 @@ describe.each(CASES)('$name', ({ module, sectionId }) => {
     const { run } = await openRun(module, placement.screenId);
     const route = planRoute({ def, grid: run.grid, start: area(placement.startArea), exit: placement.exitArea, margin: 2 });
     expect(route, 'no zero-exposure sneaking route within two minutes').not.toBeNull();
-    // eslint-disable-next-line no-console
     console.log(`${sectionId}: clean route of ${route?.cells.length} steps, ${route?.seconds.toFixed(1)} s`);
     expect(route?.seconds).toBeLessThan(90);
   });

@@ -6,7 +6,8 @@
 
 import { TUNING } from '../../src/content/tuning';
 import { EventBus } from '../../src/core/events';
-import type { AreaRect, StealthSectionDef, TileGrid, Vec2 } from '../../src/core/types';
+import type { AreaRect } from '../../src/core/chapter';
+import type { StealthSectionDef, TileGrid, Vec2 } from '../../src/core/types';
 import { isBlocked, rectBlocked } from '../../src/systems/grid';
 import { StealthRunner, canSee } from '../../src/systems/stealth';
 
