@@ -52,7 +52,6 @@ type Flag =
   | 'puzzle.intro'
   | 'inside.seen'
   | 'clue.seizure'
-  | 'foreman.started'
   | 'foreman.done'
   | 'shillelagh.taken'
   | 'tea.served';
@@ -65,6 +64,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   /** Bumped when the foreman fight starts or is cancelled, so an old crane loop stops. */
   let craneRun = 0;
   let foremanPhaseTwo = false;
+  /** Run-time only: the foreman's intro is playing or the fight is under way (never saved, so a return to the bar clears it). */
+  let foremanStarting = false;
   let ending = false;
 
   const flag = (key: Flag): boolean => ctx.flag(key) === true;
@@ -203,7 +204,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     await ctx.say('c4.manner.lesson');
     if (disposed) return;
     ctx.learnMove('bedsideManner');
-    setPrompt('ui.prompt.kit', PROMPT_LINGER_MS);
+    // Slot 2 is taken by Stout Slam: the player has to put it there from the Tab screen.
+    if (wanted?.id !== 'ui.prompt.kit') setPrompt('ui.prompt.kit', PROMPT_LINGER_MS);
   };
 
   const startBrawl = (): void => {
@@ -246,6 +248,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.setMykoScripted(ctx.isComplete('c4.stealth.docks') ? null : GATE_SEAT);
     restoreWorld();
     restoreObjective();
+    if (ctx.isComplete('c4.stealth.docks') && !ctx.isComplete('c4.puzzle.containers')) ctx.startSection('c4.puzzle.containers');
     if (!flag('docks.seen')) {
       setFlag('docks.seen');
       void ctx.say('c4.caption.docks');
@@ -317,11 +320,12 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   };
 
   const foremanArrives = async (): Promise<void> => {
-    setFlag('foreman.started');
+    foremanStarting = true;
     await ctx.say('c4.foreman.intro');
     if (disposed) return;
     ctx.setObjective(OBJ.foreman);
     ctx.startSection('c4.boss.foreman');
+    foremanStarting = false;
   };
 
   const foremanHooks: BossHooks = {
@@ -432,6 +436,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       scenesOpen = 0;
       craneRun++;
       foremanPhaseTwo = false;
+      foremanStarting = false;
       clearPrompt();
       restoreWorld();
       ctx.setMykoScripted(MYKO_CHAIR);
@@ -473,10 +478,14 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           if (stealthActive()) void ctx.say('c4.docks.overheard.2');
           break;
         case 'c4.trig.puzzle':
-          if (ctx.isComplete('c4.stealth.docks') && !ctx.isComplete('c4.puzzle.containers') && !flag('puzzle.intro')) {
-            setFlag('puzzle.intro');
+          if (ctx.isComplete('c4.stealth.docks') && !ctx.isComplete('c4.puzzle.containers')) {
+            // Reaching the levers makes the puzzle the current section, so Myko can be called in on it.
+            ctx.startSection('c4.puzzle.containers');
             ctx.setObjective(OBJ.containers);
-            void ctx.say('c4.containers.intro');
+            if (!flag('puzzle.intro')) {
+              setFlag('puzzle.intro');
+              void ctx.say('c4.containers.intro');
+            }
           }
           break;
         case 'c4.trig.inside':
@@ -486,7 +495,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           }
           break;
         case 'c4.trig.foreman':
-          if (ctx.isComplete('c4.deduction.dc') && !flag('foreman.started') && !ctx.isComplete('c4.boss.foreman')) void foremanArrives();
+          if (ctx.isComplete('c4.deduction.dc') && !foremanStarting && ctx.boss('c4.boss.foreman')?.active !== true && !ctx.isComplete('c4.boss.foreman')) void foremanArrives();
           break;
       }
     },
