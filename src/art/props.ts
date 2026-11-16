@@ -15,7 +15,7 @@ import { AtlasBuilder, PixelBuffer } from './pixels';
 import type { Sheet } from './pixels';
 
 export const PROP = {
-  // Chapters 3 and 4: keys and sizes are the contract in docs/build/c3c4.md; drawings in propsC34.ts.
+  // Chapters 3 and 4: keys, sizes and drawings in propsC34.ts.
   ...PROP_C34,
   // Shared
   keg: 'keg',
