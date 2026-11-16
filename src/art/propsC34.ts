@@ -56,6 +56,8 @@ export const PROP_C34 = {
   lever: { up: 'c34.lever.up', down: 'c34.lever.down' },
   /** The gantry walkway's rail, one tile, repeating along a row (16 x 16). */
   gantryRail: 'c34.gantryRail',
+  /** The forklift parked in the loading bay before Halloran gets on it, forks down, seat empty (32 x 32). Solid. */
+  forkliftParked: 'c34.forkliftParked',
   /** The manifest on a clipboard in the bay office (16 x 16). Clue c3.clue.manifest. */
   manifest: 'c34.manifest',
   /** The watchman's logbook (16 x 16). Clean-run reward clue c3.clue.logbook. */
@@ -88,6 +90,8 @@ export const PROP_C34 = {
   lunchbox: 'c34.lunchbox',
   /** A puzzle container, two tiles long, seen from above: plain, and MAS-4471 with the fragment's mark (32 x 16 each). */
   container: { plain: 'c34.container.plain', mas4471: 'c34.container.mas4471' },
+  /** MAS-4471's doors, shut, with their locking bars: the hatch in the container's wall (32 x 16). Same brick. */
+  containerHatch: 'c34.containerHatch',
   /** Packing foam with a round hollow in it (16 x 16). Colour clue c4.clue.foam. */
   packingFoam: 'c34.packingFoam',
   /** The federal seizure notice taped to the container wall (16 x 16). Clue c4.clue.seizure. */
@@ -316,6 +320,18 @@ const gantryRail: Draw = (b) => {
   b.rect(0, 13, 16, 3, 'steel').hline(0, 13, 16, 'fog').hline(0, 15, 16, 'slate');
 };
 
+/** The boss's forklift (machines.ts, facing down) with the engine off: an empty seat, the wheel, the forks on the floor. */
+const forkliftParked: Draw = (b) => {
+  b.rect(8, 10, 16, 14, 'amber').hline(8, 10, 16, 'amberLight').vline(23, 11, 13, 'peat').hline(8, 23, 16, 'peat');
+  b.rect(9, 4, 2, 7, 'coal').rect(21, 4, 2, 7, 'coal').rect(9, 3, 14, 2, 'coal').hline(9, 3, 14, 'slate');
+  // The seat and the steering wheel where Halloran will be.
+  b.rect(13, 5, 6, 6, 'coal').hline(13, 5, 6, 'slate').rect(14, 8, 4, 2, 'slate');
+  b.rect(10, 12, 12, 2, 'steel').hline(14, 11, 4, 'ink');
+  hazardBar(b, 9, 19, 14, 3);
+  b.rect(7, 22, 3, 6, 'ink').rect(22, 22, 3, 6, 'ink');
+  b.rect(11, 24, 2, 7, 'fog').rect(19, 24, 2, 7, 'fog').vline(12, 24, 7, 'steel').vline(20, 24, 7, 'steel');
+};
+
 /** A thick clipboard of shipping lines, one of them gone over in highlighter. */
 const manifest: Draw = (b) => {
   b.rect(3, 2, 10, 13, 'peat').hline(3, 14, 10, 'turf').vline(12, 3, 12, 'turf');
@@ -496,6 +512,19 @@ const container =
     b.set(24, 12, 'amberLight').set(26, 10, 'amberLight').set(28, 8, 'amberLight');
   };
 
+/** Two door leaves, each with two locking bars, cam handles and a seal. Ringed in ink like the container it belongs to. */
+const containerHatch: Draw = (b) => {
+  b.rect(0, 0, 32, 16, 'ink');
+  b.rect(1, 1, 30, 14, 'brick').hline(1, 1, 30, 'tan').hline(1, 14, 30, 'brickDark').vline(30, 2, 13, 'brickDark');
+  b.vline(15, 1, 14, 'ink').vline(16, 1, 14, 'brickDark');
+  for (const x of [4, 10, 20, 26]) {
+    b.rect(x, 2, 2, 12, 'steel').vline(x, 2, 12, 'fog').rect(x - 1, 2, 4, 1, 'coal').rect(x - 1, 13, 4, 1, 'coal');
+    b.rect(x - 1, 8, 4, 2, 'coal').set(x + 2, 8, 'fog');
+  }
+  for (const x of [1, 29]) for (const y of [4, 11]) b.rect(x, y, 2, 1, 'brickDark');
+  b.rect(13, 7, 2, 2, 'amberLight').set(14, 8, 'amber');
+};
+
 /** A block of white foam with a round hollow where something sat. */
 const packingFoam: Draw = (b) => {
   b.rect(2, 3, 12, 11, 'white').hline(2, 13, 12, 'bone').vline(13, 4, 10, 'bone');
@@ -536,6 +565,7 @@ const DRAWINGS: readonly (readonly [string, number, number, Draw])[] = [
   [PROP_C34.lever.up, 16, 16, outlined(lever(false))],
   [PROP_C34.lever.down, 16, 16, outlined(lever(true))],
   [PROP_C34.gantryRail, 16, 16, outlined(gantryRail)],
+  [PROP_C34.forkliftParked, 32, 32, outlined(forkliftParked)],
   [PROP_C34.manifest, 16, 16, outlined(manifest)],
   [PROP_C34.logbook, 16, 16, outlined(logbook)],
   [PROP_C34.tillShillelagh, 32, 32, outlined(tillShillelagh)],
@@ -553,6 +583,7 @@ const DRAWINGS: readonly (readonly [string, number, number, Draw])[] = [
   [PROP_C34.lunchbox, 16, 16, outlined(lunchbox)],
   [PROP_C34.container.plain, 32, 16, container('navy', 'navyDark', 'dustyBlue', false)],
   [PROP_C34.container.mas4471, 32, 16, container('brick', 'brickDark', 'tan', true)],
+  [PROP_C34.containerHatch, 32, 16, containerHatch],
   [PROP_C34.packingFoam, 16, 16, outlined(packingFoam)],
   [PROP_C34.seizureNotice, 16, 16, outlined(seizureNotice)],
 ];
