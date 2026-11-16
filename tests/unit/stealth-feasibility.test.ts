@@ -64,6 +64,32 @@ describe.each(CASES)('$name', ({ module, sectionId }) => {
   });
 });
 
+describe.each(CASES)('$name: the guards\' routes are walkable', ({ module, sectionId }) => {
+  const def = module.def.stealthSections.find((s) => s.id === sectionId);
+  const placement = module.stealth?.find((s) => s.sectionId === sectionId);
+  if (!def || !placement) throw new Error('no stealth section');
+
+  it('every waypoint and the straight line between waypoints is on open ground (no wall, solid prop or breakable on a route)', async () => {
+    const { run } = await openRun(module, placement.screenId);
+    const g = run.grid;
+    for (const guard of def.guards) {
+      const pts = guard.route.waypoints.map((w) => w.position);
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i]!;
+        const b = pts[(i + 1) % pts.length]!;
+        const n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 4) + 1;
+        for (let k = 0; k <= n; k++) {
+          const x = a.x + ((b.x - a.x) * k) / n;
+          const y = a.y + ((b.y - a.y) * k) / n;
+          const c = Math.floor(x / 16);
+          const r = Math.floor(y / 16);
+          expect(g.blocked[r * g.widthTiles + c], `${guard.enemyId} route tile ${c},${r}`).toBe(false);
+        }
+      }
+    }
+  });
+});
+
 describe.each(CASES)('$name: the detection is really engaged', ({ module, sectionId }) => {
   const def = module.def.stealthSections.find((s) => s.id === sectionId);
   const placement = module.stealth?.find((s) => s.sectionId === sectionId);
