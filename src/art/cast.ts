@@ -106,6 +106,9 @@ const NPC_LOOKS = {
   localB: look({ hair: 'peat', top: 'peat', topShade: 'turf', legs: 'slate' }),
   americanA: look({ hat: 'cap', hatColour: 'brick', top: 'white', topShade: 'fog', legs: 'tanShade', shoes: 'white', torsoWidth: 8 }),
   americanB: look({ hair: 'amberLight', top: 'navy', topShade: 'navyDark', legs: 'bone', shoes: 'white' }),
+  // Chapter 4's bar: a pale perm in a pink cardigan, and a regular in the Pier Nine work jacket the dockers wear.
+  americanC: look({ hair: 'bone', top: 'motelPink', topShade: 'motelPinkShade', legs: 'bone', shoes: 'white' }),
+  americanD: look({ hat: 'cap', hatColour: 'navyDark', top: 'steel', topShade: 'slate', band: 'navy', legs: 'denim', stubble: true, torsoWidth: 8 }),
   touristA: look({ hat: 'cap', hatColour: 'lime', top: 'magenta', topShade: 'magentaShade', legs: 'tan', shoes: 'white', torsoWidth: 8 }),
   touristB: look({ hair: 'turfDark', top: 'motelPink', topShade: 'motelPinkShade', legs: 'dustyBlue', shoes: 'white' }),
   attendant: look({ hat: 'cap', hatColour: 'rust', top: 'tan', topShade: 'tanShade', legs: 'denim', stubble: true }),
