@@ -50,7 +50,8 @@ export const STOUT_SPOTS = [T(35, 20), T(36, 20)] as const;
 export const DOORS_AREA = tilesArea(24, 19, 12, 3);
 export const BOSS_AREA = tilesArea(18, 10, 12, 6);
 export const GANTRY_ZONE = tilesArea(13, 2, 24, 2);
-export const HALLORAN_START = T(25, 12);
+export const HALLORAN_START_TILE = { col: 25, row: 12 } as const;
+export const HALLORAN_START = T(HALLORAN_START_TILE.col, HALLORAN_START_TILE.row);
 /** The four crate stacks in the arena, as [col, row] of the sprite's top-left; the solid tile is the row below. */
 export const STACKS = [
   { id: 'bay.stack1', col: 15, row: 9 },
@@ -296,6 +297,8 @@ export function bayScreen(): ScreenLayout {
   c.rect(12, 2, 26, 2, 'b').rect(12, 4, 26, 1, 'f');
   const exits: ExitDef[] = [{ id: 'c3.bay.door', area: tilesArea(0, 16, 2, 3), toScreen: 'c3.office', spawn: OFFICE_FROM_BAY }];
   const props: PropPlacement[] = [
+    // The forklift, parked where Halloran will get on it. Hidden when he does (the boss sprite takes over).
+    { id: 'bay.forklift', frame: PROP.forkliftParked, col: HALLORAN_START_TILE.col - 1, row: HALLORAN_START_TILE.row - 1, solid: { dy: 1, width: 2, height: 1 } },
     // The bay office desk and the manifest on it.
     { id: 'bay.desk', frame: PROP.officeDesk, col: 5, row: 2, solid: { width: 2, height: 1 } },
     { id: 'bay.manifest', frame: PROP.manifest, col: 6, row: 3 },

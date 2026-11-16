@@ -109,6 +109,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.setPropVisible('yard.logbook', flag('yard.clean'));
     ctx.setAmbient(flag('manifest.found') || flag('lights.on') ? BAY_LIT : BAY_DARK, 'c3.bay');
     if (flag('cabinet.open') && !flag('whiskey.taken')) spawnWhiskey();
+    // The parked forklift stands in the bay until Halloran climbs on.
+    ctx.setPropVisible('bay.forklift', !ctx.isComplete('c3.boss.halloran') && !hallorannUp);
     syncSteam();
   };
 
@@ -293,6 +295,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     await ctx.say('c3.halloran.intro');
     if (disposed) return;
     ctx.setObjective(OBJ.halloran);
+    ctx.setPropVisible('bay.forklift', false);
     ctx.startSection('c3.boss.halloran');
   };
 
@@ -304,6 +307,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     onStart: (boss) => {
       // A fresh attempt: no shield, phase 1.
       boss.guard('halloran', null);
+      boss.setSprite('halloran', 'boss.c3.boss.halloran');
     },
     onChargeBlocked: (boss, body, col, row) => {
       if (!stackTiles.some((t) => t.col === col && t.row === row)) return;
@@ -314,6 +318,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       if (phase.id !== 'palletShield') return;
       // The pallet on the forks: hits from the front do nothing. A dazed body is never guarded.
       boss.guard('halloran', 'front');
+      boss.setSprite('halloran', 'boss.c3.boss.halloran.shield');
       void ctx.say('c3.halloran.phase2');
     },
     onEnd: (boss, by) => void bossEnded(by, boss),
