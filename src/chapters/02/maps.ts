@@ -256,8 +256,8 @@ export function farmScreen(): ScreenLayout {
     { id: 'c2.farm.gate', area: tilesArea(3, 27, 3, 2), toScreen: 'c2.lane', spawn: LANE_ARRIVAL },
   ];
   const props: PropPlacement[] = [
-    // The shed door: a gate across it until the flock is out of the way.
-    { id: 'shed.door', frame: PROP.churchGate, col: 13, row: 4, solid: { dy: 1, width: 2, height: 1 } },
+    // The shed door: a sheep hurdle tied across the doorway in the front wall until the flock is out of the way.
+    { id: 'shed.door', frame: PROP.shedHurdle, col: 13, row: 5, solid: { width: 2, height: 1 } },
     // Hay (behind it, the whiskey) and the bench, with the docket on it.
     { id: 'shed.hay1', frame: PROP.hayBale, col: 16, row: 3, solid: { width: 1, height: 1 } },
     { id: 'shed.hay2', frame: PROP.hayBale, col: 17, row: 3, solid: { width: 1, height: 1 } },
@@ -316,8 +316,8 @@ export function laneScreen(): ScreenLayout {
   // Churned mud on the verge.
   c.rect(20, 2, 6, 1, 'M').rect(30, 9, 8, 1, 'M').rect(60, 2, 7, 1, 'M').rect(70, 9, 6, 1, 'M');
   const props: PropPlacement[] = [
-    // The yard gate, behind Andrew where the lane starts.
-    { id: 'lane.yardgate', frame: PROP.churchGate, col: 1, row: 2 },
+    // Brennan's yard gate, behind Andrew where the lane starts: swung open flat against the hedge. The ram comes through.
+    { id: 'lane.yardgate', frame: PROP.farmGateOpen, col: 1, row: 1 },
     // Puddles slow Andrew and nobody else.
     { id: 'lane.puddle1', frame: PROP.puddleLarge, col: 14, row: 3, layer: 'floor', slows: { width: 3, height: 2 } },
     { id: 'lane.puddle2', frame: PROP.puddleLarge, col: 26, row: 6, layer: 'floor', slows: { width: 3, height: 2 } },
