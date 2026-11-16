@@ -288,7 +288,7 @@ describe('chapter 4: Myko\'s call-in on each callable section', () => {
   // BUG (level-builder, src/chapters/04/script.ts: nothing starts c4.puzzle.containers as a section; chapter 1 does it with
   // ctx.startSection in enteredYard): a lever pull does not make it the current section, so M answers "noSection" and the container
   // puzzle, listed as callable, can never be called in. Chapter 3's crate puzzle has the same gap.
-  it.fails('the container puzzle: M at the docks (stealth passed) calls it in (BUG: refused, no current section)', async () => {
+  it('the container puzzle: M at the docks (stealth passed) calls it in', async () => {
     const { run } = await atContainers();
     await pull(run, 0);
     expect(run.myko.tryCall()).toBe(true);
