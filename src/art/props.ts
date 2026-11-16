@@ -36,6 +36,8 @@ export const PROP = {
   telly: 'telly',
   tractor: 'tractor',
   churchGate: 'churchGate',
+  /** A builder's skip on Main Street, full of somebody's old kitchen. Big Tom's charge stops at it. */
+  skip: 'skip',
   /** Playtest 6: the keg yard's stuck gate, a boarded wooden gate filling the one-tile gateway. */
   yardGate: 'yardGate',
   chipperSign: 'chipperSign',
@@ -546,6 +548,16 @@ export function propsSheet(): Sheet {
     for (let x = 8; x < 25; x += 3) b.rect(x, 9, 1, 21, 'coal').set(x, 8, 'fog');
     b.hline(6, 12, 20, 'coal').hline(6, 26, 20, 'coal');
     b.rect(15, 1, 2, 6, 'fog').rect(13, 3, 6, 1, 'fog');
+  }));
+  // A builder's skip from above: yellow sides sloping in, a dark rim, rubble and a door off a kitchen press inside.
+  atlas.add(PROP.skip, 32, 32, outlined((b) => {
+    b.rect(1, 6, 30, 22, 'amber').rect(3, 4, 26, 2, 'amberLight').rect(1, 26, 30, 3, 'peat');
+    b.rect(4, 7, 24, 17, 'coal');
+    b.rect(5, 12, 6, 5, 'brick').rect(11, 9, 5, 4, 'tan').rect(17, 14, 8, 3, 'slate').rect(13, 17, 5, 5, 'brick');
+    b.rect(19, 8, 7, 5, 'peat').hline(19, 10, 7, 'turfDark').set(24, 11, 'fog');
+    b.set(8, 19, 'fog').set(23, 20, 'tan').set(6, 21, 'slate').rect(9, 21, 3, 2, 'tan');
+    b.vline(1, 7, 19, 'amberLight').vline(30, 7, 19, 'peat');
+    for (const x of [6, 15, 24]) b.rect(x, 26, 2, 3, 'coal');
   }));
   // Steam off the urn or the flask: two thin wisps rising and leaning, low in the cell so it sits on the lid.
   PROP.steam.forEach((name, i) => {

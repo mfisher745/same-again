@@ -1755,7 +1755,7 @@ export interface GameEventBus {
 }
 
 // ===========================================================================
-// OVERHAUL CONTRACTS (docs/overhaul-plan.md, DESIGN.md sections 5 to 7)
+// OVERHAUL CONTRACTS (DESIGN.md sections 5 to 7)
 //
 // Additive. These sit beside the old contracts until overhaul phase 2 and 5
 // replace the systems and delete the items marked `@deprecated`. No behaviour.
@@ -1789,8 +1789,7 @@ export interface LevelBounds {
 /**
  * Where each level sits on the meter in one chapter. The meter grows by chapter
  * (Buzzed and Grand widen; Bit much stays 25 and Fecked 9). `floor` is the
- * value at which Andrew falls over. Sober is 0. DESIGN.md 7.1,
- * docs/overhaul-plan.md "Meter length by chapter".
+ * value at which Andrew falls over. Sober is 0. DESIGN.md 7.1 "The meter grows".
  */
 export interface DrunkLevelTable {
   readonly buzzed: LevelBounds;
@@ -2195,7 +2194,7 @@ export interface ThrowTuning {
   readonly swayPeriodMs: number;
 }
 
-/** Every number the overhaul systems need. DESIGN.md 7.1, 7.2; docs/overhaul-plan.md. */
+/** Every number the overhaul systems need. DESIGN.md 7.1, 7.2. */
 export interface OverhaulTuning {
   /** Meter points lost per second (1 per 3 s). */
   readonly drainPerSecond: number;

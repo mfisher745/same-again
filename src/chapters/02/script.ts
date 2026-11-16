@@ -144,10 +144,15 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   /** Steam over the flask while the free hot drink can be taken: the one free charge each visit, shown. */
   const syncSteam = (): void => ctx.setPropVisible('bar.steam', ctx.hotDrinkOffered());
 
-  /** The flask. The free hot drink, each visit. With nothing to give, Myko says why. */
+  let flaskLineOpen = false;
+  /** The flask. The free hot drink, each visit. With nothing to give, Myko says why (once at a time, however often E is pressed). */
   const flask = (): void => {
     if (!ctx.hotDrinkOffered()) {
-      void ctx.say(ctx.kit().hotDrink !== null ? 'c2.flask.held' : 'c2.flask.spent', { repeat: true });
+      if (flaskLineOpen) return;
+      flaskLineOpen = true;
+      void ctx.say(ctx.kit().hotDrink !== null ? 'c2.flask.held' : 'c2.flask.spent', { repeat: true }).finally(() => {
+        flaskLineOpen = false;
+      });
       return;
     }
     clearPrompt('ui.prompt.hotDrink');

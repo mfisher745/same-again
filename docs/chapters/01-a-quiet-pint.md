@@ -12,7 +12,7 @@ Feeney's itself (`c1.pub`). Andrew's stool at the end of the bar is the arrival 
 |---|---|---|---|
 | `c1.pub` | Feeney's | 30 × 17 | Bar along the top wall, four tables, a fruit machine, a dartboard, the quiz trophy shelf, the toilets, a back door to the keg yard. Amber light, the only warm screen in the chapter. |
 | `c1.yard` | Keg yard | 20 × 17 | Small, walled, kegs and crates. Gate to Main Street. |
-| `c1.street` | Main Street | 70 × 17 | Scrolls left to right: Feeney's front, the bookies, the chipper (lit, with a queue), the church gate, a parked tractor, then the road out of town. |
+| `c1.street` | Main Street | 70 × 17 | Scrolls left to right: Feeney's front, the bookies, the chipper (lit, with a queue), the church wall with its gate, a builder's skip, a parked tractor, then the road out of town. |
 | `c1.road` | Bog road | 30 × 17 | Dark. A stone wall, a gate, the bog beyond. |
 
 ## Beats
@@ -43,11 +43,11 @@ Feeney's itself (`c1.pub`). Andrew's stool at the end of the bar is the arrival 
 
 He wants the tenner back. He is twice Andrew's width and not angry, just thorough.
 
-- **Phase 1.** Wind-up haymaker (telegraph 800 ms, a heavy hit, big knockback) and a straight bull charge across the street (heavy). If the charge hits the tractor or the church gate he is dazed for 2 seconds and takes double damage.
+- **Phase 1.** Wind-up haymaker (telegraph 800 ms, a heavy hit, big knockback) and a straight bull charge across the street (heavy). If the charge hits the tractor or the skip he is dazed for 2 seconds and takes double damage.
 - **Phase 2 (half health).** He takes off his jacket and folds it on the wall. Attacks are 25% faster and he adds a two-swing combination.
 - **End.** He sits down on the kerb and asks again, politely. Andrew does not have a tenner. Myko tells him to try his inside pocket. There is a tenner in it, and Andrew says it is not his. Tom takes it from Andrew and thanks Andrew. Myko says Andrew owes him now. Tom does not look at Myko at any point.
 
-Arena: 30 × 12 section of the street, tractor at one end, gate at the other. Two stout bottles on the wall of the church as pickups.
+Arena: 30 × 12 section of the street, tractor at one end, a builder's skip at the other. Two stout bottles on the wall of the church as pickups.
 
 ## Back to the bar
 

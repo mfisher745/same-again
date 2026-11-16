@@ -48,6 +48,10 @@ describe('the dispensers say why they will not pour', () => {
     const urn = () => examine(run, 'c1.urn');
     urn();
     expect(lastOf(lines, URN)).toBe('c1.urn.notYet');
+    // Mashing E does not stack the line up.
+    for (let i = 0; i < 5; i++) urn();
+    await settleDialogue(run);
+    expect(lines.filter((l) => l.sequenceId === 'c1.urn.notYet')).toHaveLength(1);
     await settleDialogue(run);
     run.setFlag('pub.step', 5);
     expect(run.takeHotDrink('tea')).toBe(true);
@@ -126,4 +130,73 @@ describe('commentary never holds up a scene', () => {
     expect(q.blocking).toBe(true);
     expect(q.view()?.sequenceId).toBe('s');
   });
+});
+
+describe('breakables are scattered, never in the way (playtest 6)', () => {
+  for (const module of [chapter1, chapter2]) {
+    for (const screen of module.screens) {
+      const props = screen.dressing?.props ?? [];
+      const breakables = props.filter((p) => p.breakable);
+      if (breakables.length === 0) continue;
+
+      it(`${screen.id}: each sits on open ground and overlaps no other solid, NPC, pickup, examinable or exit`, () => {
+        const g = screen.grid;
+        const taken = new Map<string, string>();
+        const mark = (c: number, r: number, what: string) => taken.set(`${c},${r}`, what);
+        for (const p of props) {
+          if (p.breakable || !p.solid) continue;
+          for (let y = 0; y < p.solid.height; y++) for (let x = 0; x < p.solid.width; x++) mark(p.col + (p.solid.dx ?? 0) + x, p.row + (p.solid.dy ?? 0) + y, p.id ?? p.frame);
+        }
+        for (const n of screen.dressing?.npcs ?? []) mark(n.col, n.row, n.id ?? n.npc);
+        for (const p of module.pickups.filter((q) => q.screenId === screen.id)) mark(Math.floor(p.position.x / 16), Math.floor(p.position.y / 16), p.id);
+        for (const e of module.examinables.filter((q) => q.screenId === screen.id)) mark(Math.floor(e.position.x / 16), Math.floor(e.position.y / 16), e.id);
+        for (const e of screen.exits) for (let y = e.area.y; y < e.area.y + e.area.height; y += 16) for (let x = e.area.x; x < e.area.x + e.area.width; x += 16) mark(x / 16, y / 16, e.id);
+        for (const b of breakables) {
+          const id = b.id ?? b.frame;
+          expect(g.blocked[b.row * g.widthTiles + b.col], `${id} on a wall`).toBe(false);
+          expect(taken.get(`${b.col},${b.row}`), `${id} overlaps`).toBeUndefined();
+          mark(b.col, b.row, id);
+        }
+      });
+
+      it(`${screen.id}: with every breakable standing, every exit and pickup that could be walked to still can be`, () => {
+        const g = screen.grid;
+        const solids = (withBreakables: boolean): Set<string> => {
+          const out = new Set<string>();
+          for (const p of props) {
+            if (!p.solid || p.hidden || (p.breakable && !withBreakables)) continue;
+            for (let y = 0; y < p.solid.height; y++) for (let x = 0; x < p.solid.width; x++) out.add(`${p.col + (p.solid.dx ?? 0) + x},${p.row + (p.solid.dy ?? 0) + y}`);
+          }
+          return out;
+        };
+        const reach = (solid: Set<string>): Set<string> => {
+          const start = { col: Math.floor(screen.playerStart.x / 16), row: Math.floor(screen.playerStart.y / 16) };
+          const seen = new Set([`${start.col},${start.row}`]);
+          const queue = [start];
+          for (let t = queue.shift(); t !== undefined; t = queue.shift()) {
+            for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+              const c = t.col + dc;
+              const r = t.row + dr;
+              if (c < 0 || r < 0 || c >= g.widthTiles || r >= g.heightTiles || g.blocked[r * g.widthTiles + c] || solid.has(`${c},${r}`) || seen.has(`${c},${r}`)) continue;
+              seen.add(`${c},${r}`);
+              queue.push({ col: c, row: r });
+            }
+          }
+          return seen;
+        };
+        const open = reach(solids(false));
+        const withThem = reach(solids(true));
+        const places = [
+          ...screen.exits.map((e) => ({ id: e.id, key: `${Math.floor(e.area.x / 16)},${Math.floor(e.area.y / 16)}` })),
+          ...module.pickups.filter((q) => q.screenId === screen.id).map((p) => ({ id: p.id, key: `${Math.floor(p.position.x / 16)},${Math.floor(p.position.y / 16)}` })),
+        ];
+        // The naggin is meant to be behind the bins: breaking them is the throw lesson.
+        const behindOnPurpose = new Set(['c1.pickup.naggin']);
+        for (const pl of places) if (open.has(pl.key) && !behindOnPurpose.has(pl.id)) expect(withThem.has(pl.key), pl.id).toBe(true);
+        // And every breakable can be walked up to, wherever its spot can be reached at all (a shut gate shuts both).
+        const nextTo = (set: Set<string>, c: number, r: number) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dc, dr]) => set.has(`${c + (dc ?? 0)},${r + (dr ?? 0)}`));
+        for (const b of breakables) if (nextTo(open, b.col, b.row)) expect(nextTo(withThem, b.col, b.row), `${b.id ?? b.frame} can be reached`).toBe(true);
+      });
+    }
+  }
 });

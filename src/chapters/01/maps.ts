@@ -45,9 +45,10 @@ export const HURLEY_TILE = { col: 64, row: 8 } as const;
 export const KEG_AREA = { col: 12, row: 6, width: 5, height: 3 } as const;
 export const kegTile = (x: number, y: number) => ({ col: KEG_AREA.col + x, row: KEG_AREA.row + y });
 
-/** Street landmarks (tiles) the boss hooks refer to; both are solid props. */
+/** Street landmarks (tiles) the boss hooks refer to; both are solid props Big Tom's charge stops at. */
 export const TRACTOR = { col: 65, row: 7, width: 3, height: 2 } as const;
-export const CHURCH_GATE = { col: 41, row: 7, width: 2, height: 2 } as const;
+/** Playtest 6: a builder's skip at the west end of the arena (it replaces a church gate that stood in the road). */
+export const SKIP = { col: 41, row: 7, width: 2, height: 2 } as const;
 /** The fruit machine on the pub's west wall (the melee hook area). */
 export const MACHINE_AREA = tilesArea(1, 6, 1, 2);
 /** Where the bog lights start on the road (tile of the prop's top-left). */
@@ -86,11 +87,11 @@ export function pubScreen(): ScreenLayout {
       { frame: PROP.teamPhoto, col: 1, row: 4 },
       { frame: PROP.dartboard, col: 1, row: 10 },
       // Things to break while waiting on the pint.
-      { id: 'pub.p1', frame: PROP.barrel, col: 28, row: 4, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'pub.p3', frame: PROP.cardboardBox, col: 28, row: 11, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'pub.p1', frame: PROP.barrel, col: 27, row: 6, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'pub.p3', frame: PROP.cardboardBox, col: 27, row: 12, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'pub.p5', frame: PROP.bottleCrate, col: 10, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'pub.p6', frame: PROP.sack, col: 17, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'pub.p7', frame: PROP.barrel, col: 2, row: 15, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'pub.p6', frame: PROP.sack, col: 11, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'pub.p7', frame: PROP.barrel, col: 2, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
     ],
     npcs: [
       { id: 'dympna', npc: 'dympna', col: 21, row: 2, facing: 'down', examinableId: 'c1.dympna' },
@@ -127,9 +128,9 @@ export function yardScreen(): ScreenLayout {
       { id: 'yardGate', frame: PROP.yardGate, col: YARD_GATE_TILE.col, row: YARD_GATE_TILE.row, solid: { width: 1, height: 1 } },
       // Spare kit lying about the yard, clear of the kegs and the gate path.
       { id: 'yard.p1', frame: PROP.barrel, col: 2, row: 8, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'yard.p2', frame: PROP.bottleCrate, col: 2, row: 10, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'yard.p3', frame: PROP.sack, col: 6, row: 10, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'yard.p4', frame: PROP.cardboardBox, col: 7, row: 15, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p2', frame: PROP.bottleCrate, col: 3, row: 8, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p3', frame: PROP.sack, col: 6, row: 11, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'yard.p4', frame: PROP.cardboardBox, col: 7, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'yard.p5', frame: PROP.barrel, col: 12, row: 14, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'yard.p10', frame: PROP.cardboardBox, col: 13, row: 2, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'yard.p11', frame: PROP.barrel, col: 9, row: 3, solid: { width: 1, height: 1 }, breakable: {} },
@@ -186,26 +187,29 @@ export function streetScreen(): ScreenLayout {
       { id: 'bins2', frame: PROP.bins, col: 26, row: 4, solid: { width: 1, height: 1 }, breakable: { loot: 'none' } },
       { id: 'bins3', frame: PROP.bins, col: 27, row: 4, solid: { width: 1, height: 1 }, breakable: { loot: 'none' } },
       // Other things along the street that break: the region's table decides (a stout, now and then, or nothing).
-      { id: 'street.barrel1', frame: PROP.barrel, col: 14, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.crate1', frame: PROP.bottleCrate, col: 21, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.box1', frame: PROP.cardboardBox, col: 38, row: 13, solid: { width: 1, height: 1 }, breakable: { loot: 'none' } },
-      { id: 'street.sack1', frame: PROP.sack, col: 52, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      // More along both pavements.
-      { id: 'street.p1', frame: PROP.barrel, col: 6, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p2', frame: PROP.bottleCrate, col: 10, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p3', frame: PROP.sack, col: 18, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p4', frame: PROP.cardboardBox, col: 26, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p5', frame: PROP.barrel, col: 30, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p6', frame: PROP.bottleCrate, col: 34, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p7', frame: PROP.sack, col: 44, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p8', frame: PROP.barrel, col: 48, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p9', frame: PROP.bottleCrate, col: 56, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
-      { id: 'street.p11', frame: PROP.barrel, col: 64, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      // Playtest 6: scattered over both pavements and the kerbs, alone, in pairs and in small heaps, not in a row.
+      // The road in Big Tom's arena (cols 41 to 67, rows 7 to 11) stays clear for his charge.
+      { id: 'street.p1', frame: PROP.barrel, col: 4, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p2', frame: PROP.bottleCrate, col: 5, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.barrel1', frame: PROP.barrel, col: 11, row: 12, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p3', frame: PROP.sack, col: 17, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.crate1', frame: PROP.bottleCrate, col: 18, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p4', frame: PROP.cardboardBox, col: 17, row: 12, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p5', frame: PROP.barrel, col: 21, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.box1', frame: PROP.cardboardBox, col: 36, row: 13, solid: { width: 1, height: 1 }, breakable: { loot: 'none' } },
+      { id: 'street.p6', frame: PROP.bottleCrate, col: 37, row: 12, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p7', frame: PROP.sack, col: 49, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p8', frame: PROP.barrel, col: 50, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.sack1', frame: PROP.sack, col: 57, row: 5, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p9', frame: PROP.bottleCrate, col: 61, row: 12, solid: { width: 1, height: 1 }, breakable: {} },
+      { id: 'street.p11', frame: PROP.barrel, col: 62, row: 13, solid: { width: 1, height: 1 }, breakable: {} },
       // Tom leaves his hurley against the tractor when he sits down.
       { id: 'hurley', frame: PROP.weapon.hurley, col: HURLEY_TILE.col, row: HURLEY_TILE.row, hidden: true },
       { frame: PROP.chipperSign, col: 33, row: 3 },
-      // The church gate stands across the west end of the arena, the tractor at the east end.
-      { frame: PROP.churchGate, col: CHURCH_GATE.col, row: CHURCH_GATE.row, solid: { width: CHURCH_GATE.width, height: CHURCH_GATE.height } },
+      // The church gate, set in the church wall where it belongs. Scenery: the wall behind it is solid already.
+      { frame: PROP.churchGate, col: 49, row: 3 },
+      // A skip at the west end of the arena, the tractor at the east end: Big Tom's charge stops at either.
+      { frame: PROP.skip, col: SKIP.col, row: SKIP.row, solid: { width: SKIP.width, height: SKIP.height } },
       { frame: PROP.tractor, col: TRACTOR.col, row: TRACTOR.row, solid: { width: TRACTOR.width, height: TRACTOR.height } },
       // Big Tom folds his jacket on the church wall in phase 2.
       { id: 'jacket', frame: PROP.foldedJacket, col: 56, row: 4, hidden: true },

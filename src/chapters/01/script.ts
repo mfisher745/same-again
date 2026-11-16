@@ -9,7 +9,7 @@ import { GameEvents } from '../../core/types';
 import type { ScreenAmbient } from '../../core/chapter';
 import type { Kit, SectionId, SpecialSlotIndex, TextId } from '../../core/types';
 import { hidePrompt, onTabOpened, openHotDrinkChoice, showPrompt, showSlotPrompt } from '../../ui/prompts';
-import { BOG_LIGHTS_START, CHURCH_GATE, MACHINE_AREA, MYKO_SEAT, ROAD_DARK, TRACTOR, YARD_GATE_AREA } from './maps';
+import { BOG_LIGHTS_START, MACHINE_AREA, MYKO_SEAT, ROAD_DARK, SKIP, TRACTOR, YARD_GATE_AREA } from './maps';
 
 const OBJ = {
   bar: 'c1.bar',
@@ -221,11 +221,19 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
    * The free hot drink, from the urn. Only once Dympna has got to it on the list, or on any later visit. When it has
    * nothing to give, Dympna says why: not on the list yet, one already in his pocket, or this visit's one is gone.
    */
+  let urnLineOpen = false;
+  const urnLine = (id: 'c1.urn.notYet' | 'c1.urn.held' | 'c1.urn.spent'): void => {
+    // One at a time: E pressed again while the line is up (or queued) does not queue another.
+    if (urnLineOpen) return;
+    urnLineOpen = true;
+    void ctx.say(id, { repeat: true }).finally(() => {
+      urnLineOpen = false;
+    });
+  };
   const urn = (): void => {
-    if (step() < STEP.hotDrink) void ctx.say('c1.urn.notYet', { repeat: true });
+    if (step() < STEP.hotDrink) urnLine('c1.urn.notYet');
     else if (ctx.hotDrinkOffered()) openHotDrinkChoice();
-    else if (ctx.kit().hotDrink !== null) void ctx.say('c1.urn.held', { repeat: true });
-    else void ctx.say('c1.urn.spent', { repeat: true });
+    else urnLine(ctx.kit().hotDrink !== null ? 'c1.urn.held' : 'c1.urn.spent');
   };
 
   /** Steam over the urn while the free hot drink can be taken: the one free charge each visit, shown. */
@@ -432,9 +440,10 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       ctx.setPropVisible('jacket', false);
     },
     onChargeBlocked: (boss, body, col, row) => {
-      if (!inTiles(TRACTOR, col, row) && !inTiles(CHURCH_GATE, col, row)) return;
+      const tractor = inTiles(TRACTOR, col, row);
+      if (!tractor && !inTiles(SKIP, col, row)) return;
       boss.daze(body.tag);
-      void ctx.say('c1.bigTom.dazed');
+      void ctx.say(tractor ? 'c1.bigTom.dazed' : 'c1.bigTom.dazedSkip');
     },
     onPhaseChanged: (boss, phase) => {
       if (phase.id !== 'jacketOff') return;
