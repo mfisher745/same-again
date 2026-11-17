@@ -14,7 +14,7 @@ import { hasText, text } from '../../content/dialogue';
 import type { RedactionView } from '../../systems/redaction';
 import { makeLabel, rect, setLabelColour } from '../gfx';
 import type { Label } from '../gfx';
-import { SheetPicks } from '../model/picks';
+import { REDACTED_ON, RINGED_SHEETS, SheetPicks } from '../model/picks';
 import { wrapText } from '../model/wrap';
 import { UiSceneKeys } from '../shared';
 import type { UiShared } from '../shared';
@@ -23,27 +23,6 @@ const CARD = { w: 84, h: 112, gap: 8, x: 14, y: 40 } as const;
 const GLYPH_W = 6;
 const WORD_LINE_H = 12;
 const RESULT_MS = 2600;
-
-/**
- * Which sheets (by position, 0 to 4) black out each of the sentence's words, by word index. The right three are
- * the first, third and fourth: no word is hidden on all three, but every other three share a hidden word.
- */
-const HIDDEN_ON: readonly (readonly number[])[] = [
-  [0, 1, 2, 4],
-  [0, 1, 3, 4],
-  [1, 2, 3, 4],
-  [0, 1],
-  [2, 4],
-  [3, 1],
-  [0, 4],
-  [2],
-  [3, 4],
-  [0, 2],
-  [1, 4],
-  [2, 3],
-];
-/** The two with the coffee rings (the second and the fifth). */
-const RINGED: readonly number[] = [1, 4];
 
 interface Card {
   readonly id: string;
@@ -143,13 +122,13 @@ export class RedactionScene extends Phaser.Scene {
       const wx = x + 5 + cx;
       const wy = CARD.y + cy;
       makeLabel(this, wx, wy, word, 'ink', { depth: 3 });
-      if (HIDDEN_ON[k % HIDDEN_ON.length]?.includes(index) === true) {
+      if (REDACTED_ON[k % REDACTED_ON.length]?.includes(index) === true) {
         g.fillStyle(PALETTE.ink, 1);
         g.fillRect(wx - 1, wy - 1, w + 1, 9);
       }
       cx += w + GLYPH_W;
     });
-    if (RINGED.includes(index)) {
+    if (RINGED_SHEETS.includes(index)) {
       g.lineStyle(2, PALETTE.amber, 0.7);
       g.strokeCircle(x + CARD.w - 22, CARD.y + CARD.h - 24, 13);
     }

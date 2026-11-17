@@ -1,3 +1,25 @@
+/**
+ * Which sheets (by position, 0 to 4) black out each of the sentence's words, by word index. The right three are
+ * the first, third and fourth: no word is hidden on all three, but every other three share a hidden word.
+ */
+export const REDACTED_ON: readonly (readonly number[])[] = [
+  [0, 1, 2, 4],
+  [0, 1, 3, 4],
+  [1, 2, 3, 4],
+  [0, 1],
+  [2, 4],
+  [3, 1],
+  [0, 4],
+  [2],
+  [3, 4],
+  [0, 2],
+  [1, 4],
+  [2, 3],
+];
+/** The two with the coffee rings (the second and the fifth). */
+export const RINGED_SHEETS: readonly number[] = [1, 4];
+
+
 /** The sheets picked at the lightbox: up to `limit` ids, in the order they were picked. Plain TypeScript. */
 export class SheetPicks {
   private chosen: string[] = [];

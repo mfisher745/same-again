@@ -53,15 +53,11 @@ const SHEET_IDS = [1, 2, 3, 4, 5] as const;
 
 type Flag =
   | 'intro.done'
-  | 'actNatural.taught'
-  | 'actNatural.done'
   | 'clue.retirement'
   | 'clue.requisition'
   | 'clue.busticket'
   | 'floor.clean'
-  | 'memo.taken'
-  | 'lockIn.taught'
-  | 'lockIn.done';
+  | 'memo.taken';
 
 export function createChapterScript(ctx: ChapterContext): ChapterScript {
   let disposed = false;
@@ -264,10 +260,12 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     if (flag('intro.done') && !ctx.isComplete(STEALTH_LOBBY)) ctx.setObjective(OBJ.lobby);
   };
 
+  const knows = (move: MoveId): boolean => ctx.kit().moves.includes(move);
+
+  /** The lesson is a scene that plays once per save; the move is learned whenever it is not yet known (a load between the two cannot lose it). */
   const actNaturalLesson = async (): Promise<void> => {
-    if (flag('actNatural.taught') || lessonBusy) return;
+    if (knows('actNatural') || lessonBusy) return;
     lessonBusy = true;
-    setFlag('actNatural.taught');
     await ctx.say('c5.actNatural.lesson');
     lessonBusy = false;
     if (disposed) return;
@@ -277,7 +275,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
 
   /** The lesson must come before the guard matters: if Andrew walks past the queue or on to the floor without it, it plays then. */
   const lessonFallback = (): void => {
-    if (flag('actNatural.taught') || lessonBusy) return;
+    if (knows('actNatural') || lessonBusy) return;
     const here = ctx.currentScreen();
     if (here === 'c5.floor' || (here === 'c5.lobby' && ctx.playerPosition().y < LESSON_ROW * 16)) void actNaturalLesson();
   };
@@ -348,8 +346,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.setPropFrame('copier', PROP.filingCabinet.open);
     await ctx.say('c5.copier');
     if (disposed) return;
-    if (!flag('lockIn.taught')) {
-      setFlag('lockIn.taught');
+    if (!knows('lockIn')) {
       await ctx.say('c5.lockIn.lesson');
       if (disposed) return;
       ctx.learnMove('lockIn');
@@ -446,16 +443,11 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
         ctx.bus.on(GameEvents.MoveUsed, ({ moveId }) => {
           if (moveId === 'actNatural') {
             clearPrompt();
-            if (flag('actNatural.taught') && !flag('actNatural.done') && lobbyActive()) {
-              setFlag('actNatural.done');
-              void ctx.say('c5.actNatural.done');
-            }
+            // Said once per save: he looked right through him.
+            if (lobbyActive()) void ctx.say('c5.actNatural.done');
           } else if (moveId === 'lockIn') {
             clearPrompt();
-            if (flag('lockIn.taught') && !flag('lockIn.done') && ctx.fight(FIGHT)?.active === true) {
-              setFlag('lockIn.done');
-              void ctx.say('c5.lockIn.done');
-            }
+            if (ctx.fight(FIGHT)?.active === true) void ctx.say('c5.lockIn.done');
           }
         }),
         ctx.bus.on(GameEvents.ShelvesChanged, ({ bossId, phase, laneIds }) => {

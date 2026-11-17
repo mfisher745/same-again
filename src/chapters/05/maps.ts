@@ -115,8 +115,8 @@ export const LOBBY_HIDING: readonly HidingPropDef[] = [
 
 /** Myko waits at the bottom left, apart from the queue, with the phone. */
 export const LOBBY_MYKO_SPOT = T(5, 17);
-/** The lobby stealth section: it starts once Andrew is north of the queue's ropes and is clean at the Staff door. */
-export const LOBBY_STEALTH_START = tilesArea(2, 2, 36, 10);
+/** The lobby stealth section: it starts as Andrew comes in from the street and is clean at the Staff door. */
+export const LOBBY_STEALTH_START = tilesArea(2, 12, 36, 6);
 export const LOBBY_STEALTH_EXIT = tilesArea(32, 2, 4, 2);
 /** The agent from the Staff door when he is caught (the alarm fight is the guard plus this one). */
 export const LOBBY_REINFORCEMENTS = [T(33, 3)] as const;

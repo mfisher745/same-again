@@ -106,9 +106,12 @@ describe('chapter 5: layout', () => {
       for (const p of [...f.spawnPoints, f.entrance]) expect(reachable(floor, p), `${f.sectionId} ${tileOf(p)}`).toBe(true);
     }
     for (const st of chapter5.stealth) {
-      for (const p of [...st.reinforcementPoints, st.entrance]) expect(reachable(floor, p), `${st.sectionId} ${tileOf(p)}`).toBe(true);
-      expect([...floor].some((k) => inArea({ x: Number(k.split(',')[0]) * 16 + 8, y: Number(k.split(',')[1]) * 16 + 8 }, st.exitArea))).toBe(true);
-      expect(st.startArea !== undefined && inArea(screen('c5.floor').playerStart, st.startArea)).toBe(true);
+      // One section on the lobby (the Act Natural lesson) and one on the floor, each on its own screen.
+      const scr = screen(st.screenId);
+      const reach = flood(scr, scr.playerStart);
+      for (const p of [...st.reinforcementPoints, st.entrance]) expect(reachable(reach, p), `${st.sectionId} ${tileOf(p)}`).toBe(true);
+      expect([...reach].some((k) => inArea({ x: Number(k.split(',')[0]) * 16 + 8, y: Number(k.split(',')[1]) * 16 + 8 }, st.exitArea)), `${st.sectionId} exit`).toBe(true);
+      expect(st.startArea !== undefined && inArea(scr.playerStart, st.startArea), `${st.sectionId} starts where Andrew arrives`).toBe(true);
     }
     const stacks = flood(screen('c5.stacks'), screen('c5.stacks').playerStart);
     for (const b of chapter5.bosses) for (const body of b.bodies) expect(reachable(stacks, body.position), b.bossId).toBe(true);
@@ -154,6 +157,14 @@ describe('chapter 5: layout', () => {
     }
     for (const id of Object.keys(EXAMINE_LINES)) expect(ids, `${id} is not an examinable`).toContain(id);
     for (const npc of chapter5.screens.flatMap((s) => s.dressing?.npcs ?? [])) if (npc.examinableId) expect(ids).toContain(npc.examinableId);
+  });
+
+  it('every trigger has a walkable tile Andrew can reach inside it', () => {
+    for (const t of chapter5.triggers) {
+      const scr = screen(t.screenId);
+      const reach = flood(scr, scr.playerStart);
+      expect([...reach].some((k) => inArea({ x: Number(k.split(',')[0]) * 16 + 8, y: Number(k.split(',')[1]) * 16 + 8 }, t.area)), t.id).toBe(true);
+    }
   });
 
   it('prop and trigger ids are unique, and the sections, objectives and hints name text that exists', () => {

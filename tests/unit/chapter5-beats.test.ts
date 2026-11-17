@@ -4,6 +4,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { chapter4 } from '../../src/chapters/04/index';
+import { chapter5 } from '../../src/chapters/05/index';
+import { clearChapterRegistry, registerChapter } from '../../src/core/chapter';
+import { MemoryStorage, SaveStore } from '../../src/core/save';
+import { GameSession } from '../../src/systems/session';
 import { record } from './helpers';
 import { BOARD, BOSS, FIGHT, PUZZLE, examine, newGame, settle, solveBoard, startPruitt, toStacks, toTheBoard } from './chapter5-steps';
 
@@ -31,5 +36,23 @@ describe('chapter 5: a full run from the bar to the closing', () => {
     expect(ended).toHaveLength(1);
     const ids = shown.map((s) => s.sequenceId);
     for (const id of ['c5.open', 'c5.actNatural.lesson', 'c5.floor.clean', 'c5.redacted.solved', 'c5.copier', 'c5.lockIn.lesson', 'c5.fight.intro', 'c5.fight.end', 'c5.board.right', 'c5.pruitt.intro', 'c5.pruitt.end', 'c5.weapon.umbrella', 'c5.closing']) expect(ids, id).toContain(id);
+  });
+});
+
+describe('chapter 5: the way in and out', () => {
+  it('finishing chapter 4 starts chapter 5 at its bar', async () => {
+    clearChapterRegistry();
+    registerChapter(chapter4);
+    registerChapter(chapter5);
+    const session = new GameSession({ store: new SaveStore(new MemoryStorage()) });
+    session.setDriver({ showTitle: () => undefined, startGame: () => undefined, pauseGame: () => undefined, resumeGame: () => undefined });
+    session.startChapter(4);
+    const four = session.createRun()!;
+    expect(four.chapter).toBe(4);
+    four.completeChapter();
+    const five = session.createRun()!;
+    expect(five.chapter).toBe(5);
+    expect(five.screenId).toBe('c5.bar');
+    expect(five.player.pos).toEqual(chapter5.def.bar!.arrival);
   });
 });
