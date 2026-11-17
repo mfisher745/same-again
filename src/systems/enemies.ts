@@ -107,8 +107,7 @@ export class EnemyActor {
    * parked). `null`: `aloft` follows the def (`ActorStats.dropsToFire`).
    */
   aloftOverride: boolean | null = null;
-  /** Follows another body each tick (cab lights on the harvester). Set by `BossRunner.attach`. */
-  attachedTo: { readonly parent: EnemyActor; readonly offset: Vec2 } | null = null;
+
   /** Never leaves this area (pixels): walking, knockback and charges are all clamped into it (`FightPlacement.zones`). */
   leash: { readonly x: number; readonly y: number; readonly width: number; readonly height: number } | null = null;
   /**

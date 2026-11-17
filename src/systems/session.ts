@@ -22,7 +22,9 @@ import { EventBus } from '../core/events';
 import type { Random } from '../core/random';
 import { seededRandom } from '../core/random';
 import { MemoryStorage, SaveStore } from '../core/save';
+import type { RedactionTry, RedactionView } from './redaction';
 import { GameEvents, SAVE_VERSION_OVERHAUL } from '../core/types';
+import type { PuzzleSectionId } from '../core/types';
 import type {
   BarReturnReason,
   Vec2,
@@ -481,6 +483,18 @@ export function createUiState(session: GameSession) {
     },
     reopenDeduction(): void {
       run()?.reopenDeduction();
+    },
+    /** Chapter 5 lightbox: the pick-three screen waiting for an answer, or null. */
+    activeRedaction(): RedactionView | null {
+      return run()?.activeRedaction()?.view() ?? null;
+    },
+    /** Chapter 5 lightbox: the player overlays three sheets. */
+    submitRedaction(id: PuzzleSectionId, sheetIds: readonly string[]): RedactionTry {
+      return run()?.submitRedaction(id, sheetIds) ?? { correct: false, textId: 'c5.redacted.wrong', refused: true };
+    },
+    /** Chapter 5 lightbox: step back without answering. */
+    closeRedaction(): void {
+      run()?.closeRedaction();
     },
     dialogueFinished(sequenceId: DialogueId): void {
       run()?.dialogueFinished(sequenceId);
