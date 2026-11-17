@@ -11,12 +11,15 @@ import type { WeaponId } from '../core/types';
 import { K, WEAPONS } from './icons';
 import { PROPS_KEY } from './keys';
 import { PROP_C34, addChapters3And4 } from './propsC34';
+import { PROP_C56, addChapters5And6 } from './propsC56';
 import { AtlasBuilder, PixelBuffer } from './pixels';
 import type { Sheet } from './pixels';
 
 export const PROP = {
   // Chapters 3 and 4: keys, sizes and drawings in propsC34.ts.
   ...PROP_C34,
+  // Chapters 5 and 6: keys, sizes and drawings in propsC56.ts.
+  ...PROP_C56,
   // Shared
   keg: 'keg',
   crate: 'crate',
@@ -635,6 +638,7 @@ export function propsSheet(): Sheet {
 
   addChapter2(atlas);
   addChapters3And4(atlas);
+  addChapters5And6(atlas);
 
   for (const [name, w, h, rows] of HOT_DRINKS) atlas.add(name, w, h, pic(rows));
   for (const [id, draw] of Object.entries(WEAPON_PROPS)) atlas.add(PROP.weapon[id as Exclude<WeaponId, 'fists'>], 16, 16, draw);

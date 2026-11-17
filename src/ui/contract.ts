@@ -23,6 +23,7 @@ import type {
   MeterSnapshot,
   MoveId,
   ObjectiveId,
+  PuzzleSectionId,
   OverhaulSaveState,
   MoveSlotView,
   ThrowAim,
@@ -30,6 +31,7 @@ import type {
   Vec2,
   WeaponId,
 } from '../core/types';
+import type { RedactionTry, RedactionView } from '../systems/redaction';
 
 export interface UiStateSource {
   readonly bus: GameEventBus;
@@ -85,6 +87,12 @@ export interface UiStateSource {
   pendingDeduction(): boolean;
   /** Opens the board he stepped back from. */
   reopenDeduction(): void;
+  /** Chapter 5 lightbox: the pick-three screen waiting for an answer, or null while it should be shut. */
+  activeRedaction(): RedactionView | null;
+  /** Chapter 5 lightbox: overlay three sheets (ids from the view). A right set solves the puzzle; a wrong one costs nothing; `refused` is not three held sheets. */
+  submitRedaction(puzzleId: PuzzleSectionId, sheetIds: readonly string[]): RedactionTry;
+  /** Chapter 5 lightbox: step back without answering. */
+  closeRedaction(): void;
   /** The UI calls this when it has finished showing a sequence. */
   dialogueFinished(sequenceId: DialogueId): void;
   /** Stored save, for Continue and Chapter Select; null if none. */

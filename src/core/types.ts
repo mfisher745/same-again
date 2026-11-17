@@ -639,6 +639,11 @@ export interface EnemyDef {
   readonly frontalShieldDeg?: number;
   /** Looks like a tourist until it first attacks (mascot). */
   readonly disguisedUntilAttack?: boolean;
+  /**
+   * Hovers out of melee reach; drops low only while it telegraphs, fires, recovers or is stunned, and only then can
+   * a melee swing or move touch it. Bottles reach it at any height (the drone).
+   */
+  readonly dropsToFire?: boolean;
 }
 
 /** What starts a boss phase. docs/chapters, "Boss" sections. */
@@ -1624,6 +1629,22 @@ export interface GameEventPayloads {
   'boss:guarded': { readonly bossId: BossId; readonly tag: string };
   /** A swept hazard (`ChapterContext.sweepHazard`) began moving, or struck Andrew. */
   'hazard:swept': { readonly phase: 'moving' | 'hit'; readonly frame: string };
+  /** Chapter 5 rolling shelves: rails lit (`lit`), shelf sliding (`closing`), lane shut (`closed`), reopened (`open`), Andrew caught (`caught`). */
+  'shelves:changed': { readonly bossId: BossId; readonly phase: 'lit' | 'closing' | 'closed' | 'open' | 'caught'; readonly laneIds: readonly string[] };
+  /** Chapter 6 combine: dust plume on the next lane, the pass, a bale's shadow marker, a light knocked out, the end curve. */
+  'combine:changed': {
+    readonly bossId: BossId;
+    readonly phase: 'plume' | 'pass' | 'passEnded' | 'baleMarker' | 'baleLanded' | 'lightOut' | 'ditching' | 'ditched' | 'caught';
+    readonly laneId?: string;
+    readonly tag?: string;
+    readonly position?: Vec2;
+  };
+  /** A maze marker stone was stepped on. `wrong` reset all three. */
+  'maze:stone': { readonly puzzleId: PuzzleSectionId; readonly stoneId: string; readonly outcome: 'right' | 'wrong' | 'solved'; readonly lit: readonly string[] };
+  /** A set of sheets was put on the lightbox. */
+  'redaction:tried': { readonly puzzleId: PuzzleSectionId; readonly sheetIds: readonly string[]; readonly correct: boolean; readonly textId: TextId };
+  /** Standing corn was cut (the combine). `tiles` are the tiles that were standing. */
+  'corn:cut': { readonly screenId: ScreenId; readonly tiles: readonly TileCoord[] };
   'prop:broken': { readonly screenId: ScreenId; readonly propId: string; readonly frame: string };
   // --- Overhaul events (DESIGN.md 7.1, 7.2, 7.7) ---
   /** Andrew crossed into another drunk level. */
@@ -1740,6 +1761,11 @@ export const GameEvents = {
   SlidePulled: 'slide:pulled',
   BossGuarded: 'boss:guarded',
   HazardSwept: 'hazard:swept',
+  ShelvesChanged: 'shelves:changed',
+  CombineChanged: 'combine:changed',
+  MazeStone: 'maze:stone',
+  RedactionTried: 'redaction:tried',
+  CornCut: 'corn:cut',
   WeaponGained: 'weapon:gained',
   KitChanged: 'kit:changed',
   MeterHiddenChanged: 'meter:hiddenChanged',
@@ -2269,6 +2295,22 @@ export interface OverhaulTuning {
   readonly sheepWander?: SheepWanderTuning;
   /** Added to the beer chance of breakable and enemy drops in these chapters; absent is 0. */
   readonly dropBeerBonusByChapter?: Readonly<Partial<Record<number, number>>>;
+  /** Chapter 6 standing corn: the rustle noise radius while moving through it, walking and sneaking, px. */
+  readonly corn?: { readonly rustleRadius: number; readonly sneakRustleRadius: number };
+  /** Chapter 5 rolling shelves (`shelves.ts`). */
+  readonly shelves?: ShelfTuning;
+}
+
+/** Chapter 5 rolling shelves. First guesses; creative director to set. */
+export interface ShelfTuning {
+  /** A shelf takes this long to slide shut once the rails have lit, ms. */
+  readonly slideMs: number;
+  /** A shut lane stays shut this long, ms. */
+  readonly closedMs: number;
+  /** Andrew is thrown this far past the lane's edge when caught, px. */
+  readonly pushOutPx: number;
+  /** Lanes one crank closes, by boss phase id (phase 2 closes pairs so two shelves leave one safe lane). */
+  readonly lanesPerShelfByPhase: Readonly<Record<string, number>>;
 }
 
 /** How the objective glint behaves. */

@@ -90,6 +90,13 @@ export const C05: DialogueFile = {
     ),
     box('c5.actNatural.done', ['myko', 'He looked right through you. Twenty years I’ve watched barmen do that. Go on, the staff door.', 'by phone']),
 
+    // --- Examine lines (layout pass) ---
+    box('c5.examine.ticket', ['npc:name.ticketMachine', 'Now serving: 13.'], ['myko', "It's moving. You'll be seen before you're dead. Just."]),
+    box('c5.examine.lightbox', ['andrew', 'A light table. For holding pages up to.'], ['myko', 'Then bring it pages.', 'by phone']),
+    box('c5.examine.umbrellaStand', ['andrew', 'One umbrella. There’s a label on the handle. “PRUITT. DO NOT.”']),
+    box('c5.examine.whiskey', ['andrew', 'Birthday whiskey. The card is signed by everyone on the floor.'], ['myko', 'Then it belongs to everyone on the floor. You’re on the floor.', 'by phone']),
+    box('c5.lobby.caught', ['npc:name.lobbyGuard', 'Sir. Sir, the queue is behind you.'], ['myko', 'He won’t let that go. Put him down quiet and try the door.', 'by phone']),
+
     // --- Records floor ---
     box('c5.floor.overheard.1', ['npc:name.agent', 'Did you see the email about the email?']),
     box('c5.floor.overheard.2', ['npc:name.agent', "It's somebody's birthday. There's a card going round. I don't know them."]),
@@ -118,6 +125,7 @@ export const C05: DialogueFile = {
       ['andrew', 'What?'],
       ['myko', 'Nothing. Make a copy.'],
     ),
+    box('c5.copier.notYet', ['andrew', 'A photocopier.'], ['myko', 'You\u2019ve nothing worth copying yet. Read the file first.', 'by phone']),
     scene(
       'c5.copier',
       ['andrew', "It's jammed."],

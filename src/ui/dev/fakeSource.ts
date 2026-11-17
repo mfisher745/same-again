@@ -20,6 +20,7 @@ import type {
   ThrowAim,
   WeaponId,
   ObjectiveId,
+  PuzzleSectionId,
   Kit,
   HotDrinkId,
   MoveId,
@@ -35,6 +36,7 @@ import { GameEvents } from '../../core/types';
 import { assignMove, assignWeapon, gainWeapon, holds, learnMove, selectItem, takeHotDrink, useSelected, useSpirit } from '../../systems/kit';
 import type { KitChange } from '../../systems/kit';
 import { levelFor, overhaulTuning, stateFor } from '../../systems/meter';
+import type { RedactionTry, RedactionView } from '../../systems/redaction';
 import type { UiStateSource } from '../contract';
 
 export class FakeBus implements GameEventBus {
@@ -227,6 +229,22 @@ export class FakeSource implements UiStateSource {
     this.log.push(`submit ${id} ${evidence.join(',')} -> ${String(ok)}`);
     if (ok) this.board = null;
     return ok;
+  }
+  /** The lightbox view the harness shows; null keeps it shut. */
+  redaction: RedactionView | null = null;
+  /** The three sheets that make the full sentence. */
+  redactionCorrect: readonly string[] = ['sheet1', 'sheet3', 'sheet4'];
+  activeRedaction = (): RedactionView | null => this.redaction;
+  closeRedaction = (): void => {
+    this.redaction = null;
+  };
+  submitRedaction(puzzleId: PuzzleSectionId, sheetIds: readonly string[]): RedactionTry {
+    const view = this.redaction;
+    const held = view !== null && new Set(sheetIds).size === 3 && sheetIds.every((id) => view.sheets.some((s) => s.id === id && s.collected));
+    const correct = held && this.redactionCorrect.every((id) => sheetIds.includes(id));
+    this.log.push(`redact ${puzzleId} ${sheetIds.join(',')} -> ${String(correct)}`);
+    if (correct) this.redaction = null;
+    return { correct, textId: correct ? 'c5.redacted.right' : 'c5.redacted.wrong', refused: !held };
   }
   dialogueFinished(id: DialogueId): void {
     this.log.push(`finished ${id}`);

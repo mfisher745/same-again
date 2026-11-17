@@ -66,6 +66,7 @@ import type {
   NoiseEvent,
   ObjectiveDef,
   ObjectiveId,
+  PuzzleSectionId,
   MoveId,
   OverhaulDrinkId,
   PickupDef,
@@ -99,6 +100,8 @@ import { Dressing, propHitRect } from './dressing';
 import type { InteractPoint, LiveProp } from './dressing';
 import type { DialogueLookup } from './dialogue';
 import { EnemyActor, statsFromDef } from './enemies';
+import { LoneEnemies } from './loneEnemy';
+import type { LoneEnemyHandle, LoneEnemyOptions } from './loneEnemy';
 import type { ActorStats, CombatWorld } from './enemies';
 import { FightRunner } from './fight';
 import { add, angleFromFacing, distance, fromAngle, normalize, rectContains, scale } from './geometry';
@@ -123,6 +126,12 @@ import type { Projectile, ProjectileSpawn } from './projectiles';
 import { PushPuzzle } from './puzzles';
 import { SheepPuzzle } from './sheep';
 import { SlidePuzzle } from './slide';
+import { CombineDirector } from './combine';
+import { CornField } from './corn';
+import type { PixelRect } from './corn';
+import { MazePuzzle } from './maze';
+import { RedactionPuzzle } from './redaction';
+import { ShelfDirector } from './shelves';
 import { PROP } from '../art/props';
 import { CompletableSection, ScriptedCompletable } from './sections';
 import type { SectionHost } from './sections';
@@ -257,6 +266,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private readonly bosses = new Map<BossId, BossRunner>();
   private readonly stealthRunners = new Map<StealthSectionId, { runner: StealthRunner; placement: StealthPlacement | null }>();
   private deduction: DeductionBoard | null = null;
+  /** Standing corn by screen (chapter 6). */
+  readonly corn = new CornField();
+  /** Boss directors: Pruitt's shelves, the combine. */
+  private readonly directors = new Map<BossId, { shelves?: ShelfDirector; combine?: CombineDirector }>();
   /** The board has been opened this run: stepping back from it leaves it waiting to be reopened. */
   private deductionStarted = false;
   private currentSection: CompletableSectionId | null = null;
@@ -274,6 +287,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private clock = 0;
   private footstepMs = 0;
   private defeatedEmitted = new Set<string>();
+  /** Standalone enemies spawned by the script (`spawnLoneEnemy`); run-time only, cleared with the world. */
+  private readonly loneEnemies = new LoneEnemies();
   private meleeHooks: { readonly area: AreaRect; readonly screenId: ScreenId; readonly callback: (hit: MeleeHitInfo) => void }[] = [];
   private moveHooks: { readonly area: AreaRect; readonly screenId: ScreenId; readonly callback: (hit: MoveHitInfo) => void }[] = [];
   private timers: { at: number; readonly everyMs: number | null; readonly fn: () => void }[] = [];
@@ -579,6 +594,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       this.footstepMs = TUNING.stealth.footstepIntervalMs;
       const radius = p.footstepNoiseRadius();
       if (radius > 0) this.emitNoise({ kind: p.sneaking ? 'sneakFootstep' : 'footstep', position: p.pos, radius });
+      // Standing corn shakes where he goes.
+      const pc = tileOf(p.pos);
+      const corn = TUNING.overhaul?.corn;
+      if (corn && this.corn.isStanding(this.screen.id, pc.col, pc.row)) {
+        this.emitNoise({ kind: 'rustle', position: p.pos, radius: p.sneaking ? corn.sneakRustleRadius : corn.rustleRadius });
+      }
     }
 
     // Puzzles.
@@ -595,8 +616,17 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     // Sections.
     for (const f of this.fights.values()) f.tick(dtMs);
     for (const b of this.bosses.values()) b.tick(dtMs);
+    for (const [id, d] of this.directors) {
+      const boss = this.bosses.get(id);
+      if (!boss) continue;
+      d.shelves?.tick(dtMs, boss.phase, boss.active && !boss.suspended);
+      d.combine?.tick(dtMs, boss);
+    }
+    for (const { puzzle } of this.mazePuzzlesHere()) puzzle.update(p.pos);
     // Act Natural is a move now (`moves.ts`); tall corn hides him without it.
-    const hidden = this.combat.hidden || actingNatural(this.hidingPropsHere(), p.pos, p.stillMs, false);
+    const pt = tileOf(p.pos);
+    const inCorn = this.corn.isStanding(this.screen.id, pt.col, pt.row);
+    const hidden = this.combat.hidden || actingNatural(this.hidingPropsHere(), p.pos, p.stillMs, false) || (inCorn && p.stillMs >= TUNING.stealth.actNaturalStillMs);
     for (const { runner, placement } of this.stealthHere()) {
       if (!placement) continue;
       if (!runner.isFinished && !runner.alarmRaised && placement.startArea !== undefined && rectContains(placement.startArea, p.pos)) this.startStealth(runner);
@@ -694,6 +724,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       resetSection: (id) => this.resetSection(id),
       clearWorld: () => {
         this.actorList = [];
+        this.loneEnemies.clear();
         this.projectileList = [];
         this.defeatedEmitted.clear();
         this.refusedNear.clear();
@@ -733,6 +764,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     }
     this.fights.get(id as FightSectionId)?.reset();
     this.bosses.get(id as BossId)?.reset();
+    const dirs = this.directors.get(id as BossId);
+    if (dirs) {
+      dirs.shelves?.reset();
+      dirs.combine?.reset();
+      if (dirs.combine) this.regrowCorn();
+    }
     this.stealthRunners.get(id as StealthSectionId)?.runner.reset();
     // An unsolved push or sheep puzzle keeps the state Andrew left it in (docs/chapters/README.md).
   }
@@ -801,6 +838,34 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     return out;
   }
 
+  /** Pruitt's shelf directors on the current screen, for drawing (`laneStates()`). */
+  shelfDirectorsHere(): ShelfDirector[] {
+    return this.directorsHere().flatMap((d) => (d.shelves ? [d.shelves] : []));
+  }
+
+  /** The combine directors on the current screen, for drawing (`plumeLane()`, `baleShadow()`, `state`). */
+  combineDirectorsHere(): CombineDirector[] {
+    return this.directorsHere().flatMap((d) => (d.combine ? [d.combine] : []));
+  }
+
+  private directorsHere(): { shelves?: ShelfDirector; combine?: CombineDirector }[] {
+    const out: { shelves?: ShelfDirector; combine?: CombineDirector }[] = [];
+    for (const [id, d] of this.directors) {
+      if (this.module.bosses.find((b) => b.bossId === id)?.screenId === this.screen.id) out.push(d);
+    }
+    return out;
+  }
+
+  mazePuzzlesHere(): { puzzle: MazePuzzle; placement: import('./maze').MazePuzzlePlacement }[] {
+    const out: { puzzle: MazePuzzle; placement: import('./maze').MazePuzzlePlacement }[] = [];
+    for (const p of this.module.mazePuzzles ?? []) {
+      if (p.screenId !== this.screen.id) continue;
+      const e = this.sections.get(p.sectionId);
+      if (e && e.completable instanceof MazePuzzle) out.push({ puzzle: e.completable, placement: p });
+    }
+    return out;
+  }
+
   slidePuzzlesHere(): { puzzle: SlidePuzzle; placement: SlidePuzzlePlacement }[] {
     const out: { puzzle: SlidePuzzle; placement: SlidePuzzlePlacement }[] = [];
     for (const p of this.module.slidePuzzles ?? []) {
@@ -830,6 +895,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     const actor = new EnemyActor(enemyId, statsFromDef(TUNING.enemies[enemyId]), pos, (attackId) => ({ kind: 'enemy', enemyId, attackId }), this.rng);
     this.actorList.push(actor);
     return actor;
+  }
+
+  spawnLoneEnemy(enemyId: EnemyId, position: Vec2, opts?: LoneEnemyOptions): LoneEnemyHandle {
+    return this.loneEnemies.add(this.spawnEnemy(enemyId, position), opts);
   }
 
   spawnBossBody(bossId: BossId, stats: ActorStats, pos: Vec2): EnemyActor {
@@ -1062,6 +1131,56 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.bus.emit(GameEvents.SectionStarted, { sectionId: this.deduction.sectionId, kind: 'deduction' });
     this.deductionStarted = true;
     this.deduction.openBoard();
+  }
+
+  redaction(id: PuzzleSectionId): RedactionPuzzle | null {
+    const e = this.sections.get(id);
+    return e && e.completable instanceof RedactionPuzzle ? e.completable : null;
+  }
+
+  collectSheet(id: PuzzleSectionId, sheetId: string): boolean {
+    const r = this.redaction(id);
+    if (!r || !r.collect(sheetId)) return false;
+    this.setFlag(`redaction.${id}`, r.collected().join(','));
+    return true;
+  }
+
+  openRedaction(id: PuzzleSectionId): void {
+    const r = this.redaction(id);
+    if (!r || r.isComplete() || !r.allCollected()) return;
+    this.currentSection = id;
+    r.openScreen();
+  }
+
+  /** The lightbox screen waiting for a pick, or null. For the UI. */
+  activeRedaction(): RedactionPuzzle | null {
+    for (const p of this.module.redactionPuzzles ?? []) {
+      const r = this.redaction(p.sectionId);
+      if (r?.isOpen) return r;
+    }
+    return null;
+  }
+
+  /** The player picked three sheets. Saves nothing; completion saves as any section. */
+  submitRedaction(id: PuzzleSectionId, sheetIds: readonly string[]): import('./redaction').RedactionTry {
+    const r = this.redaction(id);
+    if (!r) return { correct: false, textId: 'c5.redacted.wrong', refused: true };
+    return r.submit(sheetIds);
+  }
+
+  closeRedaction(): void {
+    this.activeRedaction()?.closeScreen();
+  }
+
+  cutCorn(area: PixelRect, screenId: ScreenId = this.screen.id): number {
+    const tiles = this.corn.cut(screenId, area);
+    if (tiles.length > 0) this.bus.emit(GameEvents.CornCut, { screenId, tiles });
+    return tiles.length;
+  }
+
+  regrowCorn(screenId: ScreenId = this.screen.id): void {
+    const tiles = this.corn.regrow(screenId);
+    if (tiles.length > 0) this.bus.emit(GameEvents.CornCut, { screenId, tiles: [] });
   }
 
   closeDeduction(): void {
@@ -1580,6 +1699,21 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       };
       this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: p.screenId, entrance: null, start: () => puzzle.start() });
     }
+    for (const sc of m.screens) if (sc.corn) this.corn.mark(sc.id, sc.corn);
+    for (const p of m.mazePuzzles ?? []) {
+      const def = m.def.puzzle.id === p.sectionId ? m.def.puzzle : { id: p.sectionId, chapter: this.chapter, kind: 'maze' as const };
+      const puzzle = new MazePuzzle(def, p, this, this.bus, this.sectionReward(p.sectionId));
+      if (this.completed.has(p.sectionId)) puzzle.restoreComplete();
+      this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: p.screenId, entrance: null, start: () => puzzle.start() });
+    }
+    for (const p of m.redactionPuzzles ?? []) {
+      const def = m.def.puzzle.id === p.sectionId ? m.def.puzzle : { id: p.sectionId, chapter: this.chapter, kind: 'redacted' as const };
+      const puzzle = new RedactionPuzzle(def, p.layout, this, this.bus, this.sectionReward(p.sectionId));
+      if (this.completed.has(p.sectionId)) puzzle.restoreComplete();
+      const flagged = this.flags[`redaction.${p.sectionId}`];
+      if (typeof flagged === 'string') for (const id of flagged.split(',')) puzzle.collect(id);
+      this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: null, entrance: null, start: () => puzzle.start() });
+    }
     const board = m.def.deductionBoard;
     if (board) {
       // Wrong-answer lines answer the player's own submission, so they may repeat.
@@ -1616,7 +1750,20 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   private addBoss(b: BossPlacement): void {
     const def = TUNING.bosses[b.bossId];
-    const runner = new BossRunner(def, b.bodies, this, this, b.exitArea ?? null, this.sectionReward(b.bossId), this.lazyBossHooks(b.bossId));
+    const dirs: { shelves?: ShelfDirector; combine?: CombineDirector } = {};
+    if (b.shelves) dirs.shelves = new ShelfDirector(b.bossId, b.shelves, this.directorHost());
+    if (b.combine) dirs.combine = new CombineDirector(b.bossId, b.combine, this.directorHost(b.screenId));
+    if (dirs.shelves || dirs.combine) this.directors.set(b.bossId, dirs);
+    const lazy = this.lazyBossHooks(b.bossId);
+    const hooks: import('./boss').BossHooks = {
+      ...lazy,
+      onStart: (bo) => {
+        dirs.combine?.start(bo);
+        lazy.onStart?.(bo);
+      },
+    };
+    const runner = new BossRunner(def, b.bodies, this, this, b.exitArea ?? null, this.sectionReward(b.bossId), hooks);
+    if (dirs.shelves) runner.directedAttackIds = ['shelf'];
     if (this.completed.has(b.bossId)) runner.restoreComplete();
     this.bosses.set(b.bossId, runner);
     this.sections.set(b.bossId, {
@@ -1630,6 +1777,20 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
         runner.suspended = on;
       },
     });
+  }
+
+  private directorHost(screenId?: ScreenId): import('./shelves').ShelfHost & import('./combine').CombineHost {
+    return {
+      bus: this.bus,
+      rng: this.rng,
+      screenId: () => screenId ?? this.screen.id,
+      playerPosition: () => this.player.pos,
+      playerTargetable: () => this.playerTargetable(),
+      hitPlayer: (hit) => this.hitPlayer(hit),
+      pushPlayer: (distancePx, angleDeg) => this.player.lurch(distancePx, angleDeg, this.grid, (c, r) => this.extraBlocked(c, r)),
+      spawnProjectile: (spawn) => this.spawnProjectile(spawn),
+      cutCorn: (area) => void this.cutCorn(area, screenId),
+    };
   }
 
   /** The script is created after sections, so hooks are looked up when called. */
@@ -1877,6 +2038,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.lastScreenId = id;
     this.screen = layout;
     this.actorList = [];
+    this.loneEnemies.clear();
     this.projectileList = [];
     this.pickupsLive.clear();
     this.insideTriggers.clear();
@@ -2046,7 +2208,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private alarmGuardsHit(shape: AttackShape, angle: number): void {
     for (const { runner } of this.stealthHere()) {
       if (!runner.active) continue;
-      if (runner.guards.some((g) => shapeHits(shape, this.player.pos, angle, g.pos, TUNING.combat.characterHitRadius))) runner.alarm();
+      if (runner.guards.some((g) => !TUNING.enemies[g.enemyId].dropsToFire && shapeHits(shape, this.player.pos, angle, g.pos, TUNING.combat.characterHitRadius))) runner.alarm();
     }
   }
 
@@ -2067,6 +2229,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (this.defeatedEmitted.has(actor.instanceId)) return;
     this.defeatedEmitted.add(actor.instanceId);
     if (actor.enemyId) this.bus.emit(GameEvents.EnemyDefeated, { instanceId: actor.instanceId, enemyId: actor.enemyId, by });
+    this.loneEnemies.defeated(actor.instanceId);
     if (actor.enemyId && by !== 'debug') this.dropEnemyLoot(actor);
   }
 
@@ -2084,7 +2247,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
           if (actor.down || proj.hit.has(actor.instanceId) || !projectileTouches(proj, actor.pos, r)) continue;
           proj.hit.add(actor.instanceId);
           const kb = knockbackVector(proj.origin, actor.pos, proj.knockback, 0);
-          this.damageActor(actor, proj.damage, kb, proj.stunMs, proj.source, proj.pos, false);
+          const mult = proj.source.kind === 'player' ? this.combat.consumeMarkFor(actor.instanceId) : 1;
+          this.damageActor(actor, proj.damage * mult, kb, proj.stunMs, proj.source, proj.pos, false);
           if (!proj.shape.lobbed) {
             if (proj.pierceLeft <= 0) {
               proj.done = true;
@@ -2131,6 +2295,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.completeMark(best.id);
     if (best.item) this.give(best.item);
     if (this.module.deduction?.examinableId === best.id) this.openDeduction();
+    for (const rp of this.module.redactionPuzzles ?? []) if (rp.examinableId === best.id) this.openRedaction(rp.sectionId);
     for (const pp of this.pushPuzzlesHere()) if (pp.placement.resetExaminableId === best.id) pp.puzzle.reset();
     // E at a container lever pulls it (Andrew in the piece's way refuses); the lever's prop flips.
     for (const sp of this.slidePuzzlesHere()) {

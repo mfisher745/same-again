@@ -69,7 +69,12 @@ import type { NpcId } from '../art/cast';
 import type { ColourName } from '../art/palette';
 import type { BossBodyPlacement, BossHooks, BossRunner } from '../systems/boss';
 import type { FightHooks, FightRunner } from '../systems/fight';
+import type { LoneEnemyHandle, LoneEnemyOptions } from '../systems/loneEnemy';
 import type { PuzzleBase } from '../systems/investigation';
+import type { CombinePlacement } from '../systems/combine';
+import type { ShelfArenaPlacement } from '../systems/shelves';
+import type { MazePuzzlePlacement } from '../systems/maze';
+import type { RedactionLayout, RedactionPuzzle } from '../systems/redaction';
 import type { PushPuzzleLayout } from '../systems/puzzles';
 import type { SheepPuzzleLayout } from '../systems/sheep';
 import type { SectionHost } from '../systems/sections';
@@ -276,6 +281,12 @@ export interface ScreenLayout {
   readonly dressing?: ScreenDressing;
   /** Night tint and lights. A script can change it with `ctx.setAmbient`. */
   readonly ambient?: ScreenAmbient;
+  /**
+   * Standing corn (chapter 6): areas of whole tiles. Standing still in a standing corn tile hides Andrew from guards
+   * like Act Natural (no move needed); moving through one makes a `rustle` noise. Corn does not block sight or
+   * movement; draw it with tile frames or props yourself and redraw on `corn:cut`. The combine cuts it.
+   */
+  readonly corn?: readonly { readonly col: number; readonly row: number; readonly width: number; readonly height: number }[];
 }
 
 /** What a melee swing that touched an `onMeleeHit` area was. */
@@ -319,6 +330,10 @@ export interface BossPlacement {
   readonly screenId: ScreenId;
   readonly trigger: SectionTrigger;
   readonly bodies: readonly BossBodyPlacement[];
+  /** Chapter 5 boss: the rolling shelves Pruitt cranks (`shelves.ts`). */
+  readonly shelves?: ShelfArenaPlacement;
+  /** Chapter 6 set piece: the combine's lanes, lights and escort (`combine.ts`). */
+  readonly combine?: CombinePlacement;
   readonly entrance: Vec2;
   /**
    * What Myko's call lines for this boss or set piece are called: the chapter's `mykoCallLines.setpiece` set is
@@ -392,6 +407,13 @@ export interface SheepPuzzlePlacement {
   readonly layout: SheepPuzzleLayout;
 }
 
+export interface RedactionPlacement {
+  readonly sectionId: PuzzleSectionId;
+  readonly layout: RedactionLayout;
+  /** Examining this at the lightbox opens the pick-three screen (or the script calls `ctx.openRedaction()`). */
+  readonly examinableId?: string;
+}
+
 export interface DeductionPlacement {
   /** Examining this opens the board (or the script calls `ctx.openDeduction()`). */
   readonly examinableId?: string;
@@ -418,6 +440,10 @@ export interface ChapterModule {
   readonly sheepPuzzles?: readonly SheepPuzzlePlacement[];
   /** The chapter 4 container puzzle: levers slide pieces along rails. Built by the systems (`slide.ts`). */
   readonly slidePuzzles?: readonly SlidePuzzlePlacement[];
+  /** The chapter 6 marker-stone maze (`maze.ts`). */
+  readonly mazePuzzles?: readonly MazePuzzlePlacement[];
+  /** The chapter 5 lightbox puzzle (`redaction.ts`). */
+  readonly redactionPuzzles?: readonly RedactionPlacement[];
   readonly deduction?: DeductionPlacement;
   readonly triggers: readonly TriggerDef[];
   /** Pools for Myko's tangents (DESIGN.md 7.5: Ohio from chapter 6). */
@@ -541,6 +567,19 @@ export interface ChapterContext {
   fight(id: FightSectionId): FightRunner | null;
   stealth(id: StealthSectionId): StealthControl | null;
   openDeduction(): void;
+  /** Chapter 5: the redaction puzzle `id` (collect sheets, read its state), or null if the chapter has none by that id. */
+  redaction(id: PuzzleSectionId): RedactionPuzzle | null;
+  /** Chapter 5: Andrew picked up a loose sheet. Saved with the flags. False if unknown or already held. */
+  collectSheet(id: PuzzleSectionId, sheetId: string): boolean;
+  /** Chapter 5: opens the pick-three-of-five screen for the lightbox puzzle (needs all five sheets collected). */
+  openRedaction(id: PuzzleSectionId): void;
+  /**
+   * Chapter 6: cuts standing corn (`ScreenLayout.corn`) touched by `area` on the current screen (or `screenId`).
+   * Emits `corn:cut` with the tiles that were standing. Returns how many tiles were cut.
+   */
+  cutCorn(area: AreaRect, screenId?: ScreenId): number;
+  /** Chapter 6: regrows all corn of a screen as declared (a set piece starting over). */
+  regrowCorn(screenId?: ScreenId): void;
 
   // Player and world
   /** Learn a move: it goes into its slot if that slot is empty. Emits `move:learned`. */
@@ -631,6 +670,13 @@ export interface ChapterContext {
    * `hazard:swept` `moving` as it starts to move and `hit` if it lands.
    */
   sweepHazard(opts: SweepHazardOptions): Promise<void>;
+  /**
+   * Spawns one enemy of its own at `position` on the current screen: it fights Andrew normally but belongs to no
+   * fight, stealth section or boss (no alarm, no clean-run count, no wave). `opts.onDefeated` runs once when it falls
+   * (the `enemy:defeated` event fires too). Run-time only: never saved, and gone after a screen change or a return
+   * to the bar without calling anything, so a script that still needs it spawns it again.
+   */
+  spawnLoneEnemy(enemyId: EnemyId, position: Vec2, opts?: LoneEnemyOptions): LoneEnemyHandle;
   spawnPickup(def: PickupDef): void;
   removePickup(id: string): void;
   /** Ends the chapter: hangover carry-over, save, next chapter. */

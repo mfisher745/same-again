@@ -6,6 +6,8 @@
 import { describe, expect, it } from 'vitest';
 import { chapter3 } from '../../src/chapters/03/index';
 import { chapter4 } from '../../src/chapters/04/index';
+import { chapter5 } from '../../src/chapters/05/index';
+import { chapter6 } from '../../src/chapters/06/index';
 import type { ChapterModule } from '../../src/core/chapter';
 import type { AreaRect } from '../../src/core/chapter';
 import type { ScreenId, StealthSectionId } from '../../src/core/types';
@@ -22,6 +24,9 @@ interface Case {
 const CASES: Case[] = [
   { name: 'chapter 3 yard', module: chapter3, sectionId: 'c3.stealth.yard' },
   { name: 'chapter 4 docks', module: chapter4, sectionId: 'c4.stealth.docks' },
+  { name: 'chapter 5 lobby', module: chapter5, sectionId: 'c5.stealth.lobby' },
+  { name: 'chapter 5 floor', module: chapter5, sectionId: 'c5.stealth.floor' },
+  { name: 'chapter 6 fields', module: chapter6, sectionId: 'c6.stealth.fields' },
 ];
 
 async function openRun(module: ChapterModule, screen: ScreenId) {

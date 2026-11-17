@@ -68,6 +68,11 @@ export class BossRunner extends CompletableSection {
   private readonly targetMax: number;
   /** Set during a Myko call-in. */
   suspended = false;
+  /**
+   * Attack ids a director plays instead of the bodies (Pruitt's `shelf`): bodies using the phase's attacks leave them
+   * out. Set by the run when the placement has a `shelves` director.
+   */
+  directedAttackIds: readonly string[] = [];
 
   constructor(
     readonly def: BossDef,
@@ -312,7 +317,7 @@ export class BossRunner extends CompletableSection {
       const actor = this.bodyList[idx];
       if (!actor) return;
       const attacks = p.attacks ?? 'phase';
-      actor.attacks = attacks === 'phase' ? ph.attacks : attacks === 'none' ? [] : attacks;
+      actor.attacks = attacks === 'phase' ? ph.attacks.filter((a) => !this.directedAttackIds.includes(a.id)) : attacks === 'none' ? [] : attacks;
       actor.attackSpeedMultiplier = ph.attackSpeedMultiplier;
       actor.moveSpeed = this.speedFor(p, ph);
       actor.stationary = p.stationary === true || actor.moveSpeed === 0;

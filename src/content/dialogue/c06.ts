@@ -37,6 +37,7 @@ export const C06: DialogueFile = {
     'c6.objective.drones': 'Deal with the drones.',
     'c6.objective.maze': 'Find the way through the formation.',
     'c6.objective.board': 'Work out who is paying for all this.',
+    'c6.objective.centre': 'Go down the hatch.',
     'c6.objective.combine': 'Stop the combine.',
 
     'c6.clue.noticeboard.title': 'Notice',
@@ -65,6 +66,8 @@ export const C06: DialogueFile = {
     'c6.call.fight.margin': 'I had an ice bucket. That’s all I’ll say.',
     'c6.call.puzzle.casebook': 'Crop formation is a maze from the ground. Solved it off the postcard. Myko walked it with me.',
     'c6.call.puzzle.margin': 'I walked it. You followed, complaining.',
+    'c6.call.combine.casebook': 'Combine harvester, no driver, three sensor lights. Stopped it. Myko had a word with it.',
+    'c6.call.combine.margin': 'It listened. More than some.',
   },
   sequences: [
     caption('c6.caption.title', 'Flyover Country'),
@@ -90,6 +93,9 @@ export const C06: DialogueFile = {
       ['npc:name.motelClerk', 'No catch. You just look like you need it. Take a cup with you. Come back, I’ll fill it.'],
       ['myko', "She'll fill it again. You don't even have to ask. Say thank you to the woman."],
     ),
+    box('c6.tea.held', ['npc:name.motelClerk', 'You\u2019ve still got the last one, hon. It\u2019s not going anywhere.']),
+    box('c6.tea.spent', ['npc:name.motelClerk', 'Pot\u2019s empty. I\u2019ll put another on. It takes a while. Everything does here.']),
+    box('c6.track.locked', ['myko', 'Not yet. Ask about the town first. And the motel. Ohio deserves to be done right.']),
     box('c6.bar.hotDrink', ['npc:name.motelClerk', 'More coffee? There’s tea too, hon. Nobody’s ever opened the box.']),
     box('c6.bar.return', ['myko', 'She saw you coming and she filled it. You never even reached the counter.']),
     scene(
@@ -256,6 +262,8 @@ export const C06: DialogueFile = {
     box('c6.hint.drones.2', ['myko', 'Bottle them when they drop to fire. Drink the light beer for more. Do the agents on foot in between.', 'by phone']),
     box('c6.hint.maze.1', ['myko', "Three stones, in an order. The order's on the postcard. Tab.", 'by phone']),
     box('c6.hint.maze.2', ['myko', 'Near stone on the left first. Then the far one. Then the one by the hatch.', 'by phone']),
+    box('c6.hint.centre.1', ['myko', "The hatch is open. That's an invitation, in Ohio.", 'by phone']),
+    box('c6.hint.centre.2', ['myko', 'Middle of the circle. Stand on the hatch and press E.', 'by phone']),
     box('c6.hint.board.1', ['myko', "Two bits of paper with the same name on them, and a picture that's the same shape as a field."]),
     box('c6.hint.board.2', ['myko', 'The ledger, the receipt and the postcard.']),
     box('c6.hint.combine.1', ['myko', "It's blind without the red lights. They're on the cab, where you can reach when it passes.", 'by phone']),

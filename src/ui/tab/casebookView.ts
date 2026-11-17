@@ -7,10 +7,13 @@
 import Phaser from 'phaser';
 import { hasText, text, format } from '../../content/dialogue';
 import { PALETTE } from '../../art/palette';
+import type { ColourName } from '../../art/palette';
 import type { Label } from '../gfx';
 import { setLabelColour, setLabelText } from '../gfx';
 import { CASEBOOK_TABS, groupCasebook, tabTextId } from '../model/casebook';
 import type { CasebookItem, CasebookTab } from '../model/casebook';
+import { POSTCARD_EVIDENCE, postcardPicture } from '../model/postcard';
+import type { PictureRect } from '../model/postcard';
 import { wrapText } from '../model/wrap';
 import type { UiShared } from '../shared';
 import { Layer } from './layer';
@@ -19,6 +22,8 @@ const TOP = 12;
 const LIST = { x: 12, y: 34 + TOP, rowHeight: 11, rows: 18, chars: 22 } as const;
 const BODY = { x: 160, y: 36 + TOP, chars: 30, maxLines: 19 } as const;
 const MARGIN = { x: 358, y: 36 + TOP, chars: 19 } as const;
+/** Where the chapter 6 postcard's picture sits in the body column, under its text. */
+const POSTCARD = { x: BODY.x, y: 118 } as const;
 
 export class CasebookView {
   private readonly layer: Layer;
@@ -31,6 +36,7 @@ export class CasebookView {
   private readonly body: Label;
   private readonly margin: Label;
   private readonly empty: Label;
+  private readonly postcard: Phaser.GameObjects.Graphics;
   private lastKey = '';
 
   constructor(
@@ -60,6 +66,26 @@ export class CasebookView {
     this.body = L.label(BODY.x, BODY.y, '', 'ink');
     this.margin = L.label(MARGIN.x, MARGIN.y, '', 'beanie');
     this.empty = L.label(LIST.x, LIST.y, text('ui.casebook.empty'), 'steel');
+    this.postcard = L.graphics();
+    this.drawPostcard();
+  }
+
+  /** The aerial photo: the maze's walls, the three stones ringed by their order and joined in it. */
+  private drawPostcard(): void {
+    const pic = postcardPicture();
+    const g = this.postcard;
+    const fill = (r: PictureRect, colour: ColourName): void => {
+      g.fillStyle(PALETTE[colour], 1);
+      g.fillRect(POSTCARD.x + r.x, POSTCARD.y + r.y, r.w, r.h);
+    };
+    fill({ x: -3, y: -3, w: pic.width + 6, h: pic.height + 6 }, 'bone');
+    fill({ x: 0, y: 0, w: pic.width, h: pic.height }, 'corn');
+    for (const w of pic.walls) fill(w, 'cornShade');
+    for (const l of pic.links) fill(l, 'alarm');
+    for (const s of pic.stones) {
+      fill(s.box, 'white');
+      for (const p of s.pips) fill(p, 'ink');
+    }
   }
 
   setVisible(visible: boolean): void {
@@ -124,6 +150,7 @@ export class CasebookView {
       if (l !== undefined) setLabelColour(l, active ? 'beanie' : 'slate');
     });
     this.empty.setVisible(items.length === 0);
+    this.postcard.setVisible(items[this.selected]?.key === `e:${POSTCARD_EVIDENCE}`);
     this.rows.forEach((row, i) => {
       const item = items[this.scroll + i];
       row.bg.setVisible(item !== undefined);

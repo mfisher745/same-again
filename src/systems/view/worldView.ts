@@ -12,14 +12,18 @@
  */
 
 import Phaser from 'phaser';
-import { animKey, frameName, PALETTE, TEX, tilesetKey } from '../../art';
-import type { Facing, RegionId, Vec2, WeaponId } from '../../core/types';
+import { animKey, frameName, PALETTE, PROPS_KEY, TEX, tilesetKey } from '../../art';
+import { tileIndex } from '../../art/tiles';
+import { GameEvents } from '../../core/types';
+import type { Facing, RegionId, TileCoord, Vec2, WeaponId } from '../../core/types';
 import type { EnemyActor } from '../enemies';
 import { facingFromAngle, fromAngle, toRad } from '../geometry';
 import { TILE } from '../grid';
 import type { ChapterRun } from '../run';
+import { cutCornTiles, ditchSinkPx, isSensorLightBody } from './c56';
 import { DressingView } from './dressingView';
 import { ObjectsView } from './objectsView';
+import { SetpieceView } from './setpieceView';
 
 export interface WorldViewOptions {
   /** Draw the debug shapes (checkpoints, areas, radii). `?debug=1`. */
@@ -58,6 +62,15 @@ export class WorldView {
   private readonly bodies = new Map<string, KeyedBody>();
   private readonly dressing: DressingView;
   private readonly objects: ObjectsView;
+  private readonly setpieces: SetpieceView;
+  /** The tile image of each cell of the screen, by `row * width + col`. */
+  private readonly tileAt = new Map<number, Phaser.GameObjects.Image>();
+  /** Chapter 6: this screen's corn tiles, the frames for standing and cut, and which are drawn cut now. */
+  private cornTiles: readonly TileCoord[] = [];
+  private cornFrames: { standing: number; stubble: number } | null = null;
+  private cornShownCut = new Set<string>();
+  private cornDirty = true;
+  private readonly offCornCut: () => void;
   private readonly debug: boolean;
   private screenId = '';
   readonly playerBody: Body;
@@ -80,6 +93,10 @@ export class WorldView {
     this.mykoBody = this.makeBody(TEX.myko, 16, MYKO_H, PALETTE.mykoCoat);
     this.dressing = new DressingView(scene, run);
     this.objects = new ObjectsView(scene, run);
+    this.setpieces = new SetpieceView(scene, run);
+    this.offCornCut = run.bus.on(GameEvents.CornCut, () => {
+      this.cornDirty = true;
+    });
     this.buildScreen();
   }
 
@@ -108,9 +125,14 @@ export class WorldView {
 
     const seen = new Set<string>();
     for (const a of r.enemies()) {
+      // The combine's cab lights are drawn as sensor lights by the set-piece view, not as combines.
+      if (isSensorLightBody(a.tag, a.spriteKey)) continue;
       seen.add(a.instanceId);
       const body = this.bodyFor(a.instanceId, a.spriteKey, 16, 22, this.enemyColour(a));
-      this.place(body, a.pos, a.spriteKey, a.down ? 'down' : a.status === 'telegraphing' ? 'telegraph' : 'walk', facingFromAngle(a.facingDeg));
+      // A drone dropped to fire (or stunned) is `low`; aloft it uses the normal animations.
+      const lowDrone = a.enemyId === 'drone' && !a.aloft && !a.down;
+      this.place(body, a.pos, a.spriteKey, a.down ? 'down' : lowDrone ? 'low' : a.status === 'telegraphing' ? 'telegraph' : 'walk', facingFromAngle(a.facingDeg));
+      if (a.tag === 'harvester') this.sinkHarvester(body, a);
       if (body instanceof Phaser.GameObjects.Rectangle) {
         body.setFillStyle(a.down ? PALETTE.coal : a.status === 'telegraphing' ? PALETTE.alarm : a.disguised ? PALETTE.lime : this.enemyColour(a));
         body.setAlpha(a.down ? 0.5 : 1);
@@ -129,6 +151,8 @@ export class WorldView {
       }
     }
     this.dressing.sync();
+    this.syncCorn();
+    this.setpieces.sync();
     const now = this.scene.time.now;
     const dt = this.lastSync < 0 ? 0 : now - this.lastSync;
     this.lastSync = now;
@@ -207,6 +231,8 @@ export class WorldView {
     this.bodies.clear();
     this.dressing.destroy();
     this.objects.destroy();
+    this.setpieces.destroy();
+    this.offCornCut();
     this.g.destroy();
     this.playerBody.destroy();
     this.mykoBody.destroy();
@@ -220,6 +246,7 @@ export class WorldView {
     this.staticLayer?.destroy();
     for (const t of this.tileImages) t.destroy();
     this.tileImages = [];
+    this.tileAt.clear();
     for (const b of this.bodies.values()) b.body.destroy();
     this.bodies.clear();
 
@@ -228,13 +255,19 @@ export class WorldView {
     const tex = tilesetKey(region as RegionId);
     const g = this.scene.add.graphics().setDepth(-1000);
     this.staticLayer = g;
+    this.cornTiles = (layout.corn ?? []).flatMap((c) => Array.from({ length: c.width * c.height }, (_, k) => ({ col: c.col + (k % c.width), row: c.row + Math.floor(k / c.width) })));
+    this.cornFrames = region === 'ohio' && this.cornTiles.length > 0 ? { standing: tileIndex('ohio', 'cornStanding'), stubble: tileIndex('ohio', 'cornStubble') } : null;
+    this.cornShownCut = new Set();
+    this.cornDirty = true;
     const useTiles = layout.tiles !== undefined && this.scene.textures.exists(tex);
     for (let row = 0; row < grid.heightTiles; row++) {
       for (let col = 0; col < grid.widthTiles; col++) {
         const i = row * grid.widthTiles + col;
         const frame = layout.tiles?.[i] ?? -1;
         if (useTiles && frame >= 0) {
-          this.tileImages.push(this.scene.add.image(col * TILE + TILE / 2, row * TILE + TILE / 2, tex, frame).setDepth(-1001));
+          const img = this.scene.add.image(col * TILE + TILE / 2, row * TILE + TILE / 2, tex, frame).setDepth(-1001);
+          this.tileImages.push(img);
+          this.tileAt.set(i, img);
           continue;
         }
         const blocked = grid.blocked[i] === true;
@@ -254,6 +287,36 @@ export class WorldView {
     const by = h < cam.height ? -Math.floor((cam.height - h) / 2) : 0;
     cam.setBackgroundColor(PALETTE.ink);
     cam.setBounds(bx, by, Math.max(w, cam.width), Math.max(h, cam.height));
+  }
+
+  /** Standing corn and cut stubble: swaps the tile frames when the corn is cut or grows back (`corn:cut`). */
+  private syncCorn(): void {
+    if (!this.cornDirty) return;
+    this.cornDirty = false;
+    const frames = this.cornFrames;
+    if (!frames) return;
+    const w = this.run.screenLayout.grid.widthTiles;
+    const standing = new Set(this.run.corn.standingTiles(this.run.screenLayout.id).map((t) => `${t.col},${t.row}`));
+    const cut = cutCornTiles(this.cornTiles, standing);
+    const cutKeys = new Set(cut.map((t) => `${t.col},${t.row}`));
+    const setFrame = (key: string, frame: number): void => {
+      const [c, r] = key.split(',').map(Number);
+      this.tileAt.get((r ?? 0) * w + (c ?? 0))?.setFrame(frame);
+    };
+    for (const k of cutKeys) if (!this.cornShownCut.has(k)) setFrame(k, frames.stubble);
+    for (const k of this.cornShownCut) if (!cutKeys.has(k)) setFrame(k, frames.standing);
+    this.cornShownCut = cutKeys;
+  }
+
+  /** The harvester sinks into the irrigation ditch as it reaches the end of its path. */
+  private sinkHarvester(body: Body, a: EnemyActor): void {
+    if (!(body instanceof Phaser.GameObjects.Sprite)) return;
+    const d = this.run.combineDirectorsHere()[0];
+    const end = d?.placement.ditchPath[d.placement.ditchPath.length - 1];
+    const sinking = d !== undefined && end !== undefined && (d.state === 'ditching' || d.state === 'done');
+    const sink = sinking ? ditchSinkPx(Math.hypot(a.pos.x - end.x, a.pos.y - end.y)) : 0;
+    if (sink > 0) body.setCrop(0, 0, body.width, body.height - sink);
+    else body.setCrop();
   }
 
   private drawDynamic(): void {
@@ -293,8 +356,18 @@ export class WorldView {
       if (a.status === 'stunned') g.lineStyle(1, PALETTE.fluoro, 0.9).strokeCircle(a.pos.x, a.pos.y - 14, 3);
     }
 
+    // Second Opinion: a ring at the feet of the enemy whose next hit lands x4.
+    const markedId = r.combat.markedTargetId;
+    const marked = markedId === null ? undefined : r.enemies().find((e) => e.instanceId === markedId);
+    if (marked && !marked.down) {
+      const pulse = 0.6 + 0.4 * Math.sin(this.scene.time.now / 120);
+      g.lineStyle(2, PALETTE.alarm, pulse).strokeEllipse(marked.pos.x, marked.pos.y + FEET_OFFSET - 1, 18, 8);
+      g.lineStyle(1, PALETTE.white, pulse * 0.8).strokeEllipse(marked.pos.x, marked.pos.y + FEET_OFFSET - 1, 12, 5);
+    }
+
     // Projectiles.
     for (const p of r.projectiles()) {
+      if (p.frame === 'bale' && this.scene.textures.exists(PROPS_KEY)) continue; // drawn as a round bale by the set-piece view
       if (p.shape.lobbed) g.fillStyle(PALETTE.ink, 0.4).fillEllipse(p.pos.x, p.pos.y, 6, 3);
       g.fillStyle(p.owner === 'player' ? PALETTE.bone : PALETTE.alarm, 1).fillCircle(p.pos.x, p.pos.y - p.height, 2);
     }
