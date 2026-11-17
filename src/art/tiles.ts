@@ -323,7 +323,7 @@ function ohio(): TileDef[] {
     t('poolEmpty', solid('skyPale', 'dustyBlue', 'white'), true),
     t('sidewalk', checker('bone', 'fog', 8)),
     t('hatch', solid('steel', 'coal', 'fog')),
-    // Chapter 6. Standing corn: walkable, and Andrew hides in it (same flags as `cover`, so a swap changes nothing).
+    // Chapter 6. Standing corn: walkable, does not block sight (spec); standing still in it hides Andrew (systems/corn.ts).
     t('cornStanding', on(dirt, (b) => {
       for (let x = 0; x < 16; x += 2) {
         const top = 1 + ((x * 5) % 3);
@@ -331,7 +331,7 @@ function ohio(): TileDef[] {
         b.set(x + 1, top + 3 + (x % 3), 'grass').set(x + 1, top + 8 - (x % 2), 'grass');
         b.set(x, top, 'amberLight');
       }
-    }), false, true),
+    })),
     // Cut stubble where the combine has been: short stalks in rows on dirt. Walkable, hides nothing.
     t('cornStubble', on(dirt, (b) => {
       for (let y = 2; y < 16; y += 4) for (let x = (y % 8 === 2 ? 1 : 3); x < 16; x += 4) b.vline(x, y, 2, 'cornShade').set(x, y, 'corn');

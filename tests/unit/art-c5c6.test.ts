@@ -37,7 +37,7 @@ describe('chapter 5 and 6 tiles', () => {
     expect(tileFlags('cities', tileIndex('cities', 'railLit'))).toEqual({ blocked: false, blocksSight: false });
   });
   it('ohio corn: standing corn hides (walkable, blocks sight), stubble is open, the maze wall blocks both', () => {
-    expect(tileFlags('ohio', tileIndex('ohio', 'cornStanding'))).toEqual({ blocked: false, blocksSight: true });
+    expect(tileFlags('ohio', tileIndex('ohio', 'cornStanding'))).toEqual({ blocked: false, blocksSight: false });
     expect(tileFlags('ohio', tileIndex('ohio', 'cornStubble'))).toEqual({ blocked: false, blocksSight: false });
     expect(tileFlags('ohio', tileIndex('ohio', 'cornWall'))).toEqual({ blocked: true, blocksSight: true });
   });
