@@ -386,8 +386,8 @@ export const FIELDS_STEALTH: StealthSectionDef = {
     { enemyId: 'drone', route: { mode: 'pingPong', waypoints: [{ position: T(10, 24), waitMs: 1200, facing: 'right' }, { position: T(40, 24), waitMs: 1200, facing: 'left' }] } },
     // Straight across the middle, over the track.
     { enemyId: 'drone', route: { mode: 'pingPong', waypoints: [{ position: T(30, 4), waitMs: 1800, facing: 'down' }, { position: T(30, 28), waitMs: 1800, facing: 'up' }] } },
-    // The way into the yard.
-    { enemyId: 'drone', route: { mode: 'pingPong', waypoints: [{ position: T(44, 9), waitMs: 2000, facing: 'down' }, { position: T(44, 22), waitMs: 2000, facing: 'up' }] } },
+    // Pacing the corn lane into the yard, facing along it.
+    { enemyId: 'drone', route: { mode: 'pingPong', waypoints: [{ position: T(42, 13), waitMs: 1500, facing: 'left' }, { position: T(34, 13), waitMs: 1500, facing: 'right' }] } },
   ],
   hazards: [],
   hidingProps: [],
