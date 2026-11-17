@@ -65,6 +65,8 @@ export const C06: DialogueFile = {
     'c6.call.fight.margin': 'I had an ice bucket. That’s all I’ll say.',
     'c6.call.puzzle.casebook': 'Crop formation is a maze from the ground. Solved it off the postcard. Myko walked it with me.',
     'c6.call.puzzle.margin': 'I walked it. You followed, complaining.',
+    'c6.call.combine.casebook': 'Combine harvester, no driver, three sensor lights. Stopped it. Myko had a word with it.',
+    'c6.call.combine.margin': 'It listened. More than some.',
   },
   sequences: [
     caption('c6.caption.title', 'Flyover Country'),
