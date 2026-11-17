@@ -23,7 +23,7 @@ export const C04: DialogueFile = {
     'c4.objective.bar': 'Ask around in the bar.',
     'c4.objective.brawl': 'Finish what the bar started.',
     'c4.objective.docks': 'Get into Pier Nine.',
-    'c4.objective.containers': 'Reach container MAS-4471.',
+    'c4.objective.containers': 'Line the three boxes up as steps to MAS-4471.',
     'c4.objective.board': 'Work out who took it.',
     'c4.objective.foreman': 'Deal with the foreman.',
 
@@ -178,7 +178,10 @@ export const C04: DialogueFile = {
       'c4.containers.intro',
       ['andrew', "4471. It's on the top. Three up."],
       ['myko', "Then you need stairs. There's three levers and three boxes on rails. Build yourself some.", 'by phone'],
+      ['myko', "There's one way they sit that makes a stairs. Get all three there and the doors open themselves. Nothing else to pull.", 'by phone'],
     ),
+    // Playtest 8: a box that lands where it belongs says so, so the player knows each rail has one right place.
+    box('c4.containers.seated', ['myko', "Hear that clunk? That one's home. Leave it be.", 'by phone']),
     box('c4.containers.done', ['myko', "A staircase out of freight. Your mother said you'd never build anything.", 'by phone']),
     scene(
       'c4.container.inside',
@@ -251,7 +254,8 @@ export const C04: DialogueFile = {
     box('c4.hint.docks.1', ['myko', 'The light moves in a line. There’s a gap after it. Live in the gap.', 'by phone']),
     box('c4.hint.docks.2', ['myko', 'Follow the floodlight down the second row, wait behind the blue box, bottle to the left, then go.', 'by phone']),
     box('c4.hint.containers.1', ['myko', "Low, middle, high. In that order, left to right. That's all a stairs is.", 'by phone']),
-    box('c4.hint.containers.2', ['myko', 'First lever twice, second lever three times, third once. Then climb.', 'by phone']),
+    // Playtest 8: a clue, not the answer.
+    box('c4.hint.containers.2', ['myko', "Work back from the doors. The top box sits right under them. Each one below is a step down and a step to the left.", 'by phone']),
     box('c4.hint.board.1', ['myko', "Somebody takes it off the pier. Who has the paperwork with their name on it?"]),
     box('c4.hint.board.2', ['myko', 'The notice, the roster and the manifest from home. Meridian sends, Pier Nine holds, the Office collects.']),
     box('c4.hint.foreman.1', ['myko', "He's only dangerous in that box with the levers. Get him out of the box.", 'by phone']),

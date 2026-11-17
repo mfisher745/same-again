@@ -264,6 +264,9 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
 
   const stealthActive = (): boolean => ctx.currentScreen() === 'c4.docks' && !ctx.isComplete('c4.stealth.docks');
 
+  /** Where each rail's box is, from the pulls seen this run (a load puts an unfinished puzzle back to the start). */
+  const railSlots = new Map<string, number>();
+
   const puzzleDone = async (): Promise<void> => {
     ctx.setPropVisible('hatch', false);
     await ctx.say('c4.containers.done');
@@ -400,8 +403,13 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
             ctx.setPropVisible('lunchbox', false);
           }
         }),
-        ctx.bus.on(GameEvents.SlidePulled, () => {
+        ctx.bus.on(GameEvents.SlidePulled, ({ railId, slot }) => {
           for (const r of RAILS) ctx.completeMark(r.examinableId);
+          // A box that lands in its place says so; the last one is the puzzle's own line.
+          railSlots.set(railId, slot);
+          const home = (r: (typeof RAILS)[number]): boolean => (railSlots.get(r.id) ?? r.start) === r.goal;
+          const pulled = RAILS.find((r) => r.id === railId);
+          if (pulled && home(pulled) && !RAILS.every(home)) void ctx.say('c4.containers.seated', { repeat: true });
         }),
         ctx.bus.on(GameEvents.StealthAlarm, ({ sectionId }) => {
           if (sectionId === 'c4.stealth.docks') void ctx.say('c4.docks.caught');
