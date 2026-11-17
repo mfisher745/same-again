@@ -59,23 +59,36 @@ function objectSheet(key: string, width: number, height: number, draw: (anim: st
   return sheet.build();
 }
 
-/** Surveillance drone, 16 x 16. Four rotors that flicker, one red eye. */
+/**
+ * Surveillance drone, 16 x 16. Four rotors that flicker, one red eye. Besides the enemy animations it has `low`
+ * (2 frames, looping): dropped down to fire, drawn two pixels lower over its own shadow, eye lit amber.
+ * Use `animKey('enemy.drone', 'low', facing)`.
+ */
 function drone(): Sheet {
-  return objectSheet('enemy.drone', 16, 16, (anim) => (b, _facing, frame) => {
-    if (anim === 'down') {
-      b.rect(4, 11, 8, 3, 'slate').hline(4, 13, 8, 'coal');
-      if (frame === 0) b.set(8, 9, 'amber').set(6, 8, 'fog');
-      return;
-    }
-    const spin = frame % 2 === 0;
-    for (const [x, y] of [[2, 3], [10, 3], [2, 10], [10, 10]] as const) {
-      if (spin) b.hline(x, y, 4, 'fog');
-      else b.hline(x + 1, y, 2, 'bone');
-    }
-    b.rect(5, 5, 6, 6, 'slate');
-    b.vline(10, 6, 5, 'coal').hline(5, 10, 6, 'coal');
-    b.rect(7, 7, 2, 2, anim === 'telegraph' || anim === 'attack' ? 'amberLight' : 'alarm');
-  });
+  const anims: Readonly<Record<string, ObjectAnim>> = { ...ANIMS, low: { frames: 2, frameRate: 10 } };
+  return objectSheet(
+    'enemy.drone',
+    16,
+    16,
+    (anim) => (b, _facing, frame) => {
+      if (anim === 'down') {
+        b.rect(4, 11, 8, 3, 'slate').hline(4, 13, 8, 'coal');
+        if (frame === 0) b.set(8, 9, 'amber').set(6, 8, 'fog');
+        return;
+      }
+      const low = anim === 'low' ? 2 : 0;
+      if (low > 0) b.ellipse(3, 12, 10, 4, 'coal');
+      const spin = frame % 2 === 0;
+      for (const [x, y] of [[2, 3], [10, 3], [2, 10], [10, 10]] as const) {
+        if (spin) b.hline(x, y + low, 4, 'fog');
+        else b.hline(x + 1, y + low, 2, 'bone');
+      }
+      b.rect(5, 5 + low, 6, 6, 'slate');
+      b.vline(10, 6 + low, 5, 'coal').hline(5, 10 + low, 6, 'coal');
+      b.rect(7, 7 + low, 2, 2, anim === 'telegraph' || anim === 'attack' || anim === 'low' ? 'amberLight' : 'alarm');
+    },
+    anims,
+  );
 }
 
 /** The Brennan ram, 24 x 16. It only ever runs sideways; up and down reuse the side view. */

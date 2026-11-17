@@ -282,6 +282,13 @@ function cities(): TileDef[] {
     t('barDoorStrip', doorStrip(planks('turf', 'turfDark'), 'amberLight')),
     // Pier Nine's side gate, shut: mesh on a steel frame with a chain. Swap it for `path` when it opens.
     t('dockGate', on(mesh(concrete, 'coal'), (b) => void b.rect(0, 0, 16, 2, 'fog').rect(0, 14, 16, 2, 'slate').rect(0, 0, 2, 16, 'fog').rect(14, 0, 2, 16, 'slate').rect(6, 7, 4, 2, 'amber').set(7, 9, 'amber')), true),
+    // Chapter 5. The stacks' rails lit for the 1 s before a shelf slides along them. Same rows as `rail`.
+    t('railLit', on(concrete, (b) => {
+      for (const y of [5, 10]) {
+        b.hline(0, y, 16, 'alarm');
+        for (let x = 1; x < 16; x += 4) b.set(x, y, 'amberLight');
+      }
+    })),
   ];
 }
 
@@ -316,6 +323,26 @@ function ohio(): TileDef[] {
     t('poolEmpty', solid('skyPale', 'dustyBlue', 'white'), true),
     t('sidewalk', checker('bone', 'fog', 8)),
     t('hatch', solid('steel', 'coal', 'fog')),
+    // Chapter 6. Standing corn: walkable, and Andrew hides in it (same flags as `cover`, so a swap changes nothing).
+    t('cornStanding', on(dirt, (b) => {
+      for (let x = 0; x < 16; x += 2) {
+        const top = 1 + ((x * 5) % 3);
+        b.vline(x, top, 15 - top, x % 4 === 0 ? 'corn' : 'cornShade');
+        b.set(x + 1, top + 3 + (x % 3), 'grass').set(x + 1, top + 8 - (x % 2), 'grass');
+        b.set(x, top, 'amberLight');
+      }
+    }), false, true),
+    // Cut stubble where the combine has been: short stalks in rows on dirt. Walkable, hides nothing.
+    t('cornStubble', on(dirt, (b) => {
+      for (let y = 2; y < 16; y += 4) for (let x = (y % 8 === 2 ? 1 : 3); x < 16; x += 4) b.vline(x, y, 2, 'cornShade').set(x, y, 'corn');
+    })),
+    // The crop-circle maze's wall: staked corn too thick to push through or see past.
+    t('cornWall', on(dirt, (b) => {
+      // Seamless in both directions, so a run of wall reads as one thicket; darker than the open corn around it.
+      b.rect(0, 0, 16, 16, 'tanShade');
+      for (let x = 0; x < 16; x += 2) b.vline(x, 0, 16, x % 4 === 0 ? 'cornShade' : 'corn').set(x + 1, 3 + (x % 4), 'grass').set(x + 1, 11 - (x % 3), 'grass');
+      b.vline(7, 0, 16, 'peat').vline(8, 0, 16, 'turf');
+    }), true, true),
   ];
 }
 
