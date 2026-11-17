@@ -145,6 +145,21 @@ export class PlayerCombat {
     this.swingLeftMs = Math.max(0, this.swingLeftMs - dtMs);
     if (p.kit.slots.melee !== this.weapon.weapon) this.weapon = switchWeapon(this.weapon, p.kit.slots.melee);
     if (this.moves.hidden && (p.moving || this.seenByGuard())) this.moves = breakHide(this.moves);
+    // Second Opinion: the mark goes when its target is gone.
+    const markId = this.moves.mark?.targetId;
+    if (markId && !this.host.actors().some((a) => a.instanceId === markId && !a.down)) this.moves = { ...this.moves, mark: null };
+  }
+
+  /** Second Opinion: who is marked, or null. For the view's marker. */
+  get markedTargetId(): string | null {
+    return this.moves.mark?.targetId ?? null;
+  }
+
+  /** A thrown bottle (or any non-melee player hit) lands on `actorId`: spends the Second Opinion mark and returns the damage multiplier. */
+  consumeMarkFor(actorId: string): number {
+    const r = consumeMark(this.moves, actorId);
+    this.moves = r.state;
+    return r.multiplier;
   }
 
   /** Back in the bar: cooldowns clear, nothing half done. */
@@ -249,7 +264,7 @@ export class PlayerCombat {
     const shape: AttackShape = result.pierceCount > 1 ? { kind: 'charge', distance: result.reach, width: r * 2 } : { kind: 'arc', range: result.reach, arcDeg };
     h.addFx('swing', p.pos, p.aimDeg, result.reach, shape.kind === 'arc' ? arcDeg : 0, 120);
     const source: DamageSource = { kind: 'player', abilityId: legacyAbilityOf(result.weaponId) };
-    let targets = h.actors().filter((a) => !a.down && shapeHits(shape, p.pos, p.aimDeg, a.pos, r));
+    let targets = h.actors().filter((a) => !a.down && !a.aloft && shapeHits(shape, p.pos, p.aimDeg, a.pos, r));
     if (result.pierceCount > 1) targets = targets.sort((a, b) => distance(p.pos, a.pos) - distance(p.pos, b.pos)).slice(0, result.pierceCount);
     const repeat = consumeRepeat(this.moves);
     this.moves = repeat.state;
@@ -358,7 +373,7 @@ export class PlayerCombat {
     p.faceAim();
     switch (effect.kind) {
       case 'charge': {
-        const who = byId(selectTargets(effect, p.pos, p.aimDeg, candidates));
+        const who = byId(selectTargets(effect, p.pos, p.aimDeg, candidates)).filter((a) => !a.aloft);
         h.moveWorldHits(id, { kind: 'charge', distance: effect.distance, width: TUNING.combat.characterHitRadius * 2 }, false);
         p.lurch(effect.distance, p.aimDeg, h.grid(), (c, r) => h.extraBlocked(c, r));
         for (const a of who) hit(a, 0, effect.knockback);
@@ -384,7 +399,7 @@ export class PlayerCombat {
         for (const a of byId(selectTargets(effect, p.pos, p.aimDeg, candidates))) a.stun(effect.durationMs);
         break;
       case 'lurch': {
-        const who = byId(selectTargets(effect, p.pos, p.aimDeg, candidates));
+        const who = byId(selectTargets(effect, p.pos, p.aimDeg, candidates)).filter((a) => !a.aloft);
         const damage = this.weaponDamage();
         const kb = this.tuning.weapons[p.kit.slots.melee].knockback;
         h.moveWorldHits(id, { kind: 'charge', distance: effect.distance, width: effect.width }, true);
@@ -393,7 +408,8 @@ export class PlayerCombat {
         break;
       }
       case 'holdAround':
-        for (const a of byId(selectTargets(effect, p.pos, p.aimDeg, candidates))) {
+        // An invulnerable body (the ram, the combine) is not held.
+        for (const a of byId(selectTargets(effect, p.pos, p.aimDeg, candidates)).filter((x) => !x.invulnerable)) {
           a.stun(effect.durationMs);
           a.damageTakenMultiplier = effect.damageMultiplier;
         }

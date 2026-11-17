@@ -336,7 +336,7 @@ const enemies: Tuning['enemies'] = {
     30,
     60,
     [attack('bolt', shot(110, 200, { deflectable: true }), 12, 20, 700, 2400, 300)],
-    { flies: true, senses: { visionRange: 72, visionAngleDeg: 50, hearingRadius: 0 } },
+    { flies: true, dropsToFire: true, senses: { visionRange: 72, visionAngleDeg: 50, hearingRadius: 0 } },
   ),
   mascot: enemy(
     'mascot',
@@ -515,7 +515,8 @@ const bosses: Tuning['bosses'] = {
         attackSpeedMultiplier: 1.1,
         attacks: [
           attack('dart', shot(160, 220), 12, 10, 600, 1600, 400),
-          attack('shelf', charge(256, 32), 20, 120, 1000, 4000, 600, { burst: 2 }),
+          // The phase multiplier divides this: 1100 / 1.1 keeps the rails lit for 1 s, as in phase 1.
+          attack('shelf', charge(256, 32), 20, 120, 1100, 4000, 600, { burst: 2 }),
         ],
       },
     ],
@@ -544,7 +545,8 @@ const bosses: Tuning['bosses'] = {
         trigger: { kind: 'targetsLeft', count: 1 },
         attackSpeedMultiplier: 1.3,
         attacks: [
-          attack('pass', charge(576, 48), 28, 220, 1300, 4000, 0),
+          // The phase multiplier divides this: 1700 / 1.3 gives the plume about 1.3 s, a little quicker than phase 1.
+          attack('pass', charge(576, 48), 28, 220, 1700, 4000, 0),
           attack('bale', shot(120, 200, { lobbed: true, deflectable: true }), 14, 80, 800, 2200, 0),
         ],
       },
@@ -866,6 +868,11 @@ const overhaul: OverhaulTuning = {
   sneakNoiseRadiusByLevel: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 28 },
   // stand-in: creative director to set. Puddles in the ram lane (chapter 2): Andrew at three quarters speed.
   slowGroundMultiplier: 0.75,
+  // Chapter 6: moving through standing corn rustles at this radius (sneaking: less).
+  corn: { rustleRadius: 56, sneakRustleRadius: 28 },
+  // Chapter 5 rolling shelves; the 1 s rail light is the `shelf` attack's telegraph.
+  // Phase 2 closes pairs of lanes, so two shelves in five lanes leave one safe lane.
+  shelves: { slideMs: 600, closedMs: 1500, pushOutPx: 24, lanesPerShelfByPhase: { oneShelf: 1, twoShelves: 2 } },
   // stand-in: creative director to set. The camera looks this far ahead of Andrew down the ram lane.
   cameraLeadPx: 96,
   // stand-in: creative director to set. The chapter 2 sheep: slower than Andrew, shy of him at about two tiles.
