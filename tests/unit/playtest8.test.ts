@@ -135,3 +135,17 @@ describe('chapter 4: the way out of the bar does not depend on hurrying', () => 
     expect(run.player.drainHeld).toBe(false);
   });
 });
+
+describe('chapter 4: a reload with the brawl under way', () => {
+  it('starts the brawl again (Kev and Doug are gone and the back door is shut, so nothing else would)', async () => {
+    const a = await newGame4();
+    await startBrawl(a.run);
+    expect(a.run.flag('manner.done')).toBe(true);
+    a.run.learnMove('lastOrders'); // a move not yet known: writes a save
+    const b = await newGame4('continue', a.store);
+    expect(b.run.flag('manner.done')).toBe(true);
+    expect(b.run.isComplete('c4.fight.brawl')).toBe(false);
+    expect(b.run.fight('c4.fight.brawl')?.active).toBe(true);
+    expect(b.run.objective()).toBe('c4.brawl');
+  });
+});

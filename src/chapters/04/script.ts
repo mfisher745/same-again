@@ -445,7 +445,11 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
         }),
       );
       if (!flag('intro.done')) void opening();
-      else restoreObjective();
+      else {
+        restoreObjective();
+        // A load with the brawl under way: Kev and Doug are gone and the back door is shut, so it starts again.
+        if (flag('manner.done') && !ctx.isComplete('c4.fight.brawl') && ctx.currentScreen() === 'c4.bar') startBrawl();
+      }
     },
 
     /** Andrew is back at the bar. Flags are what the last save held and the unfinished section has started over. */
