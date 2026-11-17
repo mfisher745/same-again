@@ -1,41 +1,15 @@
 /**
  * Chapter 6: Flyover Country. docs/chapters/06-flyover-country.md.
  *
- * LAYOUT ONLY. The three screens, their exits, the dressing, the examinables, the
- * section placements and every constant the script needs are here (`maps.ts`). The
- * chapter is not registered in `src/chapters/index.ts`, so it is not in Chapter Select
- * or the menu yet. `script.ts` is a stub. The script still needs to wire:
- *
- * - Beats in order, with the objective for each (`c6.objective.*`, hints `c6.hint.*`), the
- *   card/caption (`c6.caption.*`), `c6.bar.open`, the hot drink (`c6.bar.hotDrink`, show
- *   `bar.steam`), `c6.bar.return`, `c6.askOnce`, and the Ohio rule: tangents from the
- *   `c6.ohio.general` pool, the `c6.insults` pool, the `*.again` ice machine line; closing
- *   scene `c6.closing` at the bus station with Myko's fridge magnet.
- * - Second Opinion: `c6.trig.dale` -> `c6.dale.shoulder`, `c6.secondOpinion.lesson`, add
- *   the move to slot 3 (needs systems-dev's move); `c6.dale.bin` with the hurley (no pickup).
- * - Stealth `c6.stealth.fields`: `FIELDS_STEALTH` (five drone patrols); corn hiding and rustle
- *   noise over `FIELDS_CORN` (systems-dev); the clean-run jar at `FARM_STAND_PICKUP`
- *   (`c6.fields.clean`, `.caught`, `.rustle`, `.open` at `c6.trig.fieldsOpen`).
- * - Bottles: `c6.trig.spotted` spawns the lesson drone at `LESSON_DRONE_SPAWN`
- *   (`c6.bottles.lesson`, `c6.bottles.done`); the coolers are the props `fields.cooler1..9`
- *   (`COOLER_SPOTS`): make them a pickup of light beer.
- * - Fight `c6.fight.drones`: starts on `c6.trig.yard` (`trigger: script`); `spawnPoints` is
- *   the six `DRONE_SPAWNS` then the two `AGENT_SPAWNS`; `c6.drones.wave2`, `c6.drones.end`.
- * - Maze `c6.puzzle.maze`: needs systems-dev's maze placement with `MAZE_STONES` in order
- *   (`MAZE_ORDER`) and the postcard on Tab; the `maze.gate` prop hides and `maze.hatch` shows
- *   when solved (`c6.maze.intro` at `c6.trig.maze`, `.wrong`, `.done`); `c6.centre` and the
- *   receipt clue at `CENTRE_RECEIPT_SPOT`.
- * - Board `c6.deduction.roswell` (the board is in `def`; open it from the script).
- * - Combine `c6.setpiece.combine`: bodies are `harvester` plus `light1..3` placed from
- *   `COMBINE_ENTRY` and `SENSOR_LIGHT_OFFSETS`; lanes, bale spots, escort drones, `ARENA_CORN`,
- *   the ditch curve, `c6.combine.*` lines. `c6.call.combine.casebook` and `.margin` texts do
- *   not exist yet, so `mykoCallLines.setpiece` is left out of `def`.
- * - Back to the bar: passed drones gone, maze stays solved (flags, not layout).
+ * The three screens, their exits, the dressing, the examinables, the section placements and the
+ * systems placements are here (corn, the marker-stone maze, the combine, the coolers of light beer);
+ * `script.ts` wires the beats, the Ohio rule, the lessons and the closing scene. The chapter is not
+ * registered in `src/chapters/index.ts` yet, so it is not in Chapter Select or the menu.
  */
 
 import { hasSequence } from '../../content/dialogue';
 import type { ChapterModule } from '../../core/chapter';
-import type { ChapterDef, ClueId, DeductionBoardDef, ExaminableDef, ObjectiveDef, ScreenId, Vec2 } from '../../core/types';
+import type { ChapterDef, ClueId, DeductionBoardDef, ExaminableDef, ObjectiveDef, PickupDef, ScreenId, Vec2 } from '../../core/types';
 import { createChapterScript } from './script';
 import {
   AGENT_SPAWNS,
@@ -43,6 +17,10 @@ import {
   CENTRE_RECEIPT_SPOT,
   CLERK_SPOT,
   COMBINE_ENTRY,
+  COMBINE_ESCORT_SPAWNS,
+  COMBINE_LANES,
+  COOLER_SPOTS,
+  DITCH_CURVE,
   COMBINE_MYKO_ENTRANCE,
   DALE_AREA,
   DALE_BIN_SPOT,
@@ -55,6 +33,8 @@ import {
   HELLO_MAN_TILE,
   LEDGER_SPOT,
   MAZE_INTRO_AREA,
+  MAZE_ORDER,
+  MAZE_STONES,
   MOTEL_ADMIRE,
   NOTICEBOARD_SPOT,
   POSTCARD_SPOT,
@@ -142,6 +122,7 @@ const def: ChapterDef = {
   mykoCallLines: {
     fight: { sequenceId: 'c6.call.fight', casebookBodyTextId: 'c6.call.fight.casebook', casebookMarginTextId: 'c6.call.fight.margin' },
     puzzle: { sequenceId: 'c6.call.puzzle', casebookBodyTextId: 'c6.call.puzzle.casebook', casebookMarginTextId: 'c6.call.puzzle.margin' },
+    setpiece: { sequenceId: 'c6.call.combine', casebookBodyTextId: 'c6.call.combine.casebook', casebookMarginTextId: 'c6.call.combine.margin' },
   },
   finaleSectionId: 'c6.setpiece.combine',
 };
@@ -154,10 +135,26 @@ const admire = (screenId: ScreenId, dialogue: string, position: Vec2, suffix?: s
   dialogueId: dialogue,
 });
 
+/** Nine coolers of light beer along the farm track: each is one light beer to take (and every one drunk leaves a bottle). */
+const coolerPickups: readonly PickupDef[] = COOLER_SPOTS.map((position, i) => ({
+  id: `c6.pickup.cooler${i + 1}`,
+  item: { kind: 'drink', drinkId: 'lightBeer', count: 1 },
+  screenId: 'c6.fields',
+  position,
+}));
+
+/** The combine's lanes: vertical passes through the arena, north to south and back. */
+const combineLanes = COMBINE_LANES.map((l, i) => {
+  const top = l.fromRow * 16;
+  const bottom = (l.toRow + 1) * 16;
+  return { id: l.id, axis: 'vertical' as const, at: (l.col + l.width / 2) * 16, from: i % 2 === 0 ? top : bottom, to: i % 2 === 0 ? bottom : top };
+});
+
 export const chapter6: ChapterModule = {
   def,
   screens: [motelScreen(), townScreen(), fieldsScreen()],
-  pickups: [],
+  pickups: coolerPickups,
+  mykoTangentPools: { ohio: 'c6.ohio.general' },
   examinables: [
     // The Starlite.
     { id: 'c6.coffee', screenId: 'c6.motel', position: TEA_SPOT, dialogueId: 'c6.bar.coffee', evidenceId: clue('coffee') },
@@ -204,10 +201,25 @@ export const chapter6: ChapterModule = {
       screenId: 'c6.fields',
       trigger: { kind: 'script' },
       bodies: [
-        { tag: 'harvester', position: COMBINE_ENTRY, invulnerable: true },
-        ...SENSOR_LIGHT_OFFSETS.map((o, i) => ({ tag: `light${i + 1}`, position: { x: COMBINE_ENTRY.x + o.x, y: COMBINE_ENTRY.y + o.y }, stationary: true })),
+        { tag: 'harvester', position: COMBINE_ENTRY, invulnerable: true, attacks: 'none', stationary: true },
+        ...SENSOR_LIGHT_OFFSETS.map((o, i) => ({ tag: `light${i + 1}`, position: { x: COMBINE_ENTRY.x + o.x, y: COMBINE_ENTRY.y + o.y }, stationary: true, attacks: 'none' as const })),
       ],
+      combine: {
+        lights: SENSOR_LIGHT_OFFSETS.map((offset, i) => ({ tag: `light${i + 1}`, offset })),
+        lanes: combineLanes,
+        escortPoints: COMBINE_ESCORT_SPAWNS,
+        ditchPath: DITCH_CURVE,
+      },
+      callId: 'combine',
       entrance: COMBINE_MYKO_ENTRANCE,
+    },
+  ],
+  mazePuzzles: [
+    {
+      sectionId: 'c6.puzzle.maze',
+      screenId: 'c6.fields',
+      stones: MAZE_STONES.map((s) => ({ id: s.id, position: T(s.col, s.row) })),
+      order: MAZE_ORDER,
     },
   ],
   stealth: [
