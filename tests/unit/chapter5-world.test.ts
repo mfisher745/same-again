@@ -306,9 +306,14 @@ describe('chapter 5: the copier, Lock-in and the cubicle fight', () => {
 
   it('does nothing until the redaction is solved', async () => {
     const { run } = await atCopier();
+    const shown = record(run.bus, 'dialogue:show');
     await jamCopier(run);
     expect(run.fight(FIGHT)?.active).toBe(false);
     expect(run.player.kit.moves).not.toContain('lockIn');
+    // The "not yet" line plays, and plays again on every E.
+    await jamCopier(run);
+    expect(shown.filter((s) => s.sequenceId === 'c5.copier.notYet')).toHaveLength(2);
+    expect(shown.map((s) => s.sequenceId)).not.toContain('c5.copier');
   });
 
   it('the jam, the Lock-in lesson (once) and the intro come first; then three waves of three agents', async () => {

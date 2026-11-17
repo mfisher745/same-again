@@ -340,7 +340,12 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
 
   /** The copier: the page copied, the jam, and the building alarm (the cubicle fight), once the redaction is solved. */
   const copier = async (): Promise<void> => {
-    if (!puzzleDone() || ctx.isComplete(FIGHT) || ctx.fight(FIGHT)?.active === true || fightStarting) return;
+    if (!puzzleDone()) {
+      // Nothing worth copying yet: the line plays every time.
+      await ctx.say('c5.copier.notYet', { repeat: true });
+      return;
+    }
+    if (ctx.isComplete(FIGHT) || ctx.fight(FIGHT)?.active === true || fightStarting) return;
     fightStarting = true;
     ctx.completeMark('c5.copier');
     ctx.setPropFrame('copier', PROP.filingCabinet.open);
