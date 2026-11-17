@@ -17,6 +17,7 @@ const ev = (id: string): EvidenceId => id as EvidenceId;
 type Run = Awaited<ReturnType<typeof newGame>>['run'];
 
 async function toSober(run: Run): Promise<void> {
+  run.holdDrain(false); // the bar holds the drain until the brawl (playtest 8); these tests are about the return itself
   run.player.meter = { ...run.player.meter, value: 0.01, tea: null };
   for (let i = 0; i < 12; i++) run.tick(16, NO_INPUT);
   run.completeBarReturn();
@@ -50,6 +51,7 @@ describe('chapter 4: back to the bar', () => {
     await talkToTheBar(run);
     const shown = record(run.bus, 'dialogue:show');
     const returned = record(run.bus, 'bar:returned');
+    run.holdDrain(false);
     if (reason === 'sober') run.player.meter = { ...run.player.meter, value: 0.01 };
     else {
       run.give({ kind: 'drink', drinkId: 'stout', count: 1 });
