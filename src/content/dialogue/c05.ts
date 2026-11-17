@@ -95,7 +95,7 @@ export const C05: DialogueFile = {
     box('c5.examine.lightbox', ['andrew', 'A light table. For holding pages up to.'], ['myko', 'Then bring it pages.', 'by phone']),
     box('c5.examine.umbrellaStand', ['andrew', 'One umbrella. There’s a label on the handle. “PRUITT. DO NOT.”']),
     box('c5.examine.whiskey', ['andrew', 'Birthday whiskey. The card is signed by everyone on the floor.'], ['myko', 'Then it belongs to everyone on the floor. You’re on the floor.', 'by phone']),
-    box('c5.lobby.caught', ['npc:name.lobbyGuard', 'Sir. The queue is behind you.'], ['myko', 'Back you go. Be duller this time.', 'by phone']),
+    box('c5.lobby.caught', ['npc:name.lobbyGuard', 'Sir. Sir, the queue is behind you.'], ['myko', 'He won’t let that go. Put him down quiet and try the door.', 'by phone']),
 
     // --- Records floor ---
     box('c5.floor.overheard.1', ['npc:name.agent', 'Did you see the email about the email?']),

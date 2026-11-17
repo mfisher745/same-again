@@ -689,6 +689,8 @@ const fights: Tuning['fights'] = Object.fromEntries([
   fight('c4.fight.brawl', wave(n('brawler', 2)), wave(n('brawler', 2)), wave(n('brawler', 2))),
   fight('c4.stealth.docks.alarm', wave(n('docker', 4))),
   fight('c5.fight.floor', wave(n('agent', 3)), wave(n('agent', 3)), wave(n('agent', 3))),
+  // The lobby is the Act Natural lesson: caught, it is the lobby guard plus one agent from the staff door.
+  fight('c5.stealth.lobby.alarm', wave(n('agent', 1))),
   fight('c5.stealth.floor.alarm', wave(n('agent', 3)), wave(n('agent', 3))),
   fight('c6.fight.drones', wave(n('drone', 3), n('agent', 1)), wave(n('drone', 3), n('agent', 1))),
   fight('c6.stealth.fields.alarm', wave(n('drone', 3)), wave(n('drone', 2))),
