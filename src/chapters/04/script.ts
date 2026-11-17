@@ -188,6 +188,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     setFlag('clue.roster');
     ctx.completeMark('c4.roster');
     ctx.addEvidence('c4.clue.roster');
+    // He reads it out, so the player sees it was read (and again on every later look).
+    void ctx.say('c4.bar.roster', { repeat: true });
     checkReady();
   };
 

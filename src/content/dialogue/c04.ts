@@ -88,6 +88,11 @@ export const C04: DialogueFile = {
     box('c4.gate.shut', ['myko', "Chained on the pier side. There's a gap in the fence up the top of the alley. Go round.", 'by phone']),
     box('c4.bar.hotDrink', ['colleenAnn', 'Tea or coffee? I can do the tea Irish style! That means hot, right?']),
     box('c4.bar.return', ['colleenAnn', 'You’re back! You look terrible. That is SO authentic.']),
+    box(
+      'c4.bar.roster',
+      ['andrew', 'Pier Nine shifts. Every second Tuesday, three in the morning. “Federal pickup. No questions.”'],
+      ['myko', "Nothing gets a man asking like being told not to. Put it in the book."],
+    ),
     box('c4.lightBeer', ['andrew', 'Is this beer?'], ['myko', "It's adjacent. It's had beer described to it."]),
 
     scene(
