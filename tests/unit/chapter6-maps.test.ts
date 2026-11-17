@@ -182,13 +182,14 @@ describe('chapter 6 layout: the crop-circle maze', () => {
 });
 
 describe('chapter 6 layout: the corn, the drones and the combine', () => {
-  it('standing corn is tall corn that hides and is walkable', () => {
+  it('standing corn is walkable and does not block sight', () => {
     const f = screen('c6.fields');
     expect(FIELDS_CORN.length).toBeGreaterThan(1500);
     for (const t of FIELDS_CORN) {
       const i = t.row * f.grid.widthTiles + t.col;
       expect(f.grid.blocked[i]).toBe(false);
-      expect(f.grid.blocksSight[i]).toBe(true);
+      // Standing corn hides by standing still in it, not by being a wall (docs/build/c5c6.md): it does not block sight.
+      expect(f.grid.blocksSight[i]).toBe(false);
     }
     expect(ARENA_CORN.length).toBeGreaterThan(400);
   });

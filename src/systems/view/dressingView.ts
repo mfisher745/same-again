@@ -9,7 +9,7 @@
  */
 
 import Phaser from 'phaser';
-import { animKey, FONT_KEY, frameName, npcKey, PALETTE, PROPS_KEY } from '../../art';
+import { animKey, FONT_KEY, frameName, npcKey, PALETTE, PROP, PROPS_KEY } from '../../art';
 import type { ColourName } from '../../art';
 import type { ScreenId } from '../../core/types';
 import { text } from '../../content/dialogue';
@@ -64,6 +64,7 @@ export class DressingView {
       this.rebuildGlows();
     }
     for (const n of this.run.dressing.npcsOn(this.run.screenId)) this.syncNpc(n);
+    this.syncLightbox();
     this.drawAmbient();
     this.syncPrompt();
   }
@@ -79,6 +80,17 @@ export class DressingView {
   }
 
   // -------------------------------------------------------------------------
+
+  /** The light table glows while the redaction screen is open and once it is solved. */
+  private syncLightbox(): void {
+    const run = this.run;
+    const puzzles = run.module.redactionPuzzles ?? [];
+    if (puzzles.length === 0) return;
+    const lit = run.activeRedaction() !== null || puzzles.some((p) => run.redaction(p.sectionId)?.isComplete() === true);
+    for (const po of this.props.values()) {
+      if (po.obj instanceof Phaser.GameObjects.Sprite && (po.frame === PROP.lightbox.unlit || po.frame === PROP.lightbox.lit)) po.obj.setFrame(lit ? PROP.lightbox.lit : PROP.lightbox.unlit);
+    }
+  }
 
   private clear(): void {
     for (const p of this.props.values()) p.obj.destroy();

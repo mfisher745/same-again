@@ -838,6 +838,24 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     return out;
   }
 
+  /** Pruitt's shelf directors on the current screen, for drawing (`laneStates()`). */
+  shelfDirectorsHere(): ShelfDirector[] {
+    return this.directorsHere().flatMap((d) => (d.shelves ? [d.shelves] : []));
+  }
+
+  /** The combine directors on the current screen, for drawing (`plumeLane()`, `baleShadow()`, `state`). */
+  combineDirectorsHere(): CombineDirector[] {
+    return this.directorsHere().flatMap((d) => (d.combine ? [d.combine] : []));
+  }
+
+  private directorsHere(): { shelves?: ShelfDirector; combine?: CombineDirector }[] {
+    const out: { shelves?: ShelfDirector; combine?: CombineDirector }[] = [];
+    for (const [id, d] of this.directors) {
+      if (this.module.bosses.find((b) => b.bossId === id)?.screenId === this.screen.id) out.push(d);
+    }
+    return out;
+  }
+
   mazePuzzlesHere(): { puzzle: MazePuzzle; placement: import('./maze').MazePuzzlePlacement }[] {
     const out: { puzzle: MazePuzzle; placement: import('./maze').MazePuzzlePlacement }[] = [];
     for (const p of this.module.mazePuzzles ?? []) {
