@@ -11,6 +11,7 @@ import { HudScene } from './scenes/HudScene';
 import type { PromptValues } from './model/promptText';
 import type { PromptRequest } from './scenes/HudScene';
 import { PauseScene } from './scenes/PauseScene';
+import { RedactionScene } from './scenes/RedactionScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { TabScene } from './scenes/TabScene';
 import { TitleScene } from './scenes/TitleScene';
@@ -31,6 +32,7 @@ export function createUiScenes(source: UiStateSource, hooks: UiHooks = {}): Phas
     new PauseScene(shared),
     new TabScene(shared),
     new DeductionScene(shared),
+    new RedactionScene(shared),
     new SettingsScene(shared),
     new HotDrinkScene(shared),
   ];
