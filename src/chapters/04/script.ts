@@ -188,6 +188,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     setFlag('clue.roster');
     ctx.completeMark('c4.roster');
     ctx.addEvidence('c4.clue.roster');
+    // He reads it out, so the player sees it was read (and again on every later look).
+    void ctx.say('c4.bar.roster', { repeat: true });
     checkReady();
   };
 
@@ -207,7 +209,14 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     if (wanted?.id !== 'ui.prompt.kit') setPrompt('ui.prompt.kit', PROMPT_LINGER_MS);
   };
 
+  /**
+   * Bedside Manner is a Grand move, and the bar is all talk: left to drain, he is under Grand long before the lesson
+   * and the move he has to use to get out is dark. So the meter holds in the bar until the brawl starts.
+   */
+  const holdBarDrain = (): void => ctx.holdDrain(ctx.currentScreen() === 'c4.bar' && !flag('manner.done') && !ctx.isComplete('c4.fight.brawl'));
+
   const startBrawl = (): void => {
+    ctx.holdDrain(false);
     ctx.setNpcVisible('doug', false);
     ctx.setNpcVisible('kev', false);
     ctx.setObjective(OBJ.brawl);
@@ -260,6 +269,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.setMykoScripted(MYKO_CHAIR);
     restoreWorld();
     restoreObjective();
+    holdBarDrain();
   };
 
   const stealthActive = (): boolean => ctx.currentScreen() === 'c4.docks' && !ctx.isComplete('c4.stealth.docks');
@@ -384,6 +394,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   return {
     onStart: () => {
       restoreWorld();
+      holdBarDrain();
       if (ctx.currentScreen() === 'c4.bar') ctx.setMykoScripted(MYKO_CHAIR);
       unsubs.push(
         ctx.bus.on(GameEvents.KitChanged, () => syncSteam()),

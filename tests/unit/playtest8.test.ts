@@ -10,8 +10,9 @@ import { chapter4 } from '../../src/chapters/04/index';
 import { RAILS, pullsNeeded } from '../../src/chapters/04/maps';
 import { sequence, text as uiText } from '../../src/content/dialogue';
 import { TUNING } from '../../src/content/tuning';
-import { NO_INPUT, settleDialogue, startChapterGame } from './helpers';
+import { NO_INPUT, frame, settleDialogue, startChapterGame } from './helpers';
 import { examine, newGame, settle, toBayPuzzleSolved } from './chapter3-steps';
+import { newGame as newGame4, startBrawl } from './chapter4-steps';
 
 const text = (id: string): string => JSON.stringify(sequence(id));
 
@@ -103,5 +104,34 @@ describe('light beer and the call-in cards', () => {
         for (const l of s.lines) expect(l.text).not.toMatch(/!/);
       }
     }
+  });
+});
+
+describe('chapter 4: the shift roster', () => {
+  it('reading it says so, every time, and files the clue', async () => {
+    const { run } = startChapterGame(chapter4, 'chapter');
+    run.tick(16, NO_INPUT);
+    await settleDialogue(run);
+    const shown: string[] = [];
+    run.bus.on('dialogue:show', ({ sequenceId }) => shown.push(sequenceId));
+    const roster = chapter4.examinables.find((e) => e.id === 'c4.roster')!;
+    for (let i = 0; i < 2; i++) {
+      run.setPlayerPosition({ x: roster.position.x + 16, y: roster.position.y });
+      run.tick(16, frame({ pressed: ['interact'] }));
+      await settleDialogue(run);
+    }
+    expect(shown.filter((s) => s === 'c4.bar.roster')).toHaveLength(2);
+    expect(JSON.stringify(run.casebook.entries())).toContain('c4.clue.roster');
+  });
+});
+
+describe('chapter 4: the way out of the bar does not depend on hurrying', () => {
+  it('after minutes of talk he is still Grand, Bedside Manner works on Kev, and the drain is back for the brawl', async () => {
+    const { run } = await newGame4();
+    for (let i = 0; i < 1800; i++) run.tick(100, NO_INPUT);
+    expect(run.player.level).toBeGreaterThanOrEqual(2);
+    await startBrawl(run);
+    expect(run.fight('c4.fight.brawl')?.active).toBe(true);
+    expect(run.player.drainHeld).toBe(false);
   });
 });

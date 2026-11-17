@@ -71,6 +71,7 @@ describe('chapter 4: the bar', () => {
     await settle(run, 6);
     expect(shown.filter((s) => s.sequenceId === 'c4.tea.spent')).toHaveLength(1);
     // And she pours it again after a return.
+    run.holdDrain(false); // the bar holds the drain until the brawl; this is about the tea after a return
     run.player.meter = { ...run.player.meter, value: 0.01, tea: null };
     for (let i = 0; i < 12; i++) run.tick(16, frame());
     run.completeBarReturn();
