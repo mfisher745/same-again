@@ -63,6 +63,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   /** Andrew's drunk level, 0 to 4. He starts every chapter at the bottom of Grand. */
   let level = 2;
   let ramStarting = false;
+  /** The cousins' arrival scene is playing (not saved): their fight must not be started twice. */
+  let cousinsStarting = false;
   let ramEnding = false;
   /** The lane gate: shut, opened with E, or battered through by the ram (the system hides it). Run-time only. */
   let laneGate: 'shut' | 'open' | 'battered' = 'shut';
@@ -288,9 +290,11 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   // --- The cousins ----------------------------------------------------------
 
   const cousinsArrive = async (): Promise<void> => {
+    cousinsStarting = true;
     setFlag('cousins.started');
     ctx.setObjective(OBJ.yard);
     await ctx.say('c2.cousins.intro');
+    cousinsStarting = false;
     if (disposed) return;
     ctx.startSection('c2.fight.yard');
   };
@@ -442,6 +446,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       level = 2;
       scenesOpen = 0;
       ramStarting = false;
+      cousinsStarting = false;
       clearPrompt();
       ctx.setCameraLead(null);
       restoreWorld();
@@ -491,7 +496,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           maybeStumbleLesson();
           break;
         case 'c2.trig.cousins':
-          if (ctx.isComplete('c2.explore.shed') && !ctx.isComplete('c2.fight.yard') && !flag('cousins.started')) void cousinsArrive();
+          // The saved flag is not the test: after a load or a walk back from the bar the cousins have to come again.
+          if (ctx.isComplete('c2.explore.shed') && !ctx.isComplete('c2.fight.yard') && ctx.fight('c2.fight.yard')?.active !== true && !cousinsStarting) void cousinsArrive();
           break;
         case 'c2.trig.ram1':
           if (ramHasStarted()) void ctx.say('c2.ram.mid.1');

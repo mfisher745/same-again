@@ -77,6 +77,9 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   let kit: Kit | null = null;
   /** Andrew's drunk level, 0 to 4. He starts every chapter at the bottom of Grand. */
   let level = 2;
+  /** An arrival scene is playing (not saved): the fight it leads to must not be started twice. */
+  let chipperStarting = false;
+  let bossStarting = false;
 
   const flag = (key: Flag): boolean => ctx.flag(key) === true;
   const setFlag = (key: Flag, value = true): void => ctx.setFlag(key, value);
@@ -323,9 +326,11 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   };
 
   const chipperRow = async (): Promise<void> => {
+    chipperStarting = true;
     setFlag('chipper.started');
     clearPrompt('ui.prompt.throw');
     await ctx.say('c1.chipper.intro');
+    chipperStarting = false;
     if (disposed) return;
     ctx.completeSection('c1.explore.street');
     ctx.setObjective(OBJ.row);
@@ -352,9 +357,11 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   };
 
   const bigTomArrives = async (): Promise<void> => {
+    bossStarting = true;
     setFlag('boss.started');
     clearPrompt();
     await ctx.say('c1.bigTom.intro');
+    bossStarting = false;
     if (disposed) return;
     ctx.setObjective(OBJ.bigTom);
     ctx.startSection('c1.boss.bigtom');
@@ -538,6 +545,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
      */
     onBarReturn: () => {
       level = 2;
+      chipperStarting = false;
+      bossStarting = false;
       scenesOpen = 0;
       clearPrompt();
       restoreWorld();
@@ -576,13 +585,14 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           if (!flag('chipper.started')) void binsAhead();
           break;
         case 'c1.trig.chipper':
-          if (!flag('chipper.started')) void chipperRow();
+          // The saved flag is not the test: after a load or a walk back from the bar the row has to start again.
+          if (!ctx.isComplete('c1.fight.chipper') && ctx.fight('c1.fight.chipper')?.active !== true && !chipperStarting) void chipperRow();
           break;
         case 'c1.trig.call':
           if (ctx.isComplete('c1.fight.chipper') && !flag('call.done')) void atCall();
           break;
         case 'c1.trig.boss':
-          if (ctx.isComplete('c1.fight.chipper') && !flag('boss.started') && !ctx.isComplete('c1.boss.bigtom')) void bigTomArrives();
+          if (ctx.isComplete('c1.fight.chipper') && !ctx.isComplete('c1.boss.bigtom') && ctx.boss('c1.boss.bigtom')?.active !== true && !bossStarting) void bigTomArrives();
           break;
         case 'c1.trig.eastexit':
           // Locked for want of the hurley only: Big Tom is down. The trigger fires once per approach.
