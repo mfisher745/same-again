@@ -108,6 +108,10 @@ const OHIO_LEGEND: Readonly<Record<string, string>> = {
   k: 'sidewalk',
   h: 'hatch',
   q: 'water',
+  // Chapter 6 corn: standing (walkable, open to sight), cut stubble, and the maze's thicket wall (solid, blocks sight).
+  C: 'cornStanding',
+  u: 'cornStubble',
+  X: 'cornWall',
 };
 
 const LEGENDS: Readonly<Partial<Record<RegionId, Readonly<Record<string, string>>>>> = { cities: CITIES_LEGEND, ohio: OHIO_LEGEND };

@@ -4,10 +4,10 @@
  * cornfields, all in the `ohio` region, plus every constant the script needs
  * (corn, drone routes, the crop-circle maze, the combine arena, bottle spots).
  *
- * Stand-ins (no art yet): the ice machine and the ticket machine are the vending
- * machine, the water tower and the diner sign are the chipper sign, the cooler on a
- * fence post is a bottle crate on the track's edge, the mailbox is a lunchbox. The
- * sensor lights, the drones and the combine are the script's to draw.
+ * Art: `src/art/propsC56.ts` (ice machine, ticket machine, water tower, signs, cooler on
+ * a post, mailbox, flag, marker stones) and the `ohio` corn tiles (`C` standing, `u`
+ * stubble, `X` the maze's thicket wall). The world view draws the sensor lights, the
+ * plume, the bales and the lit stones; the drones and the combine are enemy bodies.
  */
 
 import { PROP } from '../../art/props';
@@ -74,9 +74,9 @@ export function motelScreen(): ScreenLayout {
     { id: 'desk.ledger', frame: PROP.visitorsBook, col: 9, row: 4 },
     { id: 'desk.postcards', frame: PROP.brochure, col: 10, row: 4 },
     // The sign, over the corridor.
-    { id: 'motel.sign', frame: PROP.pubSign, col: 14, row: 1 },
-    // The ice machine in the corridor (a vending machine for now).
-    { id: 'ice.machine', frame: PROP.vendingMachine, col: 26, row: 2, solid: { dy: 1, width: 1, height: 1 } },
+    { id: 'motel.sign', frame: PROP.motelSign, col: 14, row: 1 },
+    // The ice machine in the corridor.
+    { id: 'ice.machine', frame: PROP.iceMachine, col: 26, row: 2, solid: { dy: 1, width: 1, height: 1 } },
     { id: 'motel.p1', frame: PROP.flowerPot, col: 2, row: 13, solid: { width: 1, height: 1 } },
     { id: 'motel.p2', frame: PROP.flowerPot, col: 12, row: 14, solid: { width: 1, height: 1 } },
     { id: 'motel.p3', frame: PROP.flowerPot, col: 27, row: 7, solid: { width: 1, height: 1 } },
@@ -144,17 +144,18 @@ export function townScreen(): ScreenLayout {
   const props: PropPlacement[] = [
     // The bus station: the notice and the ticket machine.
     { id: 'town.notice', frame: PROP.noticeboard, col: 5, row: 5 },
-    { id: 'town.tickets', frame: PROP.vendingMachine, col: 9, row: 5 },
+    { id: 'town.tickets', frame: PROP.busTicketMachine, col: 9, row: 5 },
     // Dale's: the sign over the window, the bin of bats with the hurley in it.
     { id: 'dale.sign', frame: PROP.bookiesSign, col: 18, row: 5 },
     { id: 'dale.bin', frame: PROP.bins, col: 23, row: 4, solid: { width: 1, height: 1 } },
     { id: 'dale.hurley', frame: PROP.weapon.hurley, col: 23, row: 3 },
-    // The diner's sign, and the water tower (stand-in) at the car park's east end.
-    { id: 'diner.sign', frame: PROP.chipperSign, col: 34, row: 5 },
-    { id: 'town.waterTower', frame: PROP.chipperSign, col: 45, row: 16, solid: { width: 1, height: 1 } },
-    { id: 'town.flag', frame: PROP.flowerPot, col: 47, row: 14, solid: { width: 1, height: 1 } },
+    // The diner's sign, and the water tower (32 x 48, standing on its bottom row of tiles) at the car park's east end.
+    { id: 'diner.sign', frame: PROP.dinerSign, col: 34, row: 5 },
+    { id: 'town.waterTower', frame: PROP.waterTower, col: 45, row: 14, solid: { dy: 2, width: 2, height: 1 } },
+    // The flag (16 x 32, two frames of it moving), solid at its foot.
+    { id: 'town.flag', frame: PROP.flag[0], frames: PROP.flag, frameRate: 2, col: 47, row: 13, solid: { dy: 1, width: 1, height: 1 } },
     // The motel's sign above its door.
-    { id: 'town.motelSign', frame: PROP.pubSign, col: 43, row: 4 },
+    { id: 'town.motelSign', frame: PROP.motelSign, col: 43, row: 4 },
   ];
   const dressing: ScreenDressing = {
     props,
@@ -192,7 +193,7 @@ export const STEALTH_REINFORCEMENTS: readonly Vec2[] = [T(20, 10), T(36, 20)];
 export const FARM_STAND = { col: 42, row: 17 } as const;
 export const FARM_STAND_PICKUP = T(43, 17);
 
-/** Bottles: a cooler of light beer on every other fence post along the track (bottle crates on its north edge for now). */
+/** Bottles: a cooler of light beer on every other fence post along the track. */
 export const COOLER_COLS = [30, 32, 34, 36, 38, 40, 42, 44, 46] as const;
 export const COOLER_ROW = 14;
 export const COOLER_SPOTS: readonly Vec2[] = COOLER_COLS.map((col) => T(col, COOLER_ROW));
@@ -393,7 +394,7 @@ export const FIELDS_STEALTH: StealthSectionDef = {
 };
 
 function fieldsCanvas(): Canvas {
-  const c = new Canvas(80, 40, 'o', 'ohio');
+  const c = new Canvas(80, 40, 'C', 'ohio');
   c.rect(0, 0, 80, 1, '#').rect(0, 39, 80, 1, '#').rect(0, 0, 1, 40, '#').rect(79, 0, 1, 40, '#');
   // Rows of corn with an aisle between every third row.
   for (let row = 3; row < 36; row += 4) c.rect(1, row, 78, 1, 'r');
@@ -405,9 +406,8 @@ function fieldsCanvas(): Canvas {
   c.rect(YARD.col, YARD.row, YARD.width, YARD.height, 'F');
   // The formation: flattened paths and staked walls, the maze's stones, the hatch.
   for (let r = 0; r < MAZE.height; r++) {
-    for (let col = 0; col < MAZE.width; col++) c.set(MAZE.col + col, MAZE.row + r, MAZE_GRID.walls[r]?.[col] ? 'f' : 'F');
+    for (let col = 0; col < MAZE.width; col++) c.set(MAZE.col + col, MAZE.row + r, MAZE_GRID.walls[r]?.[col] ? 'X' : 'F');
   }
-  for (const s of MAZE_STONES) c.set(s.col, s.row, 'M');
   c.set(MAZE_HATCH_TILE.col, MAZE_HATCH_TILE.row, 'h');
   return c;
 }
@@ -416,7 +416,7 @@ function fieldsCanvas(): Canvas {
 export const FIELDS_CORN: readonly TileCoord[] = (() => {
   const c = fieldsCanvas();
   const tiles: TileCoord[] = [];
-  for (let row = 0; row < c.height; row++) for (let col = 0; col < c.width; col++) if (c.char(col, row) === 'o') tiles.push({ col, row });
+  for (let row = 0; row < c.height; row++) for (let col = 0; col < c.width; col++) if (c.char(col, row) === 'C') tiles.push({ col, row });
   return tiles;
 })();
 /** The part of it the combine will cut. */
@@ -461,13 +461,15 @@ export function fieldsScreen(): ScreenLayout {
   const c = fieldsCanvas();
   const exits: ExitDef[] = [{ id: 'c6.fields.town', area: FIELDS_TO_TOWN, toScreen: 'c6.town', spawn: TOWN_FROM_FIELDS }];
   const props: PropPlacement[] = [
-    // The mailbox at the lane's end (a lunchbox for now).
-    { id: 'fields.mailbox', frame: PROP.lunchbox, col: 5, row: 17, solid: { width: 1, height: 1 } },
+    // The mailbox at the lane's end.
+    { id: 'fields.mailbox', frame: PROP.mailbox, col: 5, row: 17, solid: { width: 1, height: 1 } },
     // The farm stand: its honesty box. The jar is spawned by the script when the run is clean.
     { id: 'fields.honestyBox', frame: PROP.honestyBox, col: FARM_STAND.col, row: FARM_STAND.row, solid: { width: 1, height: 1 } },
     { id: 'fields.hay', frame: PROP.hayBale, col: FARM_STAND.col + 1, row: FARM_STAND.row + 1, solid: { width: 1, height: 1 } },
-    // The coolers of light beer, along the track.
-    ...COOLER_COLS.map((col, i) => ({ id: `fields.cooler${i + 1}`, frame: PROP.bottleCrate, col, row: COOLER_ROW })),
+    // The coolers of light beer, on the fence posts along the track.
+    ...COOLER_COLS.map((col, i) => ({ id: `fields.cooler${i + 1}`, frame: PROP.coolerOnPost, col, row: COOLER_ROW })),
+    // The marker stones (dark; the world view lights them as they are stepped on in order).
+    ...MAZE_STONES.map((s) => ({ id: `maze.stone.${s.id}`, frame: PROP.markerStone.dark, col: s.col, row: s.row })),
     // The centre's gate, shut until the maze is solved, and the hatch that opens under it.
     { id: 'maze.gate', frame: PROP.fieldGate.across, col: MAZE_GATE_TILE.col, row: MAZE_GATE_TILE.row, solid: { width: 1, height: 1 } },
     { id: 'maze.hatch', frame: PROP.containerHatch, col: MAZE_HATCH_TILE.col, row: MAZE_HATCH_TILE.row, hidden: true },
