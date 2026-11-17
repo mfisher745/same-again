@@ -15,7 +15,7 @@ import type { ScreenAmbient } from '../../core/chapter';
 import type { MoveId, SectionId, SpecialSlotIndex, TextId } from '../../core/types';
 import type { BossHooks, ChapterContext, ChapterScript, FightHooks } from '../../systems';
 import { hidePrompt, openHotDrinkChoice, showPrompt, showSlotPrompt } from '../../ui/prompts';
-import { FLOOR_MYKO_SPOT, LANES, LOBBY_MYKO_SPOT, MYKO_CHAIR, PRUITT_ADDS, PRUITT_ENTRANCE, SHELF_ROWS, SHELF_ROW_COUNT, SHELF_UNIT_COLS, shelfPropId } from './maps';
+import { FLOOR_MYKO_SPOT, LANES, LOBBY_MYKO_SPOT, MYKO_CHAIR, PRUITT_ADDS, PRUITT_ENTRANCE, railPropId, SHELF_ROWS, SHELF_ROW_COUNT, SHELF_UNIT_COLS, shelfPropId } from './maps';
 
 const OBJ = {
   lobby: 'c5.lobby',
@@ -139,6 +139,10 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
 
   /** The floor rails of a lit lane glow through the screen's tint. */
   const drawRails = (): void => {
+    for (const lane of LANES) {
+      const frame = litLanes.has(lane.index) ? PROP.floorRail.lit : PROP.floorRail.unlit;
+      for (let r = 0; r < SHELF_ROW_COUNT; r++) for (let dc = 0; dc < lane.width; dc++) ctx.setPropFrame(railPropId(lane.index, dc, r), frame);
+    }
     if (litLanes.size === 0) {
       ctx.setAmbient(null, 'c5.stacks');
       return;
@@ -209,9 +213,10 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     for (const n of SHEET_IDS) ctx.setPropVisible(`sheet.${n}`, redaction()?.collected().includes(`sheet${n}`) !== true);
     ctx.setPropVisible('memo', flag('floor.clean') && !flag('memo.taken'));
     const fight = ctx.fight(FIGHT);
-    ctx.setPropFrame('copier', fight?.active === true || ctx.isComplete(FIGHT) ? PROP.filingCabinet.open : PROP.filingCabinet.shut);
+    ctx.setPropFrame('copier', fight?.active === true || ctx.isComplete(FIGHT) ? PROP.photocopier.jammed : PROP.photocopier.shut);
     ctx.setExitLocked('c5.floor.doors', !ctx.isComplete(BOARD));
-    ctx.setPropVisible('umbrella', ctx.isComplete(BOSS) && !ctx.kit().weapons.includes('umbrella'));
+    ctx.setPropFrame('umbrellaStand', ctx.kit().weapons.includes('umbrella') ? PROP.umbrellaStand.empty : PROP.umbrellaStand.full);
+    ctx.setPropFrame('lightbox', puzzleDone() ? PROP.lightbox.lit : PROP.lightbox.unlit);
     resetShelves();
   };
 
@@ -348,7 +353,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     if (ctx.isComplete(FIGHT) || ctx.fight(FIGHT)?.active === true || fightStarting) return;
     fightStarting = true;
     ctx.completeMark('c5.copier');
-    ctx.setPropFrame('copier', PROP.filingCabinet.open);
+    ctx.setPropFrame('copier', PROP.photocopier.jammed);
     await ctx.say('c5.copier');
     if (disposed) return;
     if (!knows('lockIn')) {
@@ -408,7 +413,6 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     },
     onEnd: (_boss, by) => {
       resetShelves();
-      ctx.setPropVisible('umbrella', true);
       ctx.setObjective(null);
       if (by !== 'myko') void ctx.say('c5.pruitt.end');
     },
@@ -422,7 +426,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     }
     if (ending) return;
     ending = true;
-    ctx.setPropVisible('umbrella', false);
+    ctx.setPropFrame('umbrellaStand', PROP.umbrellaStand.empty);
     if (!ctx.kit().weapons.includes('umbrella')) {
       ctx.gainWeapon('umbrella');
       await ctx.say('c5.weapon.umbrella');
@@ -612,6 +616,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           break;
         case PUZZLE:
           ctx.setObjective(null);
+          ctx.setPropFrame('lightbox', PROP.lightbox.lit);
           if (by !== 'myko') void ctx.say('c5.redacted.solved');
           break;
         case FIGHT:

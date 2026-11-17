@@ -43,7 +43,7 @@ describe('Pruitt, phase 1: one shelf', () => {
     expect(boss.phase?.id).toBe('oneShelf');
     expect(run.objective()).toBe('c5.pruitt');
     expect(boss.addsAlive()).toBe(0);
-    expect(run.dressing.prop('umbrella')?.visible).toBe(false);
+    expect(run.dressing.prop('umbrellaStand')?.frame).toBe(PROP.umbrellaStand.full);
   });
 
   it('lights the rails of Andrew\'s lane a second before, then slides the unit across it, and catching him is heavy', async () => {
@@ -127,13 +127,13 @@ describe('Pruitt: five o\'clock', () => {
     await settle(run, 10);
     expect(boss.isComplete()).toBe(true);
     expect(shown.map((s) => s.sequenceId)).toContain('c5.pruitt.end');
-    expect(run.dressing.prop('umbrella')?.visible).toBe(true);
+    expect(run.dressing.prop('umbrellaStand')?.frame).toBe(PROP.umbrellaStand.full);
     expect(run.ambient()).toBeNull();
     expect(unitCol(run, 3)).toBe(SHELF_UNIT_COLS[3]);
     examine(run, 'c5.umbrella');
     await settle(run, 14);
     expect(run.player.kit.weapons).toContain('umbrella');
-    expect(run.dressing.prop('umbrella')?.visible).toBe(false);
+    expect(run.dressing.prop('umbrellaStand')?.frame).toBe(PROP.umbrellaStand.empty);
     expect(shown.map((s) => s.sequenceId)).toEqual(expect.arrayContaining(['c5.weapon.umbrella', 'c5.closing']));
     expect(ended).toHaveLength(1);
   });
@@ -144,7 +144,7 @@ describe('Pruitt: five o\'clock', () => {
     boss.complete('myko');
     await settle(run, 6);
     expect(shown.map((s) => s.sequenceId)).not.toContain('c5.pruitt.end');
-    expect(run.dressing.prop('umbrella')?.visible).toBe(true);
+    expect(run.dressing.prop('umbrellaStand')?.frame).toBe(PROP.umbrellaStand.full);
   });
 });
 

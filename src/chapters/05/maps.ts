@@ -3,9 +3,8 @@
  * (docs/chapters/05-the-paper-trail.md): the hotel bar, the public lobby, the records floor and the archive
  * stacks, all in the `cities` region.
  *
- * Stand-in art: the atlas has no photocopier, lightbox, water cooler, ticket machine, security desk, umbrella
- * stand, loose sheet or rolling shelf, so existing frames stand in for them (noted at each prop). Swap the frame
- * names here when the art lands; nothing else depends on them.
+ * Art: the chapter 5 props come from `src/art/propsC56.ts` (photocopier, lightbox, water cooler, ticket machine,
+ * security desk, umbrella stand, redacted sheet, rolling shelf, floor rail).
  */
 
 import { PROP } from '../../art/props';
@@ -142,12 +141,10 @@ export function lobbyScreen(): ScreenLayout {
     { id: 'c5.lobby.staff', area: STAFF_DOOR, toScreen: 'c5.floor', spawn: FLOOR_ARRIVAL },
   ];
   const props: PropPlacement[] = [
-    // Stand-in: a filing cabinet for the ticket machine.
-    { id: 'ticketMachine', frame: PROP.filingCabinet.shut, col: TICKET_MACHINE.col, row: TICKET_MACHINE.row, solid: { dy: 1, width: 1, height: 1 } },
+    { id: 'ticketMachine', frame: PROP.ticketMachine, col: TICKET_MACHINE.col, row: TICKET_MACHINE.row, solid: { dy: 1, width: 1, height: 1 } },
     { id: 'lobby.board', frame: PROP.noticeboard, col: NOTICEBOARD.col, row: NOTICEBOARD.row, solid: { dy: 1, width: 1, height: 1 } },
     { id: 'lobby.sheet', frame: PROP.signUpSheet, col: NOTICEBOARD.col + 1, row: NOTICEBOARD.row + 1 },
-    // Stand-in: an office desk for the security desk.
-    { id: 'securityDesk', frame: PROP.officeDesk, col: SECURITY_DESK.col, row: SECURITY_DESK.row, solid: { width: 2, height: 1 } },
+    { id: 'securityDesk', frame: PROP.securityDesk, col: SECURITY_DESK.col, row: SECURITY_DESK.row, solid: { width: 2, height: 1 } },
     { frame: PROP.deadPlant, col: 3, row: 3, solid: { width: 1, height: 1 } },
     { frame: PROP.deadPlant, col: 36, row: 16, solid: { width: 1, height: 1 } },
     { frame: PROP.bins, col: 3, row: 16, solid: { width: 1, height: 1 } },
@@ -283,9 +280,9 @@ export function floorScreen(): ScreenLayout {
   ];
   const desk = (id: string, col: number, row: number): PropPlacement => ({ id, frame: PROP.officeDesk, col, row, solid: { width: 2, height: 1 } });
   const props: PropPlacement[] = [
-    // North wall: a vending machine, the water cooler (stand-in: the urn), the noticeboard, a second vending machine.
+    // North wall: a vending machine, the water cooler, the noticeboard, a second vending machine.
     { id: 'vendingA', frame: PROP.vendingMachine, col: 8, row: 1, solid: { dy: 1, width: 1, height: 1 } },
-    { id: 'cooler', frame: PROP.hotDrinkUrn, col: 18, row: 1, solid: { dy: 1, width: 1, height: 1 } },
+    { id: 'cooler', frame: PROP.waterCooler, col: 18, row: 1, solid: { dy: 1, width: 1, height: 1 } },
     { id: 'floor.board', frame: PROP.noticeboard, col: 30, row: 1, solid: { dy: 1, width: 1, height: 1 } },
     { id: 'vendingB', frame: PROP.vendingMachine, col: 16, row: 22, solid: { dy: 1, width: 1, height: 1 } },
     // Desks in the cubicles (a desk fills the back of each pod; the opening stays clear).
@@ -300,15 +297,15 @@ export function floorScreen(): ScreenLayout {
     // The big desk in the aisle between the middle cubicles, with the requisition on it (stand-in: a logbook).
     desk('bigDesk', 27, 12),
     { id: 'requisition', frame: PROP.logbook, col: 28, row: 12 },
-    // The expenses claim (stand-in: a brochure) and the memo (stand-in: a docket), hidden until the clean run.
+    // The expenses claim (stand-in: a brochure) and the memo, hidden until the clean run.
     { id: 'busticket', frame: PROP.brochure, col: 24, row: 18 },
-    { id: 'memo', frame: PROP.docket, col: 35, row: 6, hidden: true },
-    // The five loose sheets (stand-in: the manifest frame).
-    ...SHEETS.map((s) => ({ id: `sheet.${s.n}`, frame: PROP.manifest, col: s.prop.col, row: s.prop.row })),
-    // The lightbox (stand-in: a desk, lit from below).
-    { id: 'lightbox', frame: PROP.officeDesk, col: LIGHTBOX.col, row: LIGHTBOX.row, solid: { width: 2, height: 1 } },
-    // The photocopier (stand-in: a filing cabinet). The jam swaps it for the open frame.
-    { id: 'copier', frame: PROP.filingCabinet.shut, col: COPIER.col, row: COPIER.row, solid: { dy: 1, width: 1, height: 1 } },
+    { id: 'memo', frame: PROP.redactedSheet, col: 35, row: 6, hidden: true },
+    // The five loose sheets.
+    ...SHEETS.map((s) => ({ id: `sheet.${s.n}`, frame: PROP.redactedSheet, col: s.prop.col, row: s.prop.row })),
+    // The lightbox; it lights when the redaction is solved.
+    { id: 'lightbox', frame: PROP.lightbox.unlit, col: LIGHTBOX.col, row: LIGHTBOX.row, solid: { width: 2, height: 1 } },
+    // The photocopier. The jam swaps it for the jammed frame.
+    { id: 'copier', frame: PROP.photocopier.shut, col: COPIER.col, row: COPIER.row, solid: { dy: 1, width: 1, height: 1 } },
     // The break-room fridge with the birthday whiskey.
     { id: 'fridge', frame: PROP.clubFridge, col: FRIDGE.col, row: FRIDGE.row, solid: { dy: 1, width: 1, height: 1 } },
     // Bottles and boxes, clear of the aisles' middles.
@@ -357,6 +354,8 @@ export const LANES = [0, 1, 2, 3, 4].map((k) => ({
 }));
 /** The prop id of one tile-row of a shelf unit: `shelf.<unit>.<row 0..11>`. The script moves all twelve together. */
 export const shelfPropId = (unit: number, row: number): string => `shelf.${unit}.${row}`;
+/** The prop id of one rail tile in lane k: `rail.<k>.<column in lane>.<row 0..11>`. */
+export const railPropId = (lane: number, dc: number, row: number): string => `rail.${lane}.${dc}.${row}`;
 export const SHELF_ROW_COUNT = SHELF_ROWS.count;
 
 /** The tile Pruitt starts on, at range in the east margin; his crank beside it. */
@@ -386,18 +385,26 @@ export function stacksScreen(): ScreenLayout {
   c.rect(SHELF_UNIT_COLS[0], SHELF_ROWS.from, SHELF_UNIT_COLS[5] + 2 - SHELF_UNIT_COLS[0], SHELF_ROWS.count, 'r');
   const exits: ExitDef[] = [{ id: 'c5.stacks.door', area: tilesArea(1, 15, 1, 2), toScreen: 'c5.floor', spawn: FLOOR_FROM_STACKS }];
   const props: PropPlacement[] = [];
-  // Stand-in: the drum shelf frame, one 2 x 1 piece per row of each unit (no tall rolling-shelf frame exists).
+  // The floor rails of each lane, under everything; the script lights them for the 1 s warning.
+  for (const lane of LANES) {
+    for (let r = 0; r < SHELF_ROWS.count; r++) {
+      for (let dc = 0; dc < lane.width; dc++) {
+        props.push({ id: railPropId(lane.index, dc, r), frame: PROP.floorRail.unlit, col: lane.col + dc, row: SHELF_ROWS.from + r, layer: 'floor' });
+      }
+    }
+  }
+  // One 2 x 1 piece per row of each unit: the top end, the middle and the bottom end of the rolling shelf.
   SHELF_UNIT_COLS.forEach((col, unit) => {
     for (let r = 0; r < SHELF_ROWS.count; r++) {
-      props.push({ id: shelfPropId(unit, r), frame: PROP.drumShelf, col, row: SHELF_ROWS.from + r, solid: { width: 2, height: 1 }, blocksSight: true });
+      const end = r === 0 ? 'top' : r === SHELF_ROWS.count - 1 ? 'bottom' : 'mid';
+      props.push({ id: shelfPropId(unit, r), frame: PROP.rollingShelf[end], col, row: SHELF_ROWS.from + r, solid: { width: 2, height: 1 }, blocksSight: true });
     }
   });
   props.push(
-    // Pruitt's crank, his desk and the umbrella stand with the umbrella in it (stand-in: a bin).
+    // Pruitt's crank, his desk and the umbrella stand with the umbrella in it (the crook shows until Andrew takes it).
     { id: 'crank', frame: PROP.lever.up, col: PRUITT_CRANK.x / 16 - 0.5, row: PRUITT_CRANK.y / 16 - 0.5 },
     { id: 'pruittDesk', frame: PROP.officeDesk, col: PRUITT_DESK.col, row: PRUITT_DESK.row, solid: { width: 2, height: 1 } },
-    { id: 'umbrellaStand', frame: PROP.bins, col: UMBRELLA_STAND.col, row: UMBRELLA_STAND.row, solid: { width: 1, height: 1 } },
-    { id: 'umbrella', frame: PROP.weapon.umbrella, col: UMBRELLA_STAND.col, row: UMBRELLA_STAND.row - 1 },
+    { id: 'umbrellaStand', frame: PROP.umbrellaStand.full, col: UMBRELLA_STAND.col, row: UMBRELLA_STAND.row, solid: { width: 1, height: 1 } },
     { id: 'stacks.p1', frame: PROP.bottleCrate, col: 6, row: 12, solid: { width: 1, height: 1 }, breakable: {} },
     { id: 'stacks.p2', frame: PROP.cardboardBox, col: 6, row: 19, solid: { width: 1, height: 1 }, breakable: {} },
   );

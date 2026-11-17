@@ -133,7 +133,7 @@ describe('chapter 5: back to the bar mid-chapter', () => {
     for (const s of ['c5.stealth.lobby', 'c5.stealth.floor', 'c5.explore.files', PUZZLE] as const) expect(run.isComplete(s), s).toBe(true);
     expect(run.fight(FIGHT)?.active).toBe(false);
     expect(run.isComplete(FIGHT)).toBe(false);
-    expect(run.dressing.prop('copier')?.frame).toBe(PROP.filingCabinet.shut);
+    expect(run.dressing.prop('copier')?.frame).toBe(PROP.photocopier.shut);
     expect(run.player.kit.moves).toEqual(expect.arrayContaining(['actNatural', 'lockIn']));
     // Back through the beaten parts: the lobby and the floor have no guards, and the sheets stay taken.
     await toLobby(run);

@@ -326,7 +326,7 @@ describe('chapter 5: the copier, Lock-in and the cubicle fight', () => {
     expect(ids.indexOf('c5.copier')).toBeLessThan(ids.indexOf('c5.lockIn.lesson'));
     expect(ids.indexOf('c5.lockIn.lesson')).toBeLessThan(ids.indexOf('c5.fight.intro'));
     expect(run.player.kit.moves).toContain('lockIn');
-    expect(run.dressing.prop('copier')?.frame).toBe(PROP.filingCabinet.open);
+    expect(run.dressing.prop('copier')?.frame).toBe(PROP.photocopier.jammed);
     const fight = run.fight(FIGHT)!;
     expect(fight.active).toBe(true);
     expect(run.objective()).toBe('c5.fight');
