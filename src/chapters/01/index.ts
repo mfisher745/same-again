@@ -9,6 +9,7 @@ import { createChapterScript } from './script';
 import {
   HURLEY_TILE,
   KEG_AREA,
+  KEG_LEVER_TILE,
   PUB_ARRIVAL,
   T,
   URN_SPOT,
@@ -104,6 +105,7 @@ export const chapter1: ChapterModule = {
     { id: 'c1.dympna', screenId: 'c1.pub', position: T(21, 3) },
     { id: 'c1.urn', screenId: 'c1.pub', position: URN_SPOT, objective: true },
     { id: 'c1.hurley', screenId: 'c1.street', position: T(HURLEY_TILE.col, HURLEY_TILE.row), objective: true },
+    { id: 'c1.kegs.lever', screenId: 'c1.yard', position: T(KEG_LEVER_TILE.col, KEG_LEVER_TILE.row) },
     { id: 'c1.trophies', screenId: 'c1.pub', position: { x: 25 * 16, y: 24 }, dialogueId: 'c1.pub.trophies' },
     { id: 'c1.telly', screenId: 'c1.pub', position: T(27, 1), dialogueId: 'c1.pub.telly' },
     { id: 'c1.photo', screenId: 'c1.pub', position: T(1, 4), dialogueId: 'c1.pub.photo' },
@@ -133,6 +135,7 @@ export const chapter1: ChapterModule = {
       sectionId: 'c1.puzzle.kegs',
       screenId: 'c1.yard',
       pieceKind: 'keg',
+      resetExaminableId: 'c1.kegs.lever',
       layout: {
         // Playtest 6. The walled path to the gate, three tiles wide. Three kegs stand across its yard end and three
         // crates are stacked on it for good; kegs never leave the path. Solved when Andrew can walk to the gate.

@@ -268,7 +268,8 @@ describe('the kit through the run', () => {
   it('empties are bottles and food is not a thing', () => {
     const { run } = makeRun({ save: withKit({ bottles: 0 }) });
     teleport(run, 9, 2);
-    expect(run.player.kit.bottles).toBe(O.carry.bottleLimit);
+    // The sandbox's four empties, up to the cap.
+    expect(run.player.kit.bottles).toBe(Math.min(O.carry.bottleLimit, 4));
     teleport(run, 7, 2);
     expect(run.pickups().some((p) => p.def.id === 'sandbox.crisps')).toBe(false);
   });
@@ -488,7 +489,7 @@ describe('the throw', () => {
   });
 
   it('rapid hold and release spends exactly one bottle per throw', () => {
-    const { run } = makeRun({ save: withKit({ bottles: O.carry.bottleLimit }) });
+    const { run } = makeRun({ save: withKit({ bottles: 1 }) });
     run.player.meter = createMeter(1, AT.grand);
     run.setPlayerPosition({ x: 100, y: 100 });
     for (let i = 0; i < 3; i++) {
@@ -496,7 +497,7 @@ describe('the throw', () => {
       run.tick(16, frame({ released: ['aimHold'], aim }));
     }
     // One bottle, one throw: the extra holds and releases find nothing to spend.
-    expect(run.player.kit.bottles).toBe(O.carry.bottleLimit - 1);
+    expect(run.player.kit.bottles).toBe(0);
   });
 });
 

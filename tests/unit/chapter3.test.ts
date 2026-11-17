@@ -1,4 +1,4 @@
-/** Chapter 3 smoke tests: the crate puzzle (nine pushes, no dead ends) and the scripted walk. */
+/** Chapter 3 smoke tests: the crate puzzle (seven pushes to a way through, few dead ends) and the scripted walk. */
 
 import { describe, expect, it } from 'vitest';
 import { clearChapterRegistry, registerChapter } from '../../src/core/chapter';
@@ -33,31 +33,46 @@ describe('crate puzzle', () => {
   let result: { minPushes: number; deadEnds: number; positions: number } | null = null;
   const search = () => (result ??= searchPushes(layout, bay.grid, start));
 
-  it('needs nine pushes at least (breadth-first search, Andrew walking round to push)', { timeout: 120000 }, () => {
-    expect(search().minPushes).toBe(9);
+  it('needs seven pushes at least (breadth-first search, Andrew walking round to push): no walking round it', { timeout: 120000 }, () => {
+    expect(search().minPushes).toBe(7);
   });
 
   it('counts the positions the crates can be pushed into that cannot be finished (the reset lever covers them)', { timeout: 120000 }, () => {
-    // A crate pushed against a wall inside the road can stay there for good; the lever puts every crate back.
-    expect(search().deadEnds).toBeLessThan(search().positions / 5);
+    // The left-hand way round never shifts, and a crate can be wedged for good; the lever puts every crate back.
+    expect(search().deadEnds).toBeLessThan(search().positions / 10);
   });
 
   it('is shut to begin with and open in the solution', () => {
-    expect(clearOf(layout, layout.pieces)).toBe(false);
-    expect(clearOf(layout, layout.solution)).toBe(true);
+    expect(throughWith(layout, bay.grid, layout.pieces)).toBe(false);
+    expect(throughWith(layout, bay.grid, layout.solution)).toBe(true);
   });
 });
 
-const clearOf = (layout: PushPuzzleLayout, crates: readonly { col: number; row: number }[]): boolean => {
+/** Whether Andrew can walk the goal's way through with the crates at `crates`. */
+const throughWith = (layout: PushPuzzleLayout, grid: TileGrid, crates: readonly { col: number; row: number }[]): boolean => {
   const g = layout.goal;
-  if (g.kind !== 'clear') throw new Error('this layout is a clear goal');
-  return g.cells.every((c) => !crates.some((k) => k.col === c.col && k.row === c.row));
+  if (g.kind !== 'reach') throw new Error('this layout is a reach goal');
+  const open = (c: number, r: number) =>
+    !isBlocked(grid, c, r) && !layout.fixed.some((f) => f.col === c && f.row === r) && !crates.some((k) => k.col === c && k.row === r);
+  const seen = new Set([`${g.from.col},${g.from.row}`]);
+  const stack = [g.from];
+  for (let t = stack.pop(); t !== undefined; t = stack.pop()) {
+    if (t.col === g.to.col && t.row === g.to.row) return true;
+    for (const [dc, dr] of [[0, 1], [0, -1], [1, 0], [-1, 0]] as const) {
+      const c = t.col + dc;
+      const r = t.row + dr;
+      if (seen.has(`${c},${r}`) || !open(c, r)) continue;
+      seen.add(`${c},${r}`);
+      stack.push({ col: c, row: r });
+    }
+  }
+  return false;
 };
 
 /**
  * Every position the crates can reach, Andrew walking round to the pushing side (a flood fill over the tiles round the pen,
- * integers throughout so the whole space is a few seconds). `minPushes`: fewest pushes to a clear road, or -1.
- * `deadEnds`: positions from which a clear road can no longer be reached.
+ * integers throughout so the whole space is a few seconds). `minPushes`: fewest pushes to a way through, or -1.
+ * `deadEnds`: positions from which the way through can no longer be opened.
  */
 function searchPushes(layout: PushPuzzleLayout, grid: TileGrid, startTile: { col: number; row: number }): { minPushes: number; deadEnds: number; positions: number } {
   const a = layout.area;
@@ -77,8 +92,8 @@ function searchPushes(layout: PushPuzzleLayout, grid: TileGrid, startTile: { col
     }
   }
   const g = layout.goal;
-  if (g.kind !== 'clear') throw new Error('this search is for a clear goal');
-  const road = g.cells.map((c) => at(c.col, c.row));
+  if (g.kind !== 'reach') throw new Error('this search is for a reach goal');
+  const goalAt = at(g.to.col, g.to.row);
   const dirs = [-w, w, -1, 1];
   const flood = (crates: readonly number[], from: number): Uint8Array => {
     const seen = new Uint8Array(n);
@@ -102,7 +117,7 @@ function searchPushes(layout: PushPuzzleLayout, grid: TileGrid, startTile: { col
     let low = 0;
     while (!reach[low]) low++;
     const sorted = [...crates].sort((x, y) => x - y);
-    return { key: `${sorted.join(',')}#${low}`, state: { crates, player, pushes, next: [], solved: road.every((c) => !crates.includes(c)) } };
+    return { key: `${sorted.join(',')}#${low}`, state: { crates, player, pushes, next: [], solved: reach[goalAt] === 1 } };
   };
   const states = new Map<string, State>();
   const crates0 = layout.pieces.map((p) => at(p.col, p.row));

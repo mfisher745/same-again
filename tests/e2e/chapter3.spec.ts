@@ -1,6 +1,6 @@
 /**
  * Chapter 3 smoke against the built game at ?chapter=3: the social club (the kettle), the yard (the guards at the fence gap),
- * the office (the clues, Same Again and the cabinet), the bay (the crate puzzle solved by nine real pushes, the manifest, the
+ * the office (the clues, Same Again and the cabinet), the bay (the crate puzzle solved by seven real pushes, the manifest, the
  * night shift, the board) and Halloran. Real keyboard walking, E and mouse swings; the night shift and the board's cards go
  * through the run. Screenshots land in test-results/chapter3/.
  */
@@ -123,7 +123,7 @@ const D: Record<Dir, Cell> = { up: { col: 0, row: -1 }, down: { col: 0, row: 1 }
 const KEY: Record<Dir, string> = { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD' };
 
 /** Fewest-push solution, Andrew walking round to the pushing side. Reads only what the running game reports. */
-function solve(area: { col: number; row: number; width: number; height: number }, fixed: Cell[], crates: Cell[], road: Cell[], blocked: boolean[], w: number, player: Cell): { crate: Cell; dir: Dir }[] {
+function solve(area: { col: number; row: number; width: number; height: number }, fixed: Cell[], crates: Cell[], door: Cell, blocked: boolean[], w: number, player: Cell): { crate: Cell; dir: Dir }[] {
   const key = (c: number, r: number) => r * w + c;
   const inArea = (c: number, r: number) => c >= area.col && r >= area.row && c < area.col + area.width && r < area.row + area.height;
   const isFixed = (c: number, r: number) => fixed.some((f) => f.col === c && f.row === r);
@@ -142,7 +142,8 @@ function solve(area: { col: number; row: number; width: number; height: number }
     }
     return seen;
   };
-  const clear = (cs: Cell[]) => road.every((r) => !cs.some((c) => c.col === r.col && c.row === r.row));
+  // Through: Andrew can walk to the nook under the office door.
+  const through = (cs: Cell[], from: Cell) => flood(new Set(cs.map((c) => key(c.col, c.row))), from).has(key(door.col, door.row));
   interface Node { crates: Cell[]; player: Cell; prev: Node | null; push: { crate: Cell; dir: Dir } | null }
   const canon = (crates: Cell[], reach: Set<number>) => `${crates.map((c) => key(c.col, c.row)).sort((a, b) => a - b).join(',')}#${Math.min(...reach)}`;
   const first: Node = { crates, player, prev: null, push: null };
@@ -151,7 +152,7 @@ function solve(area: { col: number; row: number; width: number; height: number }
   while (frontier.length > 0) {
     const next: Node[] = [];
     for (const n of frontier) {
-      if (clear(n.crates)) {
+      if (through(n.crates, n.player)) {
         const out: { crate: Cell; dir: Dir }[] = [];
         for (let m: Node | null = n; m?.push; m = m.prev) out.unshift(m.push);
         return out;
@@ -177,7 +178,7 @@ function solve(area: { col: number; row: number; width: number; height: number }
   throw new Error('the crate puzzle has no solution from here');
 }
 
-test('the bay: the crate puzzle by nine real pushes, the manifest, the night shift, the board, One for the Road and Halloran', async ({ page }) => {
+test('the bay: the crate puzzle by seven real pushes, the manifest, the night shift, the board, One for the Road and Halloran', async ({ page }) => {
   await start(page, 3);
   await until(page, 'the opening to finish', async () => (await flag(page, 'intro.done')) === true, 40_000);
   await dismissScenes(page);
@@ -195,11 +196,11 @@ test('the bay: the crate puzzle by nine real pushes, the manifest, the night shi
     const r = (window as unknown as GameWindow).__game.session.run;
     const pz = r?.pushPuzzlesHere()[0]?.puzzle;
     if (!r || !pz) throw new Error('no puzzle');
-    const layout = pz.layout as unknown as { area: { col: number; row: number; width: number; height: number }; fixed: { col: number; row: number }[]; goal: { cells: { col: number; row: number }[] } };
-    return { area: layout.area, fixed: layout.fixed, road: layout.goal.cells, crates: pz.piecePositions(), blocked: r.grid.blocked, w: r.grid.widthTiles, player: { col: Math.floor(r.player.pos.x / 16), row: Math.floor(r.player.pos.y / 16) } };
+    const layout = pz.layout as unknown as { area: { col: number; row: number; width: number; height: number }; fixed: { col: number; row: number }[]; goal: { to: { col: number; row: number } } };
+    return { area: layout.area, fixed: layout.fixed, door: layout.goal.to, crates: pz.piecePositions(), blocked: r.grid.blocked, w: r.grid.widthTiles, player: { col: Math.floor(r.player.pos.x / 16), row: Math.floor(r.player.pos.y / 16) } };
   });
-  const plan = solve(info.area, info.fixed, info.crates.map((c) => ({ col: c.col, row: c.row })), info.road, info.blocked, info.w, info.player);
-  expect(plan).toHaveLength(9);
+  const plan = solve(info.area, info.fixed, info.crates.map((c) => ({ col: c.col, row: c.row })), info.door, info.blocked, info.w, info.player);
+  expect(plan).toHaveLength(7);
 
   const pieces = () => withRun(page, (r) => r.pushPuzzlesHere()[0]?.puzzle.piecePositions() ?? []);
   for (const [i, step] of plan.entries()) {
@@ -214,7 +215,7 @@ test('the bay: the crate puzzle by nine real pushes, the manifest, the night shi
     await walkTo(page, centre(crate.col - d.col, crate.row - d.row), { extraBlocked: blocked });
     await page.keyboard.down(KEY[step.dir]);
     try {
-      await until(page, `push ${i + 1} of 9`, async () => {
+      await until(page, `push ${i + 1} of ${plan.length}`, async () => {
         const after = (await pieces()).find((c) => c.id === crate.id);
         return after !== undefined && (after.col !== crate.col || after.row !== crate.row);
       }, 6000);

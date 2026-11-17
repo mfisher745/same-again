@@ -18,7 +18,7 @@ describe('chapter 2 sandbox: bar and kit', () => {
     expect(run.takeHotDrink('tea')).toBe(true);
     expect(run.player.kit.hotDrink).toBe('tea');
     const carried = carryOver(run.snapshot(), 'grand', createChapter2Sandbox());
-    expect(carried.kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit);
+    expect(carried.kit.bottles).toBe(TUNING.overhaul!.carry.minBottlesOnLeavingBar);
     expect(run.player.level).toBe(2);
   });
 });

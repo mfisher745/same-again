@@ -256,7 +256,8 @@ test('(a) the pub: meter hidden, Dympna, the pint reveals the meter, the hot dri
   await until(page, 'the kit step', async () => ((await flag(page, 'pub.step')) as number) >= 5);
   await dismissScenes(page);
   expect((await kitOf(page)).hotDrink).toBe('tea');
-  expect((await kitOf(page)).bottles).toBe(1); // one bottle at most (DESIGN.md 7.1, carry.bottleLimit)
+  // The pint left an empty (playtest 7: one from every beer, up to carry.bottleLimit).
+  expect((await kitOf(page)).bottles).toBeGreaterThanOrEqual(1);
 
   // Tab opens the kit, and the list moves on to the fruit machine.
   await page.keyboard.press('Tab');

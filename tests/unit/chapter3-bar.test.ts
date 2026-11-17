@@ -258,7 +258,7 @@ describe('chapter 3: save and load mid-chapter', () => {
     await enter(a.run, 'c3.bay', BAY_ARRIVAL);
     const puzzle = a.run.pushPuzzlesHere()[0]!.puzzle;
     const start = puzzle.piecePositions().map((p) => `${p.col},${p.row}`);
-    expect(puzzle.push({ col: 6, row: 5 }, 'right')).toBe(true);
+    expect(puzzle.push({ col: 8, row: 10 }, 'right')).toBe(true); // the bottom-right crate, one to the right
     expect(puzzle.piecePositions().map((p) => `${p.col},${p.row}`)).not.toEqual(start);
     a.run.learnMove('oneForTheRoad');
     const b = await newGame('continue', a.store);

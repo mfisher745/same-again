@@ -1430,6 +1430,8 @@ export interface MykoTuning {
   readonly smokeIntervalMs: number;
   /** Up to this much is added to or taken from each smoke interval (seeded). */
   readonly smokeJitterMs: number;
+  /** The first time Andrew walks into an area in a chapter, Myko lights up for this long, walking or not (playtest 7). */
+  readonly arrivalSmokeMs: number;
 }
 
 /** One entry of a breakable's loot table; `item: null` drops nothing. */
@@ -2245,6 +2247,8 @@ export interface OverhaulTuning {
   readonly ramGatePauseMs?: number;
   /** Chapter 4's crane sweeps, ms: a pass, the slow pass on foot, the gap before the slow pass, the first sweep. */
   readonly crane?: { readonly travelMs: number; readonly slowTravelMs: number; readonly slowDelayMs: number; readonly firstMs: number };
+  /** Chapter 3's gantry fight: a bottle taken off the bay floor is put back this long after, until the fight is won, ms. */
+  readonly fightBottleRespawnMs?: number;
   /** How long a scripted involuntary lurch (`ChapterContext.forceLurch`) takes, ms. Chapter 2. */
   readonly forcedLurchMs?: number;
   /** The thrown bottle. Optional until phase 2 switches the systems over. */

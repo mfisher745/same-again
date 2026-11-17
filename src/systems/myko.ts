@@ -17,7 +17,8 @@
  *   standing beside Andrew, the chapter's post-call scene, and a save.
  *
  * Smoke (DESIGN.md 3): standing still for about `smokeIntervalMs` (seeded
- * jitter), he has a smoke; `smoking` stays true until he next moves.
+ * jitter), he has a smoke; `smoking` stays true until he next moves. The run
+ * also has him light up (`lightUp`) the first time Andrew enters each area.
  */
 
 import { TUNING } from '../content/tuning';
@@ -128,12 +129,14 @@ export class Myko {
   facing: Facing = 'down';
   /** Moved on the last update. */
   moving = false;
-  /** Having a smoke: from `smokeIntervalMs` of standing still until he next moves. */
+  /** Having a smoke: from `smokeIntervalMs` of standing still until he next moves, or lit by `lightUp`. */
   smoking = false;
   /** Walking to a scripted point in a hurry: the view plays `hurry` instead of `walk`. */
   hurrying = false;
   private stillMs = 0;
   private nextSmokeMs: number;
+  /** A smoke lit by `lightUp`: it lasts this much longer even while he walks. */
+  private forcedSmokeMs = 0;
   /** Own seeded stream, so the smoke jitter does not shift the shared RNG (combat, pools). */
   private readonly smokeRng: Random = seededRandom(SMOKE_SEED);
 
@@ -262,6 +265,7 @@ export class Myko {
     this.host.setPlayerProtected(true);
     this.mode = 'calledIn';
     this.smoking = false;
+    this.forcedSmokeMs = 0;
     const sequenceId = `myko.call.${baseKind}.blackout.${nth}` as DialogueId;
     this.call = { target, sectionId, kind, sequenceId, earlier, elapsed: 0 };
     this.host.bus.emit(GameEvents.MykoBlackout, { sectionId, kind, sequenceId });
@@ -377,7 +381,27 @@ export class Myko {
     if (this.moving) this.facing = facingFromAngle(angleOf(dir));
   }
 
+  /**
+   * Light up now and keep smoking for `ms`, walking or not (Andrew has just walked into a new area). After that,
+   * the next step he takes puts it out as usual.
+   */
+  lightUp(ms: number = TUNING.myko.arrivalSmokeMs): void {
+    if (this.call) return;
+    this.smoking = true;
+    this.forcedSmokeMs = Math.max(this.forcedSmokeMs, ms);
+  }
+
   private tickSmoke(dtMs: number): void {
+    if (this.forcedSmokeMs > 0) {
+      this.forcedSmokeMs = Math.max(0, this.forcedSmokeMs - dtMs);
+      this.stillMs = this.moving ? 0 : this.stillMs + dtMs;
+      if (this.forcedSmokeMs > 0) return;
+      if (this.moving) {
+        this.smoking = false;
+        this.nextSmokeMs = this.smokeInterval();
+      }
+      return;
+    }
     if (this.moving) {
       this.stillMs = 0;
       if (this.smoking) {

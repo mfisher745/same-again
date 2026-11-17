@@ -284,17 +284,19 @@ export class SheepPuzzle extends PuzzleBase {
 
   /**
    * Swing a gate to its other position. Refused (false) if Andrew at `playerPos` is standing on a tile the gate
-   * would close, or the puzzle is finished. A sheep in the way is nudged out to the nearer side, never a reason
-   * to refuse.
+   * would close. A sheep in the way is nudged out to the nearer side, never a reason to refuse.
+   *
+   * The gates still swing once the puzzle is finished (playtest 7): the flock is penned for good by then, and
+   * Andrew has to open his own way back out of the far pens.
    */
   toggleGate(id: string, playerPos?: Vec2): boolean {
     const g = this.layout.gates.find((x) => x.id === id);
-    if (!g || this.isComplete()) return false;
+    if (!g) return false;
     const to: 0 | 1 = (this.gatePos.get(id) ?? 0) === 0 ? 1 : 0;
     const closing = g.positions[to];
     const occupied = (p: Vec2): boolean => closing.some((t) => Math.floor(p.x / TILE) === t.col && Math.floor(p.y / TILE) === t.row);
     if (playerPos !== undefined && occupied(playerPos)) return false;
-    this.markUsed();
+    if (!this.isComplete()) this.markUsed();
     this.gatePos.set(id, to);
     for (const s of this.flock) if (this.bodyBlocked(s.pos)) this.nudgeOut(s);
     this.gateChanges++;

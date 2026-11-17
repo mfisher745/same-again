@@ -57,19 +57,19 @@ describe('bottle cap', () => {
     expect(r.kit.bottles).toBe(CAP);
     expect(r.taken).toBeNull();
     expect(r.leftover).toEqual({ kind: 'empties', count: 1 });
-    expect(takeItem({ ...createKit(), bottles: 0 }, { kind: 'empties', count: 3 }).kit.bottles).toBe(CAP);
+    expect(takeItem({ ...createKit(), bottles: CAP - 1 }, { kind: 'empties', count: 3 }).kit.bottles).toBe(CAP);
   });
   it('top-ups and old saves never exceed the cap', () => {
-    expect(topUpForLeaving({ ...createKit(), bottles: 5 }, 'stout').bottles).toBe(CAP);
+    expect(topUpForLeaving({ ...createKit(), bottles: CAP + 4 }, 'stout').bottles).toBe(CAP);
     expect(topUpForLeaving(createKit(), 'stout').bottles).toBeLessThanOrEqual(CAP);
   });
   it('a run clamps a save holding more', async () => {
     const { run, store } = startChapterGame(chapter1, 'new');
     run.tick(16, NO_INPUT);
     await settleDialogue(run);
-    run.player.setKit({ ...run.player.kit, bottles: 4 });
+    run.player.setKit({ ...run.player.kit, bottles: CAP + 3 });
     run.learnMove('shoulder'); // any save will do
-    expect(store.load()?.kit.bottles).toBe(4);
+    expect(store.load()?.kit.bottles).toBe(CAP + 3);
     const loaded = startChapterGame(chapter1, 'continue', store);
     expect(loaded.run.player.kit.bottles).toBe(CAP);
   });

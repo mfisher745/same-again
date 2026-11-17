@@ -69,7 +69,7 @@ describe('beers on leaving the bar', () => {
     expect(arriveAtBar({ ...base, kit: k }, 'sober').progress.kit.drinks.stout).toBe(4);
   });
 
-  it('walking out of the chapter 2 bar leaves him with two beers and his one bottle', async () => {
+  it('walking out of the chapter 2 bar leaves him with two beers and his bottle', async () => {
     const { run } = startChapterGame(chapter2, 'chapter');
     run.tick(16, NO_INPUT);
     await settleDialogue(run);
@@ -77,7 +77,7 @@ describe('beers on leaving the bar', () => {
     run.goToScreen('c2.farm', T(2, 11));
     const drinks = Object.values(run.player.kit.drinks).reduce((n, c) => n + (c ?? 0), 0);
     expect(drinks).toBeGreaterThanOrEqual(2);
-    expect(run.player.kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit);
+    expect(run.player.kit.bottles).toBe(TUNING.overhaul!.carry.minBottlesOnLeavingBar);
   });
 });
 
