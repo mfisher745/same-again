@@ -424,6 +424,39 @@ export const ARENA_CORN: readonly TileCoord[] = FIELDS_CORN.filter(
   (t) => t.col >= ARENA.col && t.col < ARENA.col + ARENA.width && t.row >= ARENA.row && t.row < ARENA.row + ARENA.height,
 );
 
+/** Whole-tile rectangles covering exactly `tiles` (row runs, merged downwards when the next row has the same run). */
+export function tileRects(tiles: readonly TileCoord[]): { col: number; row: number; width: number; height: number }[] {
+  const byRow = new Map<number, number[]>();
+  for (const t of tiles) byRow.set(t.row, [...(byRow.get(t.row) ?? []), t.col]);
+  const open = new Map<string, { col: number; row: number; width: number; height: number }>();
+  const out: { col: number; row: number; width: number; height: number }[] = [];
+  for (const row of [...byRow.keys()].sort((a, b) => a - b)) {
+    const cols = (byRow.get(row) ?? []).sort((a, b) => a - b);
+    const runs: { col: number; width: number }[] = [];
+    for (const col of cols) {
+      const last = runs[runs.length - 1];
+      if (last && last.col + last.width === col) last.width++;
+      else runs.push({ col, width: 1 });
+    }
+    const next = new Map<string, { col: number; row: number; width: number; height: number }>();
+    for (const r of runs) {
+      const key = `${r.col},${r.width}`;
+      const above = open.get(key);
+      if (above && above.row + above.height === row) {
+        above.height++;
+        next.set(key, above);
+      } else {
+        const rect = { col: r.col, row, width: r.width, height: 1 };
+        out.push(rect);
+        next.set(key, rect);
+      }
+    }
+    open.clear();
+    for (const [k, v] of next) open.set(k, v);
+  }
+  return out;
+}
+
 export function fieldsScreen(): ScreenLayout {
   const c = fieldsCanvas();
   const exits: ExitDef[] = [{ id: 'c6.fields.town', area: FIELDS_TO_TOWN, toScreen: 'c6.town', spawn: TOWN_FROM_FIELDS }];
@@ -441,5 +474,5 @@ export function fieldsScreen(): ScreenLayout {
     // Bottle crates at the arena's corners.
     ...ARENA_BOTTLE_TILES.map((t, i) => ({ id: `fields.arenaCrate${i + 1}`, frame: PROP.bottleCrate, col: t.col, row: t.row, solid: { width: 1, height: 1 }, breakable: {} })),
   ];
-  return c.build('c6.fields', exits, FIELDS_ARRIVAL, { mykoStart: MYKO_LANE_END, dressing: { props } });
+  return { ...c.build('c6.fields', exits, FIELDS_ARRIVAL, { mykoStart: MYKO_LANE_END, dressing: { props } }), corn: tileRects(FIELDS_CORN) };
 }

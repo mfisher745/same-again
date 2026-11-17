@@ -25,6 +25,13 @@ export class Layer {
     return l;
   }
 
+  /** A graphics object for pictures made of rectangles (the chapter 6 postcard). Shown and hidden with the layer. */
+  graphics(): Phaser.GameObjects.Graphics {
+    const g = this.scene.add.graphics();
+    this.objs.push(g);
+    return g;
+  }
+
   icon(x: number, y: number): Pic {
     const p = makeIcon(this.scene, x, y);
     this.objs.push(p);
