@@ -1,13 +1,17 @@
 /**
  * Playtest 8: the chapter 4 container puzzle says there is one arrangement that opens the doors, tells the player when
- * a box lands in its place, and Myko's second hint is a clue rather than the lever counts.
+ * a box lands in its place, and Myko's second hint is a clue rather than the lever counts. Second round: the deduction
+ * board can be stepped back from and reopened, light beer is worth 10, and the call-in cards are rewritten.
  */
 
 import { describe, expect, it } from 'vitest';
+import type { EvidenceId } from '../../src/core/types';
 import { chapter4 } from '../../src/chapters/04/index';
 import { RAILS, pullsNeeded } from '../../src/chapters/04/maps';
-import { sequence } from '../../src/content/dialogue';
+import { sequence, text as uiText } from '../../src/content/dialogue';
+import { TUNING } from '../../src/content/tuning';
 import { NO_INPUT, settleDialogue, startChapterGame } from './helpers';
+import { examine, newGame, settle, toBayPuzzleSolved } from './chapter3-steps';
 
 const text = (id: string): string => JSON.stringify(sequence(id));
 
@@ -51,5 +55,53 @@ describe('chapter 4: the container puzzle explains itself', () => {
     }
     expect(puzzle.isComplete()).toBe(true);
     expect(shown).toContain('c4.containers.done');
+  });
+});
+
+describe('the deduction board can be stepped back from', () => {
+  it('closing it leaves it pending, the world runs again, and reopening brings it back unanswered', async () => {
+    const { run } = await newGame();
+    await toBayPuzzleSolved(run);
+    examine(run, 'c3.manifest');
+    await settle(run, 6);
+    const fight = run.fight('c3.fight.bay')!;
+    for (const a of fight.aliveActors()) run.defeat(a, 'player');
+    await settle(run, 8);
+    run.addEvidence('c2.clue.fragment' as EvidenceId);
+    expect(run.activeDeduction()?.isOpen).toBe(true);
+    expect(run.pendingDeduction()).toBe(false);
+    run.closeDeduction();
+    expect(run.activeDeduction()).toBeNull();
+    expect(run.pendingDeduction()).toBe(true);
+    expect(run.isComplete('c3.deduction.boston')).toBe(false);
+    run.reopenDeduction();
+    expect(run.activeDeduction()?.isOpen).toBe(true);
+    expect(run.pendingDeduction()).toBe(false);
+    expect(run.submitDeduction('c3.deduction.boston', ['c3.clue.map', 'c3.clue.manifest', 'c2.clue.fragment'])).toBe(true);
+    expect(run.pendingDeduction()).toBe(false);
+  });
+
+  it('a board never opened is not pending', async () => {
+    const { run } = await newGame();
+    expect(run.pendingDeduction()).toBe(false);
+    run.reopenDeduction();
+    expect(run.activeDeduction()).toBeNull();
+  });
+});
+
+describe('light beer and the call-in cards', () => {
+  it('American light beer is worth 10', () => {
+    expect(TUNING.overhaul!.drinks.lightBeer).toMatchObject({ points: 10 });
+    expect(uiText('drink.lightBeer.pickup')).toMatch(/Buzz \+10/);
+  });
+
+  it('every call-in blackout has three cards, no exclamation marks', () => {
+    for (const kind of ['fight', 'puzzle']) {
+      for (const n of [1, 2, 3]) {
+        const s = sequence(`myko.call.${kind}.blackout.${n}`);
+        expect(s.lines).toHaveLength(3);
+        for (const l of s.lines) expect(l.text).not.toMatch(/!/);
+      }
+    }
   });
 });

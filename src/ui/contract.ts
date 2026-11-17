@@ -79,6 +79,12 @@ export interface UiStateSource {
   activeDeduction(): DeductionBoardDef | null;
   /** Returns whether the three links were correct. */
   submitDeduction(id: DeductionSectionId, evidence: readonly EvidenceId[]): boolean;
+  /** Steps back from the open board without answering (to read the casebook). */
+  closeDeduction(): void;
+  /** A board Andrew stepped back from, still unanswered. */
+  pendingDeduction(): boolean;
+  /** Opens the board he stepped back from. */
+  reopenDeduction(): void;
   /** The UI calls this when it has finished showing a sequence. */
   dialogueFinished(sequenceId: DialogueId): void;
   /** Stored save, for Continue and Chapter Select; null if none. */

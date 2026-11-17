@@ -57,7 +57,7 @@ Voice samples. These set the register; they are not required lines.
 > *After calling Myko in:*
 > **Myko:** No, you'd them well softened up. I could tell by the way they were all still standing.
 
-> *Pickup text:* **American light beer.** Buzz +2. Andrew isn't angry. He's just disappointed.
+> *Pickup text:* **American light beer.** Buzz +10. Andrew isn't angry. He's just disappointed.
 
 ## 3. Characters
 
@@ -201,7 +201,7 @@ Andrew carries six beers at most, in any mix, and apart from them two spirits at
 |---|---|---|
 | Pint of stout | Ireland, the Boston bar | Buzz +15 |
 | Can of lager | Ireland | Buzz +10 |
-| American light beer | USA, very common | Buzz +2. Worth more as a bottle. |
+| American light beer | USA, very common | Buzz +10. Worth nearly as much as a bottle. |
 | Craft IPA | USA cities | Buzz +20. Myko has an opinion about each one. |
 | Whiskey | Everywhere, rare | Buzz jumps to the top of the next level up. From Bit much or Fecked that is the top of Fecked, one short of the floor. For the next 8 seconds the meter does not drain, and every hit lowers Buzz, whatever his level, by twice the usual amount. |
 | Tequila | Chapter 7 onwards, rarer than whiskey | Buzz goes to the middle of Fecked from anywhere. For the next 8 seconds it behaves as whiskey does: no drain, and every hit lowers Buzz by twice the usual amount. Then it wears off all at once and Buzz drops by 30. |
@@ -284,7 +284,7 @@ When Andrew ends up sober or on the floor he goes back to the bar (7.1). There i
 - **The glint.** A clue that has not been examined, and the thing the current objective points at, gives a small soft glint every few seconds while Andrew is within about four tiles of it. From further away there is nothing to see. It is two or three pixels of light for under half a second: enough to catch the eye, never a marker or an arrow. A chapter spec may mark a clue as hard to see (the three ring clues in chapter 2 are), and those glint a little more often and from six tiles. Radius and timing are in `tuning.ts`.
 - Examining things with E adds clues to the **casebook**, written in Andrew's words with Myko's notes in the margin. The notes are in a different pen. The handwriting is not very different. The casebook is on the Tab screen beside the kit (7.7).
 - **The casebook notice.** The first time any clue goes into the casebook, in any chapter, a prompt stays up saying that it went in and that Tab opens it (`ui.casebook.first`). Every clue after that gets a brief flash of a word or two (`ui.casebook.noted`).
-- Most chapters end their investigation with a **deduction board**: the player links three clues to name the next lead. A wrong answer costs nothing except a remark from Myko.
+- Most chapters end their investigation with a **deduction board**: the player links three clues to name the next lead. A wrong answer costs nothing except a remark from Myko. The player can step back from the board (Esc, or the Step back button) to read the casebook or look around, and B opens it again.
 - Each chapter has one physical puzzle (crates, redacted files, the crop-circle maze, telling aliens from people, gravity switches). Each must be solvable in under two minutes.
 - Chapter 9 requires five pieces of proof. They are the items shown in the final broadcast.
 

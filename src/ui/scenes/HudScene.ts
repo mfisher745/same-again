@@ -106,6 +106,7 @@ export class HudScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.boardPromptShown = false;
     // The scene object is reused when a chapter restarts (after a death); drop the previous run's objects.
     this.boxBg = [];
     this.lineLabels = [];
@@ -298,6 +299,9 @@ export class HudScene extends Phaser.Scene {
     return { x: Math.max(0, Math.min(SCREEN.width, x)), y: Math.max(0, Math.min(SCREEN.height, y)) };
   }
 
+  /** The 'back to the board' prompt is up. */
+  private boardPromptShown = false;
+
   private returnLive(): boolean {
     return this.returnPhase === 'live';
   }
@@ -329,6 +333,13 @@ export class HudScene extends Phaser.Scene {
       kb.on('keydown-TAB', onTab);
       kb.on('keyup-TAB', onTabUp);
       kb.on('keydown-E', onE);
+      // B: back to a deduction board he stepped away from.
+      const onB = (e: KeyboardEvent): void => {
+        if (e.repeat || this.returnLive() || this.queue.blocking || this.shared.overlays.any || this.scene.isActive(UiSceneKeys.Deduction)) return;
+        this.shared.source.reopenDeduction();
+      };
+      kb.on('keydown-B', onB);
+      this.unsubs.push(() => kb.off('keydown-B', onB));
       kb.addCapture('TAB');
       this.unsubs.push(
         () => kb.off('keydown-ESC', onEsc),
@@ -439,6 +450,12 @@ export class HudScene extends Phaser.Scene {
       }
     }
 
+    const boardWaiting = source.pendingDeduction();
+    if (boardWaiting !== this.boardPromptShown) {
+      this.boardPromptShown = boardWaiting;
+      if (boardWaiting) this.prompts.show('ui.deduction.reopen', { key: keyText('ui.key.b') });
+      else this.prompts.hide('ui.deduction.reopen');
+    }
     if (source.activeDeduction() !== null && !this.scene.isActive(UiSceneKeys.Deduction)) {
       this.scene.launch(UiSceneKeys.Deduction);
       this.scene.bringToTop(UiSceneKeys.Deduction);
