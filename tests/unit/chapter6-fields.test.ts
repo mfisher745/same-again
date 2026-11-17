@@ -151,7 +151,7 @@ describe('chapter 6: bottles', () => {
     expect(run.player.kit.bottles).toBe(bottles + 1);
   });
 
-  it('the lesson plays once when a drone has spotted him on the track while he sneaks the corn; the first drone to fall gets the done line', async () => {
+  it('the lesson plays once when a drone has spotted him on the track while he sneaks the corn; the done line belongs to the lesson drone, not the yard fight', async () => {
     const { run } = await newGame();
     await doMotel(run);
     await doTown(run);
@@ -177,7 +177,8 @@ describe('chapter 6: bottles', () => {
     const drone = fight.aliveActors().find((a) => a.enemyId === 'drone')!;
     run.defeat(drone, 'player');
     await settle(run, 4);
-    expect(shown.filter((s) => s.sequenceId === 'c6.bottles.done')).toHaveLength(1);
+    // The lesson drone (tests/unit/c6-lesson-drone.test.ts) says the done line, not the yard fight.
+    expect(shown.filter((s) => s.sequenceId === 'c6.bottles.done')).toHaveLength(0);
   });
 });
 

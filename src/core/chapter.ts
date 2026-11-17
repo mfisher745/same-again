@@ -69,6 +69,7 @@ import type { NpcId } from '../art/cast';
 import type { ColourName } from '../art/palette';
 import type { BossBodyPlacement, BossHooks, BossRunner } from '../systems/boss';
 import type { FightHooks, FightRunner } from '../systems/fight';
+import type { LoneEnemyHandle, LoneEnemyOptions } from '../systems/loneEnemy';
 import type { PuzzleBase } from '../systems/investigation';
 import type { CombinePlacement } from '../systems/combine';
 import type { ShelfArenaPlacement } from '../systems/shelves';
@@ -669,6 +670,13 @@ export interface ChapterContext {
    * `hazard:swept` `moving` as it starts to move and `hit` if it lands.
    */
   sweepHazard(opts: SweepHazardOptions): Promise<void>;
+  /**
+   * Spawns one enemy of its own at `position` on the current screen: it fights Andrew normally but belongs to no
+   * fight, stealth section or boss (no alarm, no clean-run count, no wave). `opts.onDefeated` runs once when it falls
+   * (the `enemy:defeated` event fires too). Run-time only: never saved, and gone after a screen change or a return
+   * to the bar without calling anything, so a script that still needs it spawns it again.
+   */
+  spawnLoneEnemy(enemyId: EnemyId, position: Vec2, opts?: LoneEnemyOptions): LoneEnemyHandle;
   spawnPickup(def: PickupDef): void;
   removePickup(id: string): void;
   /** Ends the chapter: hangover carry-over, save, next chapter. */

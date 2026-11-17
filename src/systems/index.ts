@@ -52,6 +52,7 @@ export { Casebook, DeductionBoard, PuzzleBase, deductionCorrect } from './invest
 export { DialogueRunner } from './dialogue';
 export type { DialogueLookup } from './dialogue';
 export { EnemyActor } from './enemies';
+export type { LoneEnemyHandle, LoneEnemyOptions } from './loneEnemy';
 export { FightRunner } from './fight';
 export type { FightHooks } from './fight';
 export * as kit from './kit';

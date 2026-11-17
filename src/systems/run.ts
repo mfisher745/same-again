@@ -100,6 +100,8 @@ import { Dressing, propHitRect } from './dressing';
 import type { InteractPoint, LiveProp } from './dressing';
 import type { DialogueLookup } from './dialogue';
 import { EnemyActor, statsFromDef } from './enemies';
+import { LoneEnemies } from './loneEnemy';
+import type { LoneEnemyHandle, LoneEnemyOptions } from './loneEnemy';
 import type { ActorStats, CombatWorld } from './enemies';
 import { FightRunner } from './fight';
 import { add, angleFromFacing, distance, fromAngle, normalize, rectContains, scale } from './geometry';
@@ -285,6 +287,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private clock = 0;
   private footstepMs = 0;
   private defeatedEmitted = new Set<string>();
+  /** Standalone enemies spawned by the script (`spawnLoneEnemy`); run-time only, cleared with the world. */
+  private readonly loneEnemies = new LoneEnemies();
   private meleeHooks: { readonly area: AreaRect; readonly screenId: ScreenId; readonly callback: (hit: MeleeHitInfo) => void }[] = [];
   private moveHooks: { readonly area: AreaRect; readonly screenId: ScreenId; readonly callback: (hit: MoveHitInfo) => void }[] = [];
   private timers: { at: number; readonly everyMs: number | null; readonly fn: () => void }[] = [];
@@ -720,6 +724,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       resetSection: (id) => this.resetSection(id),
       clearWorld: () => {
         this.actorList = [];
+        this.loneEnemies.clear();
         this.projectileList = [];
         this.defeatedEmitted.clear();
         this.refusedNear.clear();
@@ -872,6 +877,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     const actor = new EnemyActor(enemyId, statsFromDef(TUNING.enemies[enemyId]), pos, (attackId) => ({ kind: 'enemy', enemyId, attackId }), this.rng);
     this.actorList.push(actor);
     return actor;
+  }
+
+  spawnLoneEnemy(enemyId: EnemyId, position: Vec2, opts?: LoneEnemyOptions): LoneEnemyHandle {
+    return this.loneEnemies.add(this.spawnEnemy(enemyId, position), opts);
   }
 
   spawnBossBody(bossId: BossId, stats: ActorStats, pos: Vec2): EnemyActor {
@@ -2011,6 +2020,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.lastScreenId = id;
     this.screen = layout;
     this.actorList = [];
+    this.loneEnemies.clear();
     this.projectileList = [];
     this.pickupsLive.clear();
     this.insideTriggers.clear();
@@ -2201,6 +2211,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (this.defeatedEmitted.has(actor.instanceId)) return;
     this.defeatedEmitted.add(actor.instanceId);
     if (actor.enemyId) this.bus.emit(GameEvents.EnemyDefeated, { instanceId: actor.instanceId, enemyId: actor.enemyId, by });
+    this.loneEnemies.defeated(actor.instanceId);
     if (actor.enemyId && by !== 'debug') this.dropEnemyLoot(actor);
   }
 
