@@ -64,6 +64,7 @@ export class SetpieceView {
   /** Lit rails for the 1 s before a shelf slides, then the shelf unit sliding across (and shut) its aisle. */
   private syncShelves(): void {
     for (const d of this.run.shelfDirectorsHere()) {
+      if (d.placement.drawnByChapter) continue;
       for (const { lane, state, progress } of d.laneStates()) {
         const a = lane.area;
         const cols = Math.round(a.width / TILE);

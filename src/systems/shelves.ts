@@ -24,6 +24,8 @@ export interface ShelfLane {
 /** `BossPlacement.shelves`. Lanes are listed in order, neighbours adjacent (five in chapter 5). */
 export interface ShelfArenaPlacement {
   readonly lanes: readonly ShelfLane[];
+  /** The chapter draws the units and rails itself (as props it slides); the world view then draws nothing for them. */
+  readonly drawnByChapter?: boolean;
 }
 
 export interface ShelfHost {

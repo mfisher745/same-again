@@ -202,7 +202,7 @@ export const chapter5: ChapterModule = {
       trigger: { kind: 'script' },
       bodies: [{ tag: 'pruitt', position: PRUITT_START }],
       // The shelf cranks: each lane is the aisle between two units, closed by the unit to its east sliding west.
-      shelves: { lanes: LANES.map((l) => ({ id: `lane${l.index}`, area: l.area, travel: 'left' as const })) },
+      shelves: { lanes: LANES.map((l) => ({ id: `lane${l.index}`, area: l.area, travel: 'left' as const })), drawnByChapter: true },
       entrance: PRUITT_ENTRANCE,
     },
   ],
