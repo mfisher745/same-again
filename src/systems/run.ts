@@ -2046,7 +2046,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private alarmGuardsHit(shape: AttackShape, angle: number): void {
     for (const { runner } of this.stealthHere()) {
       if (!runner.active) continue;
-      if (runner.guards.some((g) => shapeHits(shape, this.player.pos, angle, g.pos, TUNING.combat.characterHitRadius))) runner.alarm();
+      if (runner.guards.some((g) => !TUNING.enemies[g.enemyId].dropsToFire && shapeHits(shape, this.player.pos, angle, g.pos, TUNING.combat.characterHitRadius))) runner.alarm();
     }
   }
 
@@ -2084,7 +2084,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
           if (actor.down || proj.hit.has(actor.instanceId) || !projectileTouches(proj, actor.pos, r)) continue;
           proj.hit.add(actor.instanceId);
           const kb = knockbackVector(proj.origin, actor.pos, proj.knockback, 0);
-          this.damageActor(actor, proj.damage, kb, proj.stunMs, proj.source, proj.pos, false);
+          const mult = proj.source.kind === 'player' ? this.combat.consumeMarkFor(actor.instanceId) : 1;
+          this.damageActor(actor, proj.damage * mult, kb, proj.stunMs, proj.source, proj.pos, false);
           if (!proj.shape.lobbed) {
             if (proj.pierceLeft <= 0) {
               proj.done = true;

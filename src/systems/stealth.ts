@@ -46,8 +46,11 @@ export function canSee(grid: TileGrid, from: Vec2, facingDeg: number, cone: Cone
  * A guard with `hearingRadius` 0 (drones) is deaf to everything.
  */
 export function canHear(listener: Vec2, hearingRadius: number, noise: NoiseEvent): boolean {
-  if (hearingRadius <= 0 || noise.radius <= 0) return false;
+  if (noise.radius <= 0) return false;
   const d = distance(listener, noise.position);
+  // Corn shaking is seen as much as heard: it reaches any guard in its radius, drones included.
+  if (noise.kind === 'rustle') return d <= noise.radius;
+  if (hearingRadius <= 0) return false;
   if (noise.kind === 'footstep' || noise.kind === 'sneakFootstep') return d <= noise.radius;
   return d <= noise.radius && d <= hearingRadius;
 }
@@ -109,6 +112,7 @@ export class Guard {
   private lookMs = 0;
   private path: Vec2[] = [];
   readonly senses: GuardSensesDef;
+  private readonly flies: boolean;
 
   constructor(
     readonly enemyId: EnemyId,
@@ -117,6 +121,7 @@ export class Guard {
     private readonly moveSpeed: number,
   ) {
     this.instanceId = `guard.${enemyId}#${guardSeq++}`;
+    this.flies = TUNING.enemies[enemyId].flies;
     const first = placement.route.waypoints[0];
     this.pos = first?.position ?? { x: 0, y: 0 };
     this.facingDeg = first?.facing ? angleFromFacing(first.facing) : 90;
@@ -221,6 +226,15 @@ export class Guard {
 
   private walkToward(goal: Vec2, dtMs: number, grid: TileGrid): void {
     let aim = goal;
+    if (this.flies) {
+      // A drone flies straight over walls and corn.
+      const to = sub(goal, this.pos);
+      const step = Math.min((this.moveSpeed * TUNING.stealth.patrolSpeedFraction * dtMs) / 1000, distance(this.pos, goal));
+      const dir = normalize(to);
+      this.pos = add(this.pos, scale(dir, step));
+      if (dir.x !== 0 || dir.y !== 0) this.facingDeg = turnToward(this.facingDeg, angleTo({ x: 0, y: 0 }, dir), (TUNING.stealth.turnDegPerSecond * dtMs) / 1000);
+      return;
+    }
     if (!walkableLine(grid, this.pos, goal)) {
       if (this.path.length === 0) this.path = findPath(grid, this.pos, goal) ?? [];
       const n = this.path[0];

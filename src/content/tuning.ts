@@ -336,7 +336,7 @@ const enemies: Tuning['enemies'] = {
     30,
     60,
     [attack('bolt', shot(110, 200, { deflectable: true }), 12, 20, 700, 2400, 300)],
-    { flies: true, senses: { visionRange: 72, visionAngleDeg: 50, hearingRadius: 0 } },
+    { flies: true, dropsToFire: true, senses: { visionRange: 72, visionAngleDeg: 50, hearingRadius: 0 } },
   ),
   mascot: enemy(
     'mascot',
@@ -866,6 +866,11 @@ const overhaul: OverhaulTuning = {
   sneakNoiseRadiusByLevel: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 28 },
   // stand-in: creative director to set. Puddles in the ram lane (chapter 2): Andrew at three quarters speed.
   slowGroundMultiplier: 0.75,
+  // stand-in: creative director to set. Chapter 6: moving through standing corn rustles at this radius (sneaking: less).
+  corn: { rustleRadius: 56, sneakRustleRadius: 28 },
+  // stand-in: creative director to set. Chapter 5 rolling shelves; the 1 s rail light is the `shelf` attack's telegraph.
+  // Phase 2 closes pairs of lanes, so two shelves in five lanes leave one safe lane.
+  shelves: { slideMs: 600, closedMs: 1500, pushOutPx: 24, lanesPerShelfByPhase: { oneShelf: 1, twoShelves: 2 } },
   // stand-in: creative director to set. The camera looks this far ahead of Andrew down the ram lane.
   cameraLeadPx: 96,
   // stand-in: creative director to set. The chapter 2 sheep: slower than Andrew, shy of him at about two tiles.

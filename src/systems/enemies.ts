@@ -65,6 +65,8 @@ export interface ActorStats {
   readonly disguisedUntilAttack?: boolean;
   /** A bottle landing within its noise radius stops the body and makes it look for this long (the ram). */
   readonly noiseStopMs?: number;
+  /** Hovers out of melee reach except while telegraphing, firing, recovering or stunned (the drone). */
+  readonly dropsToFire?: boolean;
   readonly spriteKey: string;
 }
 
@@ -77,6 +79,7 @@ export function statsFromDef(def: EnemyDef): ActorStats {
     attacks: def.attacks,
     ...(def.frontalShieldDeg === undefined ? {} : { frontalShieldDeg: def.frontalShieldDeg }),
     ...(def.disguisedUntilAttack === undefined ? {} : { disguisedUntilAttack: def.disguisedUntilAttack }),
+    ...(def.dropsToFire === undefined ? {} : { dropsToFire: def.dropsToFire }),
     spriteKey: def.spriteKey,
   };
 }
@@ -99,6 +102,13 @@ export class EnemyActor {
   invulnerable = false;
   /** Never moves (control boxes, cab lights). */
   stationary = false;
+  /**
+   * A director forces this body in or out of melee reach (`true` = out of reach: the combine's cab lights while it is
+   * parked). `null`: `aloft` follows the def (`ActorStats.dropsToFire`).
+   */
+  aloftOverride: boolean | null = null;
+  /** Follows another body each tick (cab lights on the harvester). Set by `BossRunner.attach`. */
+  attachedTo: { readonly parent: EnemyActor; readonly offset: Vec2 } | null = null;
   /** Never leaves this area (pixels): walking, knockback and charges are all clamped into it (`FightPlacement.zones`). */
   leash: { readonly x: number; readonly y: number; readonly width: number; readonly height: number } | null = null;
   /**
@@ -161,6 +171,16 @@ export class EnemyActor {
 
   get down(): boolean {
     return this.status === 'down';
+  }
+
+  /**
+   * Out of melee reach: swings, the Shoulder and the Stumble pass it by. Bottles and thrown things still hit it.
+   * A drone is aloft except while it telegraphs, fires, recovers or is stunned.
+   */
+  get aloft(): boolean {
+    if (this.aloftOverride !== null) return this.aloftOverride;
+    if (!this.stats.dropsToFire) return false;
+    return !(this.status === 'telegraphing' || this.status === 'attacking' || this.status === 'recovering' || this.status === 'stunned');
   }
 
   get currentAttack(): AttackDef | null {
