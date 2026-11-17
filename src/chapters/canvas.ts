@@ -2,7 +2,7 @@
  * The tile canvas the chapters paint their screens on: a grid of characters
  * turned into tile frames and a collision and sight grid derived from
  * `tileFlags`, so the art and the walls cannot drift. Chapters 1 and 2 are in
- * the `kilnamoe` region; chapter 4 paints in `cities` with its own legend.
+ * the `kilnamoe` region; chapters 4 and 5 paint in `cities` with their own legend.
  */
 
 import { tileFlags, tileIndex } from '../art/tiles';
@@ -77,6 +77,10 @@ const CITIES_LEGEND: Readonly<Record<string, string>> = {
   q: 'water',
   m: 'marking',
   x: 'rough',
+  // Chapter 5: the records office.
+  C: 'cubicleWall',
+  A: 'archiveShelf',
+  Q: 'queueRope',
 };
 
 export interface Extras {
