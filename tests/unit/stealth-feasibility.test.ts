@@ -18,18 +18,13 @@ interface Case {
   readonly name: string;
   readonly module: ChapterModule;
   readonly sectionId: StealthSectionId;
-  /**
-   * Set when the layout does not (yet) pass the "shortest way across is caught" check: why. The clean-route checks still run.
-   * TODO(cd): chapter 5's lobby and floor are crossed by their shortest way, ignoring the guards, without an alarm.
-   */
-  readonly notEngaged?: string;
 }
 
 const CASES: Case[] = [
   { name: 'chapter 3 yard', module: chapter3, sectionId: 'c3.stealth.yard' },
   { name: 'chapter 4 docks', module: chapter4, sectionId: 'c4.stealth.docks' },
-  { name: 'chapter 5 lobby', module: chapter5, sectionId: 'c5.stealth.lobby', notEngaged: 'ten tiles from the queue to the door is too short to fill the detection' },
-  { name: 'chapter 5 floor', module: chapter5, sectionId: 'c5.stealth.floor', notEngaged: 'the south aisle walked with the pacing guard, never in his cone for long enough' },
+  { name: 'chapter 5 lobby', module: chapter5, sectionId: 'c5.stealth.lobby' },
+  { name: 'chapter 5 floor', module: chapter5, sectionId: 'c5.stealth.floor' },
 ];
 
 async function openRun(module: ChapterModule, screen: ScreenId) {
@@ -98,13 +93,13 @@ describe.each(CASES)('$name: the guards\' routes are walkable', ({ module, secti
   });
 });
 
-describe.each(CASES)('$name: the detection is really engaged', ({ module, sectionId, notEngaged }) => {
+describe.each(CASES)('$name: the detection is really engaged', ({ module, sectionId }) => {
   const def = module.def.stealthSections.find((s) => s.id === sectionId);
   const placement = module.stealth?.find((s) => s.sectionId === sectionId);
   if (!def || !placement || !placement.startArea) throw new Error('no stealth section');
   const startArea = placement.startArea;
 
-  it.skipIf(notEngaged !== undefined)('the shortest way across, ignoring the guards, raises the alarm (so the clean route above is not trivially clean)', { timeout: 120000 }, async () => {
+  it('the shortest way across, ignoring the guards, raises the alarm (so the clean route above is not trivially clean)', { timeout: 120000 }, async () => {
     const { run } = await openRun(module, placement.screenId);
     const bare = { ...def, guards: [], hazards: [] };
     const direct = planRoute({ def: bare, grid: run.grid, start: startArea, exit: placement.exitArea });

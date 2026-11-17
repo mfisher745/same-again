@@ -104,8 +104,8 @@ export const LOBBY_QUEUE_AREA = tilesArea(8, 8, 10, 4);
 export const LOBBY_GUARD_ROUTE: PatrolRoute = {
   mode: 'pingPong',
   waypoints: [
-    { position: px(25, 6), waitMs: 2500, facing: 'right' },
-    { position: px(36, 6), waitMs: 2500, facing: 'left' },
+    { position: px(33, 5), waitMs: 3000, facing: 'down' },
+    { position: px(35, 5), waitMs: 2500, facing: 'right' },
   ],
 };
 export const LOBBY_HIDING: readonly HidingPropDef[] = [
@@ -208,11 +208,11 @@ export const FLOOR_STEALTH: StealthSectionDef = {
     // The central aisle, end to end.
     { enemyId: 'agent', route: { mode: 'pingPong', waypoints: [wait(T(4, 11), 2000), wait(T(54, 11), 2000)] } },
     // A rectangle round the bottom band, as far as the copier queue.
-    { enemyId: 'agent', route: { mode: 'loop', waypoints: [wait(T(6, 15), 800), wait(T(43, 15), 800), wait(T(43, 22), 800), wait(T(6, 22), 800)] } },
+    { enemyId: 'agent', route: { mode: 'loop', waypoints: [wait(T(43, 22), 800), wait(T(6, 22), 800), wait(T(6, 15), 800), wait(T(43, 15), 800)] } },
     // The south aisle, from the door to the lightbox.
-    { enemyId: 'agent', route: { mode: 'pingPong', waypoints: [wait(T(6, 25), 2500), wait(T(30, 25), 2500)] } },
+    { enemyId: 'agent', route: { mode: 'pingPong', waypoints: [wait(T(30, 26), 1500), wait(T(6, 26), 1500)] } },
     // Up and down the aisle between the middle cubicles.
-    { enemyId: 'agent', route: { mode: 'pingPong', waypoints: [wait(T(31, 4), 1200), wait(T(31, 24), 1200)] } },
+    { enemyId: 'agent', route: { mode: 'pingPong', waypoints: [{ position: T(31, 23), waitMs: 7500, facing: 'left' as const }, wait(T(31, 4), 1200)] } },
   ],
   hazards: [],
   hidingProps: FLOOR_HIDING,
