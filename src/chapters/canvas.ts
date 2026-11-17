@@ -2,7 +2,7 @@
  * The tile canvas the chapters paint their screens on: a grid of characters
  * turned into tile frames and a collision and sight grid derived from
  * `tileFlags`, so the art and the walls cannot drift. Chapters 1 and 2 are in
- * the `kilnamoe` region; chapter 4 paints in `cities` with its own legend.
+ * the `kilnamoe` region; chapter 4 paints in `cities` and chapter 6 in `ohio`, each with its own legend.
  */
 
 import { tileFlags, tileIndex } from '../art/tiles';
@@ -79,6 +79,35 @@ const CITIES_LEGEND: Readonly<Record<string, string>> = {
   x: 'rough',
 };
 
+/** Canvas character to `ohio` tile name (chapter 6). */
+const OHIO_LEGEND: Readonly<Record<string, string>> = {
+  '#': 'wallTop',
+  W: 'wallFace',
+  w: 'window',
+  '.': 'floor',
+  g: 'floorAlt',
+  p: 'path',
+  r: 'rough',
+  o: 'cover',
+  c: 'counter',
+  t: 'table',
+  s: 'seat',
+  d: 'doorStrip',
+  f: 'fence',
+  m: 'marking',
+  a: 'road',
+  l: 'roadLine',
+  F: 'cornFlat',
+  M: 'markerStone',
+  D: 'ditch',
+  P: 'poolEmpty',
+  k: 'sidewalk',
+  h: 'hatch',
+  q: 'water',
+};
+
+const LEGENDS: Readonly<Partial<Record<RegionId, Readonly<Record<string, string>>>>> = { cities: CITIES_LEGEND, ohio: OHIO_LEGEND };
+
 export interface Extras {
   readonly mykoStart?: Vec2;
   readonly dressing?: ScreenDressing;
@@ -116,7 +145,7 @@ export class Canvas {
     return this.cells[row]?.[col] ?? '#';
   }
   build(id: ScreenId, exits: readonly ExitDef[], playerStart: Vec2, extras: Extras = {}): ScreenLayout {
-    const legend = this.region === 'cities' ? CITIES_LEGEND : LEGEND;
+    const legend = LEGENDS[this.region] ?? LEGEND;
     const tiles: number[] = [];
     const blocked: boolean[] = [];
     const blocksSight: boolean[] = [];
