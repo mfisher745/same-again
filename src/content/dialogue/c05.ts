@@ -125,6 +125,7 @@ export const C05: DialogueFile = {
       ['andrew', 'What?'],
       ['myko', 'Nothing. Make a copy.'],
     ),
+    box('c5.copier.notYet', ['andrew', 'A photocopier.'], ['myko', 'You\u2019ve nothing worth copying yet. Read the file first.', 'by phone']),
     scene(
       'c5.copier',
       ['andrew', "It's jammed."],
