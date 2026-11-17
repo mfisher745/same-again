@@ -57,10 +57,10 @@ async function toSober(run: ChapterRun): Promise<void> {
 }
 
 describe('bottles at the start of the chapter and on a load', () => {
-  it('Chapter Select starts with the one bottle he is allowed', async () => {
+  it('Chapter Select starts with the bottle the bar gives him', async () => {
     const { run } = await newGame();
     expect(run.player.kit.bottles).toBeGreaterThanOrEqual(TUNING.overhaul!.carry.minBottlesOnLeavingBar);
-    expect(run.player.kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit);
+    expect(run.player.kit.bottles).toBe(TUNING.overhaul!.carry.minBottlesOnLeavingBar);
   });
 
   it('a load tops bottles up to the minimum and clamps an old save to the cap', async () => {
@@ -72,10 +72,10 @@ describe('bottles at the start of the chapter and on a load', () => {
     expect(loaded.run.player.kit.bottles).toBe(TUNING.overhaul!.carry.minBottlesOnLeavingBar);
 
     const b = await newGame();
-    b.run.player.setKit({ ...b.run.player.kit, bottles: 5 });
+    b.run.player.setKit({ ...b.run.player.kit, bottles: TUNING.overhaul!.carry.bottleLimit + 4 });
     b.run.learnMove('reflexTest');
     const reloaded = await newGame('continue', b.store);
-    expect(reloaded.run.player.kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit); // an old save holding five is clamped
+    expect(reloaded.run.player.kit.bottles).toBe(TUNING.overhaul!.carry.bottleLimit); // an old save holding more than the cap is clamped
   });
 
   it('a fresh game in chapter 1 is not topped up by a load (the pub keeps its own start)', () => {

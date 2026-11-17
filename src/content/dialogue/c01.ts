@@ -158,6 +158,7 @@ export const C01: DialogueFile = {
       'c1.yard.kegs',
       ['myko', "Three full kegs across the path to the gate, and no way round them. Walk into one and keep walking: it slides a step."],
       ['myko', "They only go the way you're pushing, and those crates are going nowhere. Leave the gate till the kegs are shifted."],
+      ['myko', "Make a hames of it and there's the hoist lever on the wall. Pull it and the lot goes back where it started."],
     ),
     box('c1.yard.done', ['myko', "Look at that. A man who can leave a pub. They said it couldn't be done."]),
 
@@ -178,7 +179,8 @@ export const C01: DialogueFile = {
       ['andrew', 'At the bins?'],
       ['myko', "At the bins. They've had worse. Most things out here will break if you ask them properly."],
     ),
-    box(
+    // Playtest 7: a scene, so it waits for E instead of timing out before it is read.
+    scene(
       'c1.street.whiskey',
       ['andrew', 'Whiskey.'],
       ['myko', "Somebody hid that, and they'll be thinking about it all night. Mind it. That's not a pint. It sends you up a full floor, and then every thump costs you double."],
@@ -305,6 +307,8 @@ export const C01: DialogueFile = {
     box('c1.hint.machine.2', ['myko', 'Left click, three times, quick. The third one is the one that counts.']),
     box('c1.hint.leave.1', ['myko', 'The front is locked and there’s a door behind the bar end. I won’t draw you a map.']),
     box('c1.hint.leave.2', ['myko', 'Back door, bottom corner, where the light is on the floor. Walk through it.']),
+    // Playtest 7: the yard's reset lever.
+    box('c1.kegs.reset', ['myko', "Back where they were. Dympna will never know, and if she does, it was the lads from the hurling club."]),
     box('c1.hint.kegs.1', ['myko', "Three kegs and one way through. The two on top are in each other's road. Start there."]),
     box('c1.hint.kegs.2', ['myko', 'Top one right. The one under it up. Then the near one right to the end of the path, and up into the corner.']),
     box('c1.hint.chipper.1', ['myko', "Follow the smell. It's the only thing open and it's lit up like a ferry."]),

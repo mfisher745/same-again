@@ -266,7 +266,7 @@ describe('GameSession flow', () => {
   it('Continue resumes a saved game with its calls and kit, and puts Andrew in the bar at rest', () => {
     const { session, store } = setup();
     const s = fresh();
-    const kit = { ...pickUpDrink(s.kit, 'stout').kit, bottles: 4 }; // an old save holding more than the cap
+    const kit = { ...pickUpDrink(s.kit, 'stout').kit, bottles: TUNING.overhaul!.carry.bottleLimit + 3 }; // an old save holding more than the cap
     store.write({ ...s, kit, mykoCallsLeft: 1 });
     session.continueGame();
     const run = session.createRun();

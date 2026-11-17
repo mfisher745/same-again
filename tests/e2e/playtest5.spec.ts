@@ -190,16 +190,17 @@ test('no drinking before the first pint: Q and G refuse and the items stay', asy
   expect(errors).toEqual([]);
 });
 
-test('one-bottle cap: a floor bottle stays on the floor when he holds one', async ({ page }) => {
+// Playtest 7 raised the cap from one to six (carry.bottleLimit): at the cap a floor bottle still stays put.
+test('bottle cap: a floor bottle stays on the floor when he holds six', async ({ page }) => {
   await start(page, 1);
   await until(page, 'intro', async () => (await run(page, (r) => r.flag('intro.done'))) === true, 60_000);
   while (await blocking(page)) await page.keyboard.press('KeyE');
   await run(page, (r) => {
-    r.give({ kind: 'empties', count: 5 });
+    r.give({ kind: 'empties', count: 9 });
     r.spawnPickup({ id: 'qa.bottle', item: { kind: 'empties', count: 1 }, screenId: r.screenId, position: { x: r.player.pos.x, y: r.player.pos.y } });
   });
   await page.waitForTimeout(800);
-  expect(await run(page, (r) => r.player.kit.bottles)).toBe(1);
+  expect(await run(page, (r) => r.player.kit.bottles)).toBe(6);
   expect(await run(page, (r) => r.pickups().some((p) => p.def.id === 'qa.bottle'))).toBe(true);
   await shot(page, 'bottle-cap');
   expect(errors).toEqual([]);

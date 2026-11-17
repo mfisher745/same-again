@@ -29,6 +29,8 @@ export const YARD_GATE_AREA = tilesArea(15, 6, 3, 3);
 export const YARD_GATE_TILE = { col: 18, row: 7 } as const;
 /** Where Andrew stands to shove the gate: the end of the fenced path. The keg puzzle is solved once he can walk here. */
 export const YARD_GATE_FRONT = { col: 17, row: 7 } as const;
+/** Playtest 7: the hoist lever, on the end of the path's north wall by its mouth. E at it puts the kegs back where they started. */
+export const KEG_LEVER_TILE = { col: 11, row: 5 } as const;
 /** The open yard end of the fenced path: the keg puzzle's walk starts here. */
 export const YARD_PATH_MOUTH = { col: 11, row: 7 } as const;
 export const PUB_BACK_ARRIVAL = T(27, 14);
@@ -126,6 +128,8 @@ export function yardScreen(): ScreenLayout {
   const dressing: ScreenDressing = {
     props: [
       { id: 'yardGate', frame: PROP.yardGate, col: YARD_GATE_TILE.col, row: YARD_GATE_TILE.row, solid: { width: 1, height: 1 } },
+      // The hoist lever, on the wall (no footprint of its own): puts the kegs back (the keg puzzle's reset).
+      { id: 'yard.lever', frame: PROP.lever.up, col: KEG_LEVER_TILE.col, row: KEG_LEVER_TILE.row },
       // Spare kit lying about the yard, clear of the kegs and the gate path.
       { id: 'yard.p1', frame: PROP.barrel, col: 2, row: 8, solid: { width: 1, height: 1 }, breakable: {} },
       { id: 'yard.p2', frame: PROP.bottleCrate, col: 3, row: 8, solid: { width: 1, height: 1 }, breakable: {} },

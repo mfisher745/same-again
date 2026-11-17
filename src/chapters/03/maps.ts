@@ -8,7 +8,7 @@ import { PROP } from '../../art/props';
 import type { ExitDef, PropPlacement, ScreenAmbient, ScreenDressing, ScreenLayout } from '../../core/chapter';
 import type { StealthSectionDef } from '../../core/types';
 import { Canvas, T, tilesArea } from '../canvas';
-import { PEN, PILLARS, PEN_ENTRANCE_COLS, DOOR_COL, ROAD } from './puzzle';
+import { PEN, PILLARS, PEN_ENTRANCE_COLS, DOOR_COL, NOOK_WALL } from './puzzle';
 
 export { T, tilesArea };
 
@@ -53,6 +53,8 @@ export const GANTRY_ZONE = tilesArea(13, 2, 24, 2);
 export const HALLORAN_START_TILE = { col: 25, row: 12 } as const;
 export const HALLORAN_START = T(HALLORAN_START_TILE.col, HALLORAN_START_TILE.row);
 /** The four crate stacks in the arena, as [col, row] of the sprite's top-left; the solid tile is the row below. */
+/** Playtest 7: empties on the bay floor for the gantry fight, in throwing range of the gantry, clear of the stacks and the forklift. */
+export const BAY_BOTTLE_SPOTS = [T(13, 7), T(19, 7), T(29, 7), T(21, 14), T(13, 13)] as const;
 export const STACKS = [
   { id: 'bay.stack1', col: 15, row: 9 },
   { id: 'bay.stack2', col: 15, row: 16 },
@@ -289,10 +291,11 @@ export function bayScreen(): ScreenLayout {
   const doorCol = PEN.col + DOOR_COL;
   c.set(doorCol, 4, 'd');
   for (const e of PEN_ENTRANCE_COLS) c.set(PEN.col + e, 11, '.').set(PEN.col + e, 12, '.');
-  // The road painted on the pen's floor: crates are cleared off it.
-  for (const r of ROAD) c.set(PEN.col + r.x, PEN.row + r.y, 'm');
-  // The two pillars in the pen.
-  for (const p of PILLARS) c.set(PEN.col + p.x, PEN.row + p.y, 'K');
+  // The pen's top row is wall, but for a nook under the door.
+  for (const w of NOOK_WALL) c.set(PEN.col + w.x, PEN.row + w.y, '#');
+  // The pillars: a wall across the pen with a way round at each end, and two more. Drawn as wall (playtest 7): the
+  // region's 'K' tile looks like a crate, and these must never be mistaken for ones that move.
+  for (const p of PILLARS) c.set(PEN.col + p.x, PEN.row + p.y, '#');
   // The gantry: a walkway along the north wall behind a chain-link rail.
   c.rect(12, 2, 26, 2, 'b').rect(12, 4, 26, 1, 'f');
   const exits: ExitDef[] = [{ id: 'c3.bay.door', area: tilesArea(0, 16, 2, 3), toScreen: 'c3.office', spawn: OFFICE_FROM_BAY }];

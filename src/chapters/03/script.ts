@@ -10,7 +10,7 @@ import type { SectionId, TextId } from '../../core/types';
 import type { BossHooks, ChapterContext, ChapterScript } from '../../systems';
 import { PROP } from '../../art/props';
 import { hidePrompt, onTabOpened, openHotDrinkChoice, showPrompt } from '../../ui/prompts';
-import { BAR_ARRIVAL, BAY_DARK, BAY_LIT, CABINET_HIT_AREA, MYKO_CHAIR, STACKS, WHISKEY_SPOT, stackTile } from './maps';
+import { BAR_ARRIVAL, BAY_BOTTLE_SPOTS, BAY_DARK, BAY_LIT, CABINET_HIT_AREA, MYKO_CHAIR, STACKS, WHISKEY_SPOT, stackTile } from './maps';
 
 const OBJ = {
   yard: 'c3.yard',
@@ -212,9 +212,37 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
 
   // --- The bay: crates, manifest, night shift, board ------------------------
 
+  // Playtest 7: empties on the bay floor for the gantry fight. One taken is put back after a while until the fight is won.
+  const BOTTLE_PREFIX = 'drop.c3.bay.bottle.';
+  const bottleWait = new Map<number, number>();
+  const bottlesWanted = (): boolean => flag('manifest.found') && !ctx.isComplete('c3.fight.bay') && ctx.currentScreen() === 'c3.bay';
+  const layBottle = (i: number): void => {
+    const at = BAY_BOTTLE_SPOTS[i];
+    if (at) ctx.spawnPickup({ id: `${BOTTLE_PREFIX}${i}`, item: { kind: 'empties', count: 1 }, screenId: 'c3.bay', position: at });
+  };
+  const layBottles = (): void => {
+    bottleWait.clear();
+    if (bottlesWanted()) BAY_BOTTLE_SPOTS.forEach((_, i) => layBottle(i));
+  };
+  const bottleTaken = (pickupId: string): void => {
+    if (!pickupId.startsWith(BOTTLE_PREFIX)) return;
+    bottleWait.set(Number(pickupId.slice(BOTTLE_PREFIX.length)), TUNING.overhaul?.fightBottleRespawnMs ?? 4000);
+  };
+  const tickBottles = (dtMs: number): void => {
+    for (const [i, ms] of bottleWait) {
+      if (ms - dtMs > 0) {
+        bottleWait.set(i, ms - dtMs);
+        continue;
+      }
+      bottleWait.delete(i);
+      if (bottlesWanted()) layBottle(i);
+    }
+  };
+
   const enteredBay = async (): Promise<void> => {
     ctx.setMykoScripted(null);
     restoreObjective();
+    layBottles();
     // A night shift under way when he went back to the bar starts again from the beginning.
     if (flag('manifest.found') && !ctx.isComplete('c3.fight.bay') && ctx.fight('c3.fight.bay')?.active !== true) {
       ctx.setObjective(OBJ.bay);
@@ -252,6 +280,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     setFlag('lights.on');
     ctx.setAmbient(BAY_LIT, 'c3.bay');
     ctx.setObjective(OBJ.bay);
+    layBottles();
     await ctx.say('c3.bay.intro');
     if (disposed) return;
     setFlag('bay.started');
@@ -363,6 +392,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
         ctx.bus.on(GameEvents.KitChanged, () => syncSteam()),
         ctx.bus.on(GameEvents.PickupCollected, ({ pickupId }) => {
           if (pickupId === 'c3.pickup.whiskey') setFlag('whiskey.taken');
+          bottleTaken(pickupId);
         }),
         ctx.bus.on(GameEvents.StealthAlarm, ({ sectionId }) => {
           if (sectionId === 'c3.stealth.yard') void ctx.say('c3.yard.caught');
@@ -497,6 +527,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       } else if (sectionId === 'c3.fight.bay') void fightDone(by);
       else if (sectionId === 'c3.deduction.boston') void boardDone(by);
     },
+
+    onUpdate: (dtMs) => tickBottles(dtMs),
 
     bossHooks: { 'c3.boss.halloran': hallorannHooks },
 

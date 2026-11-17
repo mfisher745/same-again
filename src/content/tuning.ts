@@ -168,7 +168,7 @@ const abilities: Tuning['abilities'] = {
     cost: { kind: 'empties', amount: 1 },
     cooldownMs: 500,
     shape: shot(220, 150, { lobbed: true, noise: 90 }),
-    damage: 10,
+    damage: 15,
     knockback: 30,
     nameTextId: 'ability.bottleThrow.name',
   },
@@ -754,7 +754,7 @@ const weapon = (
   quirk: WeaponDef['quirk'],
 ): WeaponDef => ({ id, gainedInChapter, reach, swingMs, damage, knockback, quirk, nameTextId: `weapon.${id}.name`, descTextId: `weapon.${id}.desc` });
 
-// Playtest 5: Andrew carries one empty bottle at most (`bottleLimit`), and the bar tops him up to that one.
+// Andrew carries up to `bottleLimit` empties; the bar tops him up to `minBottlesOnLeavingBar`.
 // Declared apart from `overhaul` so `bottleLimit` can land before systems-dev adds it to `CarryTuning`
 // (src/core/types.ts); once the field is there this can go back inline.
 const overhaul: OverhaulTuning = {
@@ -809,7 +809,8 @@ const overhaul: OverhaulTuning = {
     tea: { kind: 'hot', id: 'tea', nameTextId: 'drink.tea.name', pickupTextId: 'drink.tea.pickup', reset: { kind: 'ease', easeMs: 10000, holdMs: 20000 } },
   },
   // Playtest 6: six beers and, apart from them, two spirits.
-  carry: { limit: 6, spiritLimit: 2, hotDrinkLimit: 1, bottleLimit: 1, minBottlesOnLeavingBar: 1, minBeersOnLeavingBar: 2 },
+  // Playtest 7: every beer drunk leaves an empty to throw, up to six (playtest 5 had a cap of 1).
+  carry: { limit: 6, spiritLimit: 2, hotDrinkLimit: 1, bottleLimit: 6, minBottlesOnLeavingBar: 1, minBeersOnLeavingBar: 2 },
   moveCooldownMsByLevel,
   moves: {
     shoulder: move('shoulder', 1, 1, { kind: 'charge', distance: 40, knockback: 140 }),
@@ -854,10 +855,12 @@ const overhaul: OverhaulTuning = {
   // Chapter 4: the crane's container crosses the arena in `travelMs`; on foot, the foreman's crane makes a slow pass
   // (`slowTravelMs`) `slowDelayMs` after he steps down. `firstMs` is the first sweep after his intro. First guesses.
   crane: { travelMs: 900, slowTravelMs: 2600, slowDelayMs: 3000, firstMs: 1500 },
+  // Playtest 7: chapter 3's gantry fight keeps bottles on the bay floor; one taken comes back after this long.
+  fightBottleRespawnMs: 4000,
   // stand-in: creative director to set
   forcedLurchMs: 220,
-  // Carried over from the old bottle throw (range 220, damage 10, noise 90). First guesses.
-  throw: { range: 220, speed: 150, damage: 10, knockback: 30, noiseRadius: 90, previewPoints: 12, swayPeriodMs: 1700 },
+  // Carried over from the old bottle throw (range 220, noise 90). Playtest 7: damage 10 -> 15 (a worker in 3, a suit in 4).
+  throw: { range: 220, speed: 150, damage: 15, knockback: 30, noiseRadius: 90, previewPoints: 12, swayPeriodMs: 1700 },
   // Walking: the old 56, x1.75 at Bit much, x2 at Fecked. Sneaking is silent until Fecked.
   footstepNoiseRadiusByLevel: { 0: 56, 1: 56, 2: 56, 3: 98, 4: 112 },
   sneakNoiseRadiusByLevel: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 28 },
@@ -983,8 +986,10 @@ export const TUNING: Tuning = {
     tangentChance: 0.5,
     commentStaleMs: 6000,
     blackoutTimeoutMs: 8000,
-    smokeIntervalMs: 60000,
-    smokeJitterMs: 8000,
+    // Playtest 7: he smokes more often (was 60 s +- 8 s), and lights up on every new area.
+    smokeIntervalMs: 20000,
+    smokeJitterMs: 5000,
+    arrivalSmokeMs: 6000,
   },
   investigation: {
     interactRadius: 20,

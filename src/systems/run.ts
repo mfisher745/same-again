@@ -296,6 +296,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private readonly glint: GlintTracker;
   /** The screen Andrew was on before this one, to tell when he walks out of the bar. */
   private lastScreenId: ScreenId | null = null;
+  /** Areas entered so far this run: Myko lights up the first time Andrew walks into each one (not the bar). */
+  private readonly arrivedScreens = new Set<ScreenId>();
 
   constructor(private readonly opts: RunOptions) {
     const save = opts.save;
@@ -1874,6 +1876,10 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     // Value comparison: a spawn read back from a save on Continue is a copy, not the layout's object.
     const atStart = spawn.x === layout.playerStart.x && spawn.y === layout.playerStart.y;
     this.myko.pos = layout.mykoStart && atStart ? layout.mykoStart : { x: spawn.x - TUNING.myko.followDistance, y: spawn.y };
+    if (id !== barId && !this.arrivedScreens.has(id)) {
+      this.arrivedScreens.add(id);
+      this.myko.lightUp();
+    }
     // Areas Andrew spawns inside fire on the next tick (insideTriggers was cleared above).
     const def = this.module.def.screens.find((s) => s.id === id);
     this.screenInSun = def?.sun === true;

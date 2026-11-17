@@ -304,7 +304,7 @@ export const COMMON: DialogueFile = {
     'drink.tea.name': 'Tea',
     'drink.tea.pickup': 'Tea. Bottom of Grand, slowly, and it holds. Andrew feels better and resents it.',
     'drink.bottle.name': 'Bottle',
-    'drink.bottle.desc': 'Empty. Hold right click to aim, let go to throw. One only. Two would be a habit.',
+    'drink.bottle.desc': 'Empty. Hold right click to aim, let go to throw. He keeps up to six. Any more and he’s the bottle bank.',
 
     // Pickups
     'pickup.refused.kitFull': 'The anorak holds {max} beers. He has counted the pockets.',

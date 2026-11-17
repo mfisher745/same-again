@@ -6,6 +6,7 @@
 import { hasSequence, sequence } from '../../content/dialogue';
 import type { BossHooks, ChapterContext, ChapterScript, FightHooks } from '../../systems';
 import { GameEvents } from '../../core/types';
+import { PROP } from '../../art/props';
 import type { ScreenAmbient } from '../../core/chapter';
 import type { Kit, SectionId, SpecialSlotIndex, TextId } from '../../core/types';
 import { hidePrompt, onTabOpened, openHotDrinkChoice, showPrompt, showSlotPrompt } from '../../ui/prompts';
@@ -67,6 +68,8 @@ const inTiles = (c: { col: number; row: number; width: number; height: number },
 export function createChapterScript(ctx: ChapterContext): ChapterScript {
   let disposed = false;
   let clock = 0;
+  /** The yard hoist lever's position (run-time only: it is a swing, not state). */
+  let leverDown = false;
   const unsubs: Array<() => void> = [];
   const timers: Array<{ at: number; run: () => void }> = [];
   let lightsTimer: ReturnType<typeof setInterval> | null = null;
@@ -599,6 +602,13 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       if (id === 'c1.urn') {
         urn();
         return true;
+      }
+      if (id === 'c1.kegs.lever') {
+        // The system puts the kegs back; the lever swings and Myko has a word.
+        leverDown = !leverDown;
+        ctx.setPropFrame('yard.lever', leverDown ? PROP.lever.down : PROP.lever.up);
+        if (!ctx.isComplete('c1.puzzle.kegs')) void ctx.say('c1.kegs.reset', { repeat: true });
+        return undefined;
       }
       if (id === 'c1.hurley') {
         if (ctx.isComplete('c1.boss.bigtom') && !hasHurley()) void takeHurley();
