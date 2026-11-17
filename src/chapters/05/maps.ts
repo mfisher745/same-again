@@ -113,6 +113,22 @@ export const LOBBY_HIDING: readonly HidingPropDef[] = [
   { id: 'c5.hide.lobbyBoard', kind: 'noticeboard', position: RETIREMENT_SPOT, radius: 32 },
 ];
 
+/** Myko waits at the bottom left, apart from the queue, with the phone. */
+export const LOBBY_MYKO_SPOT = T(5, 17);
+/** The lobby stealth section: it starts once Andrew is north of the queue's ropes and is clean at the Staff door. */
+export const LOBBY_STEALTH_START = tilesArea(2, 2, 36, 10);
+export const LOBBY_STEALTH_EXIT = tilesArea(32, 2, 4, 2);
+/** The agent from the Staff door when he is caught (the alarm fight is the guard plus this one). */
+export const LOBBY_REINFORCEMENTS = [T(33, 3)] as const;
+export const LOBBY_STEALTH: StealthSectionDef = {
+  id: 'c5.stealth.lobby',
+  checkpointId: 'c5.cp.lobby',
+  // TODO(cd): the spec says "one guard" and no enemy id; an `agent` stands in (the lobby guard's name line is `name.lobbyGuard`).
+  guards: [{ enemyId: 'agent', route: LOBBY_GUARD_ROUTE }],
+  hazards: [],
+  hidingProps: LOBBY_HIDING,
+};
+
 export function lobbyScreen(): ScreenLayout {
   const c = new Canvas(40, 20, '.', 'cities');
   c.rect(0, 0, 40, 1, '#').rect(0, 19, 40, 1, '#').rect(0, 0, 1, 20, '#').rect(39, 0, 1, 20, '#');
@@ -146,7 +162,7 @@ export function lobbyScreen(): ScreenLayout {
   ];
   const npcs: NpcPlacement[] = queue.map(([npc, col], i) => ({ id: `queue.${i}`, npc, col, row: 9, facing: 'right' as const }));
   const dressing: ScreenDressing = { props, npcs };
-  return c.build('c5.lobby', exits, LOBBY_FROM_BAR, { dressing });
+  return c.build('c5.lobby', exits, LOBBY_FROM_BAR, { mykoStart: LOBBY_MYKO_SPOT, dressing });
 }
 
 // ---------------------------------------------------------------------------
