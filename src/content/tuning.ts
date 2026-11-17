@@ -784,7 +784,7 @@ const overhaul: OverhaulTuning = {
   drinks: {
     stout: { kind: 'beer', id: 'stout', nameTextId: 'drink.stout.name', pickupTextId: 'drink.stout.pickup', points: 15, bottlesLeft: 1 },
     lager: { kind: 'beer', id: 'lager', nameTextId: 'drink.lager.name', pickupTextId: 'drink.lager.pickup', points: 10, bottlesLeft: 1 },
-    lightBeer: { kind: 'beer', id: 'lightBeer', nameTextId: 'drink.lightBeer.name', pickupTextId: 'drink.lightBeer.pickup', points: 2, bottlesLeft: 1 },
+    lightBeer: { kind: 'beer', id: 'lightBeer', nameTextId: 'drink.lightBeer.name', pickupTextId: 'drink.lightBeer.pickup', points: 10, bottlesLeft: 1 },
     craftIpa: { kind: 'beer', id: 'craftIpa', nameTextId: 'drink.craftIpa.name', pickupTextId: 'drink.craftIpa.pickup', points: 20, bottlesLeft: 1 },
     whiskey: {
       kind: 'spirit',
@@ -986,10 +986,11 @@ export const TUNING: Tuning = {
     tangentChance: 0.5,
     commentStaleMs: 6000,
     blackoutTimeoutMs: 8000,
-    // Playtest 7: he smokes more often (was 60 s +- 8 s), and lights up on every new area.
-    smokeIntervalMs: 20000,
-    smokeJitterMs: 5000,
-    arrivalSmokeMs: 6000,
+    // Playtest 8: a medium amount. 60 s +- 8 s was too rare, 20 s +- 5 s read as constant. He still lights up on every
+    // new area, for a shorter while.
+    smokeIntervalMs: 38000,
+    smokeJitterMs: 8000,
+    arrivalSmokeMs: 3500,
   },
   investigation: {
     interactRadius: 20,
@@ -1019,7 +1020,7 @@ export const TUNING: Tuning = {
     ]),
     whiskey: drink('whiskey', [{ kind: 'buzz', amount: 30 }]),
     poitin: drink('poitin', [{ kind: 'buzz', amount: 60 }]),
-    lightBeer: drink('lightBeer', [{ kind: 'buzz', amount: 2 }]),
+    lightBeer: drink('lightBeer', [{ kind: 'buzz', amount: 10 }]),
     bourbon: drink('bourbon', [
       { kind: 'buzz', amount: 30 },
       { kind: 'timed', effect: 'speedBoost', durationMs: 6000, magnitude: 1.35 },

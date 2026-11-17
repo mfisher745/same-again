@@ -73,15 +73,32 @@ export class DeductionScene extends Phaser.Scene {
       this.cards.push({ id, bg, label, num, cx: x + CARD.w / 2, cy: y + CARD.h / 2 });
     });
     this.lines = this.add.graphics().setDepth(5);
-    this.confirmBg = rect(this, 110, 236, 120, 20, 'coal');
+    this.confirmBg = rect(this, 60, 236, 110, 20, 'coal');
     this.confirmBg.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.confirm());
-    this.confirmLabel = makeLabel(this, 170, 242, text('ui.deduction.confirm'), 'steel', { anchor: 'centre' });
-    const clear = rect(this, 250, 236, 120, 20, 'coal');
+    this.confirmLabel = makeLabel(this, 115, 242, text('ui.deduction.confirm'), 'steel', { anchor: 'centre' });
+    const clear = rect(this, 185, 236, 110, 20, 'coal');
     clear.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
       this.sel.clear();
       this.shared.hooks.play?.('uiMove');
     });
-    makeLabel(this, 310, 242, text('ui.deduction.clear'), 'white', { anchor: 'centre' });
+    makeLabel(this, 240, 242, text('ui.deduction.clear'), 'white', { anchor: 'centre' });
+    // Step back: the board shuts unanswered and the world (and the casebook) is his again. B reopens it.
+    const back = rect(this, 310, 236, 110, 20, 'coal');
+    back.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.stepBack());
+    makeLabel(this, 365, 242, text('ui.deduction.back'), 'white', { anchor: 'centre' });
+    const kb = this.input.keyboard;
+    if (kb !== null) {
+      const onEsc = (): void => this.stepBack();
+      kb.on('keydown-ESC', onEsc);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => kb.off('keydown-ESC', onEsc));
+    }
+  }
+
+  private stepBack(): void {
+    if (this.board === null || this.resultUntil !== 0) return;
+    this.shared.hooks.play?.('uiMove');
+    this.shared.source.closeDeduction();
+    this.scene.stop();
   }
 
   private confirm(): void {

@@ -257,6 +257,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   private readonly bosses = new Map<BossId, BossRunner>();
   private readonly stealthRunners = new Map<StealthSectionId, { runner: StealthRunner; placement: StealthPlacement | null }>();
   private deduction: DeductionBoard | null = null;
+  /** The board has been opened this run: stepping back from it leaves it waiting to be reopened. */
+  private deductionStarted = false;
   private currentSection: CompletableSectionId | null = null;
 
   // Screen
@@ -1058,11 +1060,22 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (!this.deduction || this.deduction.isComplete()) return;
     this.currentSection = this.deduction.sectionId;
     this.bus.emit(GameEvents.SectionStarted, { sectionId: this.deduction.sectionId, kind: 'deduction' });
+    this.deductionStarted = true;
     this.deduction.openBoard();
   }
 
   closeDeduction(): void {
     this.deduction?.closeBoard();
+  }
+
+  /** Andrew stepped back from an unfinished board (to read the casebook, say): it can be reopened. */
+  pendingDeduction(): boolean {
+    return this.deduction !== null && this.deductionStarted && !this.deduction.isComplete() && !this.deduction.isOpen;
+  }
+
+  /** Back to the board he stepped away from. Not while a scene is playing. */
+  reopenDeduction(): void {
+    if (this.pendingDeduction() && !this.sceneBlocking) this.openDeduction();
   }
 
   onFlockSettled(puzzleId: SectionId, fn: (pen: string) => void): () => void {

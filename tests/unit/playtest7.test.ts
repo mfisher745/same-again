@@ -88,8 +88,9 @@ describe('Myko smokes more', () => {
     expect(run.myko.smoking).toBe(false);
   });
 
-  it('smokes after about 20 s standing still, not a minute', () => {
-    expect(TUNING.myko.smokeIntervalMs + TUNING.myko.smokeJitterMs).toBeLessThanOrEqual(30000);
+  it('smokes after well under a minute standing still (playtest 8 eased it back from 20 s)', () => {
+    expect(TUNING.myko.smokeIntervalMs + TUNING.myko.smokeJitterMs).toBeLessThanOrEqual(50000);
+    expect(TUNING.myko.smokeIntervalMs - TUNING.myko.smokeJitterMs).toBeGreaterThanOrEqual(30000);
   });
 });
 

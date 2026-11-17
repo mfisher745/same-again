@@ -473,6 +473,15 @@ export function createUiState(session: GameSession) {
     submitDeduction(id: DeductionSectionId, evidence: readonly EvidenceId[]): boolean {
       return run()?.submitDeduction(id, evidence) ?? false;
     },
+    closeDeduction(): void {
+      run()?.closeDeduction();
+    },
+    pendingDeduction(): boolean {
+      return run()?.pendingDeduction() ?? false;
+    },
+    reopenDeduction(): void {
+      run()?.reopenDeduction();
+    },
     dialogueFinished(sequenceId: DialogueId): void {
       run()?.dialogueFinished(sequenceId);
     },

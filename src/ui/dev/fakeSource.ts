@@ -212,7 +212,15 @@ export class FakeSource implements UiStateSource {
   casebook = (): readonly CasebookEntry[] => this.entries;
   currentObjective = (): ObjectiveId | null => null;
   boss = (): { bossId: BossId; health: Health } | null => this.bossState;
-  activeDeduction = (): DeductionBoardDef | null => this.board;
+  activeDeduction = (): DeductionBoardDef | null => (this.boardShut ? null : this.board);
+  private boardShut = false;
+  closeDeduction = (): void => {
+    this.boardShut = true;
+  };
+  pendingDeduction = (): boolean => this.boardShut && this.board !== null;
+  reopenDeduction = (): void => {
+    this.boardShut = false;
+  };
   submitDeduction(id: DeductionSectionId, evidence: readonly EvidenceId[]): boolean {
     const board = this.board;
     const ok = board !== null && board.solution.every((s) => evidence.includes(s));

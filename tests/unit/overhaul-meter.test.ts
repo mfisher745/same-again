@@ -58,9 +58,9 @@ describe('levels', () => {
 describe('drain', () => {
   it('is constant, one point every three seconds, with no delay after a drink', () => {
     let s = drink(at(50), 'lightBeer').state;
-    expect(s.value).toBe(52);
+    expect(s.value).toBe(60);
     s = run(s, 3000);
-    expect(s.value).toBeCloseTo(51, 6);
+    expect(s.value).toBeCloseTo(59, 6);
   });
 
   it('doubles in the sun and returns to normal in the shade', () => {
@@ -98,7 +98,7 @@ describe('beers', () => {
   it.each([
     ['stout', 15],
     ['lager', 10],
-    ['lightBeer', 2],
+    ['lightBeer', 10],
     ['craftIpa', 20],
   ] as const)('%s adds %i', (id, pts) => {
     expect(beer(id).points).toBe(pts);
