@@ -8,9 +8,9 @@
 import { hasSequence, pool, sequence } from '../../content/dialogue';
 import { GameEvents } from '../../core/types';
 import type { SectionId, SpecialSlotIndex, TextId } from '../../core/types';
-import type { BossHooks, ChapterContext, ChapterScript, FightHooks } from '../../systems';
+import type { BossHooks, ChapterContext, ChapterScript, FightHooks, LoneEnemyHandle } from '../../systems';
 import { hidePrompt, openHotDrinkChoice, showPrompt, showSlotPrompt } from '../../ui/prompts';
-import { COOLER_SPOTS, FARM_STAND_PICKUP, MYKO_ICE, MYKO_LANE_END, TOWN_ADMIRE } from './maps';
+import { COOLER_SPOTS, FARM_STAND_PICKUP, LESSON_DRONE_SPAWN, MYKO_ICE, MYKO_LANE_END, TOWN_ADMIRE } from './maps';
 
 const OBJ = {
   town: 'c6.town',
@@ -44,6 +44,7 @@ type Flag =
   | 'fields.clean'
   | 'jar.taken'
   | 'bottles.seen'
+  | 'bottles.done'
   | 'maze.intro'
   | 'clue.receipt'
   | `cooler.${number}`;
@@ -195,21 +196,22 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
 
   const stealthUnderway = (): boolean => stealthRunning && ctx.currentScreen() === 'c6.fields' && !ctx.isComplete('c6.stealth.fields');
 
+  /** The lesson drone, if one is in the world. Run-time only: a screen change or return to the bar removes it. */
+  let lessonDrone: LoneEnemyHandle | null = null;
+
+  /** One drone, outside the stealth alarm. Andrew brings it down with a bottle; that finishes the lesson. */
   const bottlesLesson = async (): Promise<void> => {
+    if (flag('bottles.done') || lessonDrone?.alive()) return;
     setFlag('bottles.seen');
-    // TODO(cd): the lesson drone. The spec has a drone spot Andrew here regardless and hover out of reach, but the chapter
-    // context has no way to spawn one (`ChapterContext` has no `spawnEnemy`), and the stealth control can only raise the
-    // whole alarm. The scene is played here; the first drone that falls in the yard fight says `c6.bottles.done`.
+    lessonDrone = ctx.spawnLoneEnemy('drone', LESSON_DRONE_SPAWN, { onDefeated: lessonDroneFell });
     await ctx.say('c6.bottles.lesson');
   };
 
-  const droneFell = (): void => {
-    if (!flag('bottles.seen') || bottlesDoneSaid) return;
-    bottlesDoneSaid = true;
+  const lessonDroneFell = (): void => {
+    if (flag('bottles.done')) return;
+    setFlag('bottles.done');
     void ctx.say('c6.bottles.done');
   };
-  let bottlesDoneSaid = false;
-
   const droneHooks: FightHooks = {
     onWaveCleared: (index) => {
       if (index === 0) void ctx.say('c6.drones.wave2');
@@ -376,9 +378,6 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           placeJar();
           void ctx.say('c6.fields.clean');
         }),
-        ctx.bus.on(GameEvents.EnemyDefeated, ({ enemyId }) => {
-          if (enemyId === 'drone') droneFell();
-        }),
         ctx.bus.on(GameEvents.CombineChanged, ({ phase }) => {
           if (phase === 'lightOut') {
             lightsOut++;
@@ -458,7 +457,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           }
           break;
         case 'c6.trig.spotted':
-          if (stealthUnderway() && !flag('bottles.seen')) void bottlesLesson();
+          if (stealthUnderway()) void bottlesLesson();
           break;
         case 'c6.trig.yard':
           // Out to the yard the fight starts; back west through it with the board done, the combine.
@@ -544,6 +543,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       setFlag('intro.done');
       setFlag('fields.open');
       setFlag('bottles.seen');
+      setFlag('bottles.done');
       ctx.setMykoScripted(null);
     },
 
