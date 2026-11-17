@@ -91,7 +91,7 @@ const board: DeductionBoardDef = {
  */
 export const EXAMINE_LINES: Readonly<Record<string, { readonly sequence?: DialogueId; readonly text?: TextId }>> = {
   'c5.tea': { sequence: 'c5.bar.hotDrink' },
-  'c5.ticket': { sequence: 'c5.open' },
+  'c5.ticket': { sequence: 'c5.examine.ticket' },
   'c5.retirement': { text: 'c5.clue.retirement.body' },
   'c5.sheet.1': { sequence: 'c5.files.sheet' },
   'c5.sheet.2': { sequence: 'c5.files.sheet' },
@@ -101,9 +101,9 @@ export const EXAMINE_LINES: Readonly<Record<string, { readonly sequence?: Dialog
   'c5.requisition': { sequence: 'c5.files.requisition' },
   'c5.busticket': { text: 'c5.clue.busticket.body' },
   'c5.memo': { text: 'c5.clue.memo.body' },
-  'c5.lightbox': { sequence: 'c5.redacted.intro' },
+  'c5.lightbox': { sequence: 'c5.examine.lightbox' },
   'c5.copier': { sequence: 'c5.copier' },
-  'c5.umbrella': { sequence: 'c5.weapon.umbrella' },
+  'c5.umbrella': { sequence: 'c5.examine.umbrellaStand' },
 };
 
 const def: ChapterDef = {
@@ -160,7 +160,7 @@ export const chapter5: ChapterModule = {
   screens: [barScreen(), lobbyScreen(), floorScreen(), stacksScreen()],
   pickups: [
     // The break-room fridge's birthday whiskey, for anyone not yet at Bit much (Lock-in needs it).
-    { id: 'c5.pickup.birthdayWhiskey', item: { kind: 'drink', drinkId: 'whiskey', count: 1 }, screenId: 'c5.floor', position: FRIDGE_SPOT },
+    { id: 'c5.pickup.birthdayWhiskey', item: { kind: 'drink', drinkId: 'whiskey', count: 1 }, screenId: 'c5.floor', position: FRIDGE_SPOT, commentDialogueId: 'c5.examine.whiskey' },
     // Bottle spots: empties to throw.
     ...FLOOR_BOTTLE_SPOTS.map((position, i) => ({ id: `c5.pickup.empties.floor.${i}`, item: { kind: 'empties' as const, count: 1 }, screenId: 'c5.floor' as const, position })),
     ...STACKS_BOTTLE_SPOTS.map((position, i) => ({ id: `c5.pickup.empties.stacks.${i}`, item: { kind: 'empties' as const, count: 1 }, screenId: 'c5.stacks' as const, position })),
