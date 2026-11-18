@@ -1664,6 +1664,79 @@ export interface GameEventPayloads {
     readonly bossId: BossId;
     readonly phase: 'flashLit' | 'flash' | 'whiteout' | 'barrierLit' | 'barrierDown' | 'barrierUp' | 'truckLit' | 'truckPass' | 'letThrough';
   };
+  /**
+   * Chapter 9 gravity rooms (`gravity.ts`): a switch was worked (`pulled`, with the new `dir`), the room's pieces and
+   * Andrew have come to rest (`settled`), a switch refused for want of the Glove (`refused`), a room was put back
+   * (`reset`), a room is solved (`roomSolved`).
+   */
+  'gravity:changed': {
+    readonly puzzleId: PuzzleSectionId;
+    readonly roomId: string;
+    readonly phase: 'pulled' | 'settled' | 'refused' | 'reset' | 'roomSolved';
+    readonly dir?: GravityDir;
+  };
+  /**
+   * Chapter 9 lockdown (`lockdown.ts`): `bayEntered`, `doorLit` (the door starts to close), `doorShut`, `crushed` (the
+   * door closed on Andrew), `bayPassed`, `barrierDropped` / `guardsSlid` (a gravity switch), `takeStarted` / `takeDone`
+   * (the wall recorder), `liftRefused`, `liftOpen`, `wandLeft`, `allOpen` (a Myko call). `bay` is 1 to 5.
+   */
+  'lockdown:changed': {
+    readonly bossId: BossId;
+    readonly phase:
+      | 'bayEntered'
+      | 'doorLit'
+      | 'doorShut'
+      | 'crushed'
+      | 'bayPassed'
+      | 'barrierDropped'
+      | 'guardsSlid'
+      | 'takeStarted'
+      | 'takeDone'
+      | 'liftRefused'
+      | 'liftOpen'
+      | 'wandLeft'
+      | 'allOpen';
+    readonly bay?: number;
+  };
+  /**
+   * Chapter 10 Administrator (`administrator.ts`). Phase 1: `guardsCalled`, `shieldDown`, `shieldUp`, `stampLit`,
+   * `stamp`. Phase 2: `gravityLit` (arrows, with `dir`), `gravityFlip` (furniture slides), `gravityBack` (Andrew at a
+   * switch: he is thrown and stunned). Phase 3: `jacketOff`, `pulseLit`, `pulse`, `teleportLit`, `teleport`,
+   * `beamLit`, `beam`, `offer` (with `offer` 1 to 3: the chapter plays `c10.admin.offer<n>`). End: `sits`.
+   */
+  'administrator:changed': {
+    readonly bossId: BossId;
+    readonly phase:
+      | 'guardsCalled'
+      | 'shieldDown'
+      | 'shieldUp'
+      | 'stampLit'
+      | 'stamp'
+      | 'gravityLit'
+      | 'gravityFlip'
+      | 'gravityBack'
+      | 'jacketOff'
+      | 'pulseLit'
+      | 'pulse'
+      | 'teleportLit'
+      | 'teleport'
+      | 'beamLit'
+      | 'beam'
+      | 'offer'
+      | 'sits';
+    readonly dir?: GravityDir;
+    readonly offer?: 1 | 2 | 3;
+  };
+  /**
+   * Chapter 10 broadcast console (`broadcast.ts`): a proof was plugged in a channel (`plugged`), a plug was refused
+   * (`wrong`), a socket was looked at (`examined`), all five are in (`ready`), the button was pressed (`pressed`).
+   */
+  'broadcast:changed': {
+    readonly puzzleId: PuzzleSectionId;
+    readonly phase: 'plugged' | 'wrong' | 'examined' | 'ready' | 'pressed';
+    readonly channelId?: string;
+    readonly proofId?: ProofId;
+  };
   /** The heat switch changed (`ChapterContext.setHeatActive`): night has fallen when `active` is false. */
   'heat:switched': { readonly active: boolean };
   'prop:broken': { readonly screenId: ScreenId; readonly propId: string; readonly frame: string };
@@ -1792,6 +1865,10 @@ export const GameEvents = {
   JunctionsToggled: 'junctions:toggled',
   MascotsChanged: 'mascots:changed',
   PruittChanged: 'pruitt:changed',
+  GravityChanged: 'gravity:changed',
+  LockdownChanged: 'lockdown:changed',
+  AdministratorChanged: 'administrator:changed',
+  BroadcastChanged: 'broadcast:changed',
   HeatSwitched: 'heat:switched',
   WeaponGained: 'weapon:gained',
   KitChanged: 'kit:changed',
@@ -2340,6 +2417,69 @@ export interface OverhaulTuning {
   readonly perimeter?: PerimeterTuning;
   /** Chapter 8: the sunset tint when a chapter has no `nightAmbient` on a screen. */
   readonly sunsetAmbient?: { readonly tint: ColourName; readonly strength: number };
+  /** Chapter 9 gravity rooms (`gravity.ts`). */
+  readonly gravity?: GravityTuning;
+  /** Chapter 9 lockdown set piece (`lockdown.ts`). */
+  readonly lockdown?: LockdownTuning;
+  /** Chapter 10 Administrator (`administrator.ts`). */
+  readonly administrator?: AdministratorTuning;
+}
+
+/** The four directions "down" can point in a gravity room. */
+export type GravityDir = 'up' | 'down' | 'left' | 'right';
+
+/** Chapter 9 gravity rooms. First guesses; creative director to set. */
+export interface GravityTuning {
+  /** How long a loose thing (and Andrew) takes to slide one tile, ms. */
+  readonly slideMsPerTile: number;
+  /** A slide never takes less than this, ms. */
+  readonly minSlideMs: number;
+}
+
+/** Chapter 9 lockdown. First guesses; creative director to set. */
+export interface LockdownTuning {
+  /** How long the wall recorder takes while Andrew stays at it, ms. */
+  readonly takeMs: number;
+  /** How far from the recorder Andrew may stand while it records, px. */
+  readonly takeReachPx: number;
+  /** How far a closing door reaches into the bay, px: Andrew this close to a door when it shuts is caught. */
+  readonly crushReachPx: number;
+  /** A shut door stays shut this long before it reopens with a full timer, ms. */
+  readonly doorReopenMs: number;
+  /** Guards slid to the far wall by a gravity switch take this long to get there, ms. */
+  readonly guardSlideMs: number;
+  /** ... and are stunned this long once they arrive, ms. */
+  readonly guardSlideStunMs: number;
+}
+
+/** Chapter 10 Administrator. First guesses; creative director to set. */
+export interface AdministratorTuning {
+  /** The desk shield stays down this long once both guards are down, ms. */
+  readonly shieldDownMs: number;
+  /** The first pair of guards comes this long after the fight starts, and each later pair this long after the shield is back, ms. */
+  readonly callDelayMs: number;
+  /** A stamp's shockwave crosses the row in this long, ms. */
+  readonly stampTravelMs: number;
+  /** Half the width of a stamp's marked row, px. */
+  readonly stampHalfWidthPx: number;
+  /** Furniture takes this long to slide across the room, ms. */
+  readonly furnitureSlideMs: number;
+  /** Furniture is hit-box sized this, px (square). */
+  readonly furnitureSizePx: number;
+  /** He is stunned this long when Andrew flips gravity back, ms. */
+  readonly gravityStunMs: number;
+  /** He walks back to his desk at this speed after being thrown, px per second. */
+  readonly returnSpeedPx: number;
+  /** The beam sweeps its quarter in this long, ms. */
+  readonly beamSweepMs: number;
+  /** Half the width of the beam, px. */
+  readonly beamHalfWidthPx: number;
+  /** He teleports this far behind Andrew, px. */
+  readonly teleportBehindPx: number;
+  /** Phase 3: an offer after every this many attacks (three offers, then none). */
+  readonly offerEveryAttacks: number;
+  /** Phase 3: attacks pause this long while he makes an offer, ms. */
+  readonly offerPauseMs: number;
 }
 
 /** Chapter 8 perimeter hazards. First guesses; creative director to set. */

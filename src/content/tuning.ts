@@ -888,6 +888,27 @@ const overhaul: OverhaulTuning = {
   throwOutFlightMs: 350,
   // stand-in: creative director to set. The tint put over a screen at sunset when the chapter gave it no `nightAmbient`.
   sunsetAmbient: { tint: 'navyDark', strength: 0.55 },
+  // stand-in: creative director to set. Chapter 9 gravity rooms: a slide takes this long per tile.
+  gravity: { slideMsPerTile: 70, minSlideMs: 200 },
+  // stand-in: creative director to set. Chapter 9 lockdown: the take is the 3 s in the brief; the door timer and the
+  // 15-point crush are in `c9.setpiece.lockdown`.
+  lockdown: { takeMs: 3000, takeReachPx: 28, crushReachPx: 20, doorReopenMs: 800, guardSlideMs: 500, guardSlideStunMs: 4000 },
+  // stand-in: creative director to set. Chapter 10 Administrator; the attacks are in `c10.boss.administrator`.
+  administrator: {
+    shieldDownMs: 4000,
+    callDelayMs: 1500,
+    stampTravelMs: 700,
+    stampHalfWidthPx: 8,
+    furnitureSlideMs: 700,
+    furnitureSizePx: 16,
+    gravityStunMs: 3000,
+    returnSpeedPx: 60,
+    beamSweepMs: 900,
+    beamHalfWidthPx: 10,
+    teleportBehindPx: 28,
+    offerEveryAttacks: 2,
+    offerPauseMs: 1800,
+  },
   shelves: { slideMs: 600, closedMs: 1500, pushOutPx: 24, lanesPerShelfByPhase: { oneShelf: 1, twoShelves: 2 } },
   // stand-in: creative director to set. The camera looks this far ahead of Andrew down the ram lane.
   cameraLeadPx: 96,
