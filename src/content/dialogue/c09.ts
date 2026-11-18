@@ -196,6 +196,9 @@ export const C09: DialogueFile = {
     box('c9.lockdown.myko.2', ['myko', "Bay three. The box on the wall with the red light. That's the tape. It's three seconds. Take it.", 'by phone']),
     box('c9.lockdown.myko.3', ['myko', "Leave them. LEAVE them. They'll still be there. The door won't.", 'by phone']),
     box('c9.lockdown.myko.4', ['myko', "Last one. Lanyard out. Don't drop the bag.", 'by phone']),
+    box('c9.gravity.noGlove', ['andrew', "It's a panel with a hand on it. It doesn't want my hand."], ['myko', "There'll be a glove somewhere. Lost property. There's always a glove in lost property.", 'by phone']),
+    box('c9.lockdown.liftRefused', ['npc:name.announcement', 'Lift access requires five items of supporting documentation and a valid lanyard. Thank you.']),
+    box('c9.lockdown.takeStarted', ['andrew', 'Come on. Come on.']),
     box('c9.lockdown.shut', ['myko', "It caught you. Back you go. It's only a door. It's a very heavy door, but it's only a door.", 'by phone']),
 
     scene(
