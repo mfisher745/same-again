@@ -278,16 +278,18 @@ export const TRACKS: readonly TileRect[] = [
   { col: 2, row: 33, width: 96, height: 2 },
   { col: 2, row: 21, width: 96, height: 2 },
 ];
-const truckRoute = (from: Vec2, to: Vec2, facing: 'left' | 'right'): PatrolRoute => ({
+/**
+ * A truck's route: it starts partway along its track, drives to one end, turns and drives the whole track to the other
+ * end, and back (ping-pong through the points in order). So a truck is always somewhere along the track, not parked at
+ * an end where the walk begins.
+ */
+const truckRoute = (points: readonly [Vec2, Vec2, Vec2]): PatrolRoute => ({
   mode: 'pingPong',
-  waypoints: [
-    { position: from, waitMs: 2000, facing },
-    { position: to, waitMs: 2000, facing: facing === 'right' ? 'left' : 'right' },
-  ],
+  waypoints: points.map((position, i) => ({ position, waitMs: 2000, facing: (points[i + 1] ?? points[i - 1] ?? position).x > position.x ? ('right' as const) : ('left' as const) })),
 });
 export const PATROL_TRUCKS = [
-  { id: 'truck1', route: truckRoute(T(3, 33), T(96, 33), 'right') },
-  { id: 'truck2', route: truckRoute(T(96, 21), T(3, 21), 'left') },
+  { id: 'truck1', route: truckRoute([T(46, 33), T(3, 33), T(96, 33)]) },
+  { id: 'truck2', route: truckRoute([T(56, 21), T(3, 21), T(96, 21)]) },
 ] as const;
 
 /**
