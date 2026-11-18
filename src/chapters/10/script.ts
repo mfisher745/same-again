@@ -244,9 +244,12 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     if (by !== 'myko') void ctx.say('c10.broadcast.ready');
   };
 
-  /** The button was pressed: the broadcast is sent, the world reacts, and Andrew is home. */
+  /**
+   * The button was pressed: the broadcast is sent, the world reacts, and Andrew is home. No flag says it ran: pressed and not
+   * yet home (a load starts at the cabinet, so the cards play from wherever he is).
+   */
   const afterPress = async (): Promise<void> => {
-    if (aftermath || !pressed()) return;
+    if (aftermath || !pressed() || pubDone() || ctx.currentScreen() === 'c10.pub') return;
     aftermath = true;
     const mine = epoch;
     restoreWorld();
@@ -254,11 +257,11 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     if (ctx.currentScreen() === 'c10.control') {
       await ctx.say('c10.broadcast.sent', { repeat: true });
       if (disposed || mine !== epoch) return;
-      await ctx.playCards(REACTION);
-      if (disposed || mine !== epoch) return;
-      ctx.goToScreen(CONTROL_TO_PUB.screenId, CONTROL_TO_PUB.spawn);
     }
+    await ctx.playCards(REACTION);
     aftermath = false;
+    if (disposed || mine !== epoch) return;
+    ctx.goToScreen(CONTROL_TO_PUB.screenId, CONTROL_TO_PUB.spawn);
   };
 
   // --- Feeney's ---
@@ -268,6 +271,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     ctx.setObjective(pubDone() ? null : OBJ.sit);
     void ctx.say('c10.caption.pub');
     if (!pubDone()) void ctx.say('c10.pub.enter');
+    // Back here after he had sat (a load): the epilogue plays again from the stool, and the chapter still ends.
+    else void sit();
   };
 
   /** E at the stool: he sits, Dympna, the epilogue, the title card and the credits, then the chapter is done. */
@@ -337,12 +342,11 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       if (!flag('intro.done')) void opening();
       else {
         restoreObjective();
-        if (ctx.currentScreen() === 'c10.control') entered('c10.control');
-        else if (ctx.currentScreen() === 'c10.pub') {
-          // Loaded in Feeney's: the stool again, and the epilogue if he had already sat.
-          pubArrival();
-          if (pubDone()) void sit();
-        }
+        // A load starts at the cabinet. Home already (he had sat down): back to Feeney's for the epilogue. Pressed and not yet
+        // home: the world reacts. Otherwise what is on the screen starts again as he walks in.
+        if (pubDone()) ctx.goToScreen(CONTROL_TO_PUB.screenId, CONTROL_TO_PUB.spawn);
+        else if (pressed()) void afterPress();
+        else if (ctx.currentScreen() === 'c10.control') entered('c10.control');
       }
     },
 
