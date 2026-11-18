@@ -173,6 +173,10 @@ export interface Extras {
   readonly mykoStart?: Vec2;
   readonly dressing?: ScreenDressing;
   readonly ambient?: ScreenAmbient;
+  /** Chapter 8: pixel areas that are shade on a sunny screen. */
+  readonly shadeAreas?: ScreenLayout['shadeAreas'];
+  /** Chapter 8: what `ctx.sunset()` puts on the screen. */
+  readonly nightAmbient?: ScreenAmbient;
 }
 
 export class Canvas {

@@ -9,6 +9,7 @@
 import { hasSequence } from '../../content/dialogue';
 import type { ChapterModule } from '../../core/chapter';
 import type { ChapterDef, ClueId, DeductionBoardDef, DialogueId, ObjectiveDef, PickupDef, TextId } from '../../core/types';
+import { junctionExaminableId, junctionLayoutFrom } from '../../systems/perimeter';
 import { createChapterScript } from './script';
 import {
   ATTENDANT_TILE,
@@ -16,10 +17,17 @@ import {
   BARRED_TRIGGER,
   CAR_SPOT,
   CLIPBOARD_SPOT,
+  CORRIDOR_LINES,
   FENCE_AGENT_SPAWNS,
+  FENCE_FIGHT_AREA,
   FIGHT_ENTRANCE,
+  FIGHT_HEADLIGHTS,
+  JUNCTION_BOXES,
+  PRUITT2,
+  SENSOR_LINES,
   GATE_ARRIVE_AREA,
   GATE_BOTTLE_SPOTS,
+  GATE_CLOSING_AREA,
   GATE_MYKO_ENTRANCE,
   JUNCTION_TRIGGER,
   PERIMETER_BOTTLE_SPOTS,
@@ -74,15 +82,17 @@ export const EXAMINE_LINES: Readonly<Record<string, { readonly sequence?: Dialog
   'c8.clue.schedule': { text: 'c8.clue.schedule.body' },
   'c8.clue.car': { sequence: 'c8.car' },
   'c8.clue.shift': { text: 'c8.clue.shift.body' },
+  // The door of each box shows its two lines: `c8.junction.diagram` filled in with their numbers.
+  ...Object.fromEntries(JUNCTION_BOXES.map((b) => [junctionExaminableId(b.id), { text: 'c8.junction.diagram' }])),
 };
 
 const def: ChapterDef = {
   number: 8,
   titleTextId: 'c8.title',
   screens: [
-    { id: 'c8.road', region: 'nevada', widthTiles: 60, heightTiles: 20 },
-    { id: 'c8.perimeter', region: 'nevada', widthTiles: 100, heightTiles: 40 },
-    { id: 'c8.gate', region: 'nevada', widthTiles: 40, heightTiles: 20 },
+    { id: 'c8.road', region: 'nevada', sun: true, widthTiles: 60, heightTiles: 20 },
+    { id: 'c8.perimeter', region: 'nevada', sun: true, widthTiles: 100, heightTiles: 40 },
+    { id: 'c8.gate', region: 'nevada', sun: true, widthTiles: 40, heightTiles: 20 },
   ],
   startScreenId: 'c8.road',
   bar: {
@@ -119,7 +129,6 @@ const def: ChapterDef = {
   mykoCallLines: {
     fight: { sequenceId: 'c8.call.fight', casebookBodyTextId: 'c8.call.fight.casebook', casebookMarginTextId: 'c8.call.fight.margin' },
     puzzle: { sequenceId: 'c8.call.puzzle', casebookBodyTextId: 'c8.call.puzzle.casebook', casebookMarginTextId: 'c8.call.puzzle.margin' },
-    // MISSING TEXT: `c8.call.pruitt.casebook` and `c8.call.pruitt.margin` are not in c08.ts yet.
     setpiece: { sequenceId: 'c8.call.pruitt', casebookBodyTextId: 'c8.call.pruitt.casebook', casebookMarginTextId: 'c8.call.pruitt.margin' },
   },
   finaleSectionId: 'c8.boss.pruitt2',
@@ -142,6 +151,8 @@ export const chapter8: ChapterModule = {
     { id: 'c8.attendant', screenId: 'c8.road', position: T(ATTENDANT_TILE.col, ATTENDANT_TILE.row + 2), dialogueId: 'c8.attendant.1' },
     { id: 'c8.clue.schedule', screenId: 'c8.road', position: SCHEDULE_SPOT, evidenceId: clue('schedule'), objective: true },
     { id: 'c8.clue.car', screenId: 'c8.road', position: CAR_SPOT, dialogueId: 'c8.car', evidenceId: clue('car'), objective: true },
+    // The three junction boxes: E on one flips its two lines (the puzzle), and shows what is on its door.
+    ...JUNCTION_BOXES.map((b) => ({ id: junctionExaminableId(b.id), screenId: 'c8.perimeter' as const, position: b.spot })),
     // The clipboard is shown by the script when the fence fight ends.
     { id: 'c8.clue.shift', screenId: 'c8.perimeter', position: CLIPBOARD_SPOT, evidenceId: clue('shift'), objective: true },
   ],
@@ -152,6 +163,7 @@ export const chapter8: ChapterModule = {
       trigger: { kind: 'script' },
       spawnPoints: FENCE_AGENT_SPAWNS,
       entrance: FIGHT_ENTRANCE,
+      headlights: FIGHT_HEADLIGHTS,
     },
   ],
   bosses: [
@@ -161,6 +173,7 @@ export const chapter8: ChapterModule = {
       trigger: { kind: 'script' },
       bodies: [{ tag: 'pruitt', position: PRUITT_START }],
       entrance: GATE_MYKO_ENTRANCE,
+      pruitt2: PRUITT2,
       callId: 'pruitt',
     },
   ],
@@ -174,12 +187,22 @@ export const chapter8: ChapterModule = {
       reinforcementPoints: STEALTH_REINFORCEMENTS,
     },
   ],
+  junctionPuzzles: [
+    {
+      sectionId: 'c8.puzzle.junctions',
+      layout: junctionLayoutFrom({ lines: SENSOR_LINES, boxes: JUNCTION_BOXES, targetLines: CORRIDOR_LINES, stealthId: 'c8.stealth.perimeter' }),
+    },
+  ],
+  // Every trigger fires each time Andrew walks in: the script tests what is done and what is under way, never a saved
+  // "started" flag, so a load or a bar return starts a section again.
   triggers: [
-    { id: 'c8.trig.sun', screenId: 'c8.road', area: SUN_AREA },
-    { id: 'c8.trig.barred', screenId: 'c8.road', area: BARRED_TRIGGER },
-    { id: 'c8.trig.perimeter', screenId: 'c8.perimeter', area: PERIMETER_OPEN_AREA },
-    { id: 'c8.trig.junctions', screenId: 'c8.perimeter', area: JUNCTION_TRIGGER },
-    { id: 'c8.trig.gate', screenId: 'c8.gate', area: GATE_ARRIVE_AREA },
+    { id: 'c8.trig.sun', screenId: 'c8.road', area: SUN_AREA, once: false },
+    { id: 'c8.trig.barred', screenId: 'c8.road', area: BARRED_TRIGGER, once: false },
+    { id: 'c8.trig.perimeter', screenId: 'c8.perimeter', area: PERIMETER_OPEN_AREA, once: false },
+    { id: 'c8.trig.junctions', screenId: 'c8.perimeter', area: JUNCTION_TRIGGER, once: false },
+    { id: 'c8.trig.fence', screenId: 'c8.perimeter', area: FENCE_FIGHT_AREA, once: false },
+    { id: 'c8.trig.gate', screenId: 'c8.gate', area: GATE_ARRIVE_AREA, once: false },
+    { id: 'c8.trig.closing', screenId: 'c8.gate', area: GATE_CLOSING_AREA, once: false },
     { id: 'c8.trig.pruitt', screenId: 'c8.gate', area: PRUITT_TRIGGER, once: false },
   ],
   createScript: createChapterScript,
