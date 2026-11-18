@@ -3,17 +3,19 @@
  * its drinks cabinet and tea trolley, the Administrator's control room, both in the `base` region, and Feeney's (the
  * chapter 1 screen, reused from `../01/maps`, in daylight) in `kilnamoe`. Every constant the script needs is exported.
  *
- * Stand-in art (no frame of its own yet; each is marked at its prop):
- * - the drinks cabinet and its decanters: `PROP.trophyShelf` (should be a glass-fronted cabinet of dusty decanters);
- * - the receptionist's and the Administrator's desks: `PROP.officeDesk` (should be tidy violet/teal desks);
- * - the broadcast console: `PROP.securityDesk` x3 (should be one long console with five sockets and a large button);
- * - the telly "on": `PROP.telly` (should have a lit weather-map frame);
- * - loose furniture in the control room: chapter 3 to 8 frames (should be base-palette furniture);
- * - the plant: `PROP.flowerPot` (should be a tidy office plant).
- * The gravity arrows, the stamp's shockwave, the desk shield and the stun-pulse marker are drawn by the script.
+ * The real art is in (`src/art/propsC910.ts`): the drinks cabinet, waiting chairs, ticket machine, plant, reception desk,
+ * the Administrator's desk and shield, the screen wall, the coat hook, the broadcast console and big button, and Feeney's
+ * in daylight (`FEENEYS_DAYLIGHT`). Still stand-ins:
+ * - the loose furniture: the view stamps `PROP.crate` for every piece (`c910View`) and a prop would be drawn under it, so the
+ *   furniture is data only here (`LOOSE_FURNITURE`, home positions for the director) and has no dressing prop;
+ * - the desk shield sits on the nearest tile (8 px left and 4 px above where the art wants it): props cannot be offset by pixels;
+ * - seated plugs on the world's console: they need pixel offsets (`CONSOLE_SOCKETS`); the console scene draws them.
+ * The gravity arrows, the stamp's shockwave and the stun-pulse marker are drawn by the view.
  */
 
 import { PROP } from '../../art/props';
+import { FEENEYS_DAYLIGHT } from '../../art/propsC910';
+import { tileIndex } from '../../art/tiles';
 import type { AreaRect, ExitDef, NpcPlacement, PropPlacement, ScreenDressing, ScreenLayout } from '../../core/chapter';
 import type { TileCoord, Vec2 } from '../../core/types';
 import { Canvas, T, tilesArea } from '../canvas';
@@ -45,8 +47,8 @@ export const ANTE_SIDE_DOOR_AREA = tilesArea(28, 6, 2, 2);
 /** The ticket machine's sprite tile, and where E takes number 848. Taking the ticket starts `c10.fight.anteroom`. */
 export const TICKET_TILE = { col: 18, row: 3 } as const;
 export const TICKET_MACHINE = T(18, 5);
-/** The receptionist's desk (empty): two desks side by side. Top-left tile, 4 wide. */
-export const RECEPTION_DESK = { col: 10, row: 5, width: 4, height: 1 } as const;
+/** The receptionist's desk (empty): the solid footprint's top-left tile, 3 wide (the art is 48 x 24 and sits one row above). */
+export const RECEPTION_DESK = { col: 10, row: 5, width: 3, height: 1 } as const;
 export const PLANT_TILE = { col: 26, row: 3 } as const;
 /** The waiting area's carpet and seats. */
 export const WAITING_AREA = tilesArea(17, 8, 10, 5);
@@ -82,8 +84,8 @@ export const MYKO_CONTROL = T(22, 21);
 /** Walking in, in front of the south door, starts `c10.boss.administrator` (the script decides when it is allowed). */
 export const CONTROL_ENTRY_AREA = tilesArea(16, 18, 8, 4);
 
-/** The Administrator's desk: three desks side by side, 6 wide, solid. His start is behind it. */
-export const ADMIN_DESK = { col: 16, row: 5, width: 6, height: 1 } as const;
+/** The Administrator's desk: the solid footprint (3 wide; the art is 48 x 32 and sits one row above). His start is behind it. */
+export const ADMIN_DESK = { col: 18, row: 5, width: 3, height: 1 } as const;
 export const ADMIN_START = T(19, 4);
 /** The area the desk shield covers: the desk, the ground behind it and the row in front. Bottles break on its edge. */
 export const DESK_SHIELD_AREA: AreaRect = tilesArea(15, 3, 8, 4);
@@ -122,9 +124,10 @@ export const GRAVITY_SWITCHES: readonly { readonly id: string; readonly wall: Gr
 ];
 
 /**
- * The loose furniture that slides when gravity turns, and hits (heavy). Each is a solid prop the script moves with
- * `setPropTile`. Clear of the stamp rows (9, 13, 17), the desk and the dais.
- * Stand-ins: base-palette furniture does not exist; these are the chapter 3 to 8 frames.
+ * The loose furniture that slides when gravity turns, and hits (heavy). Home positions for the Administrator's director
+ * (`index.ts` turns each into the centre of its tile); the view stamps `PROP.crate` for each piece, so there is no dressing
+ * prop. Clear of the stamp rows (9, 13, 17), the desk and the dais. `frame` and `solid` say what it will be when the view
+ * draws the real frame.
  */
 export interface FurnitureDef {
   readonly id: string;
@@ -134,12 +137,12 @@ export interface FurnitureDef {
   readonly solid: { readonly dy?: number; readonly width: number; readonly height: number };
 }
 export const LOOSE_FURNITURE: readonly FurnitureDef[] = [
-  { id: 'control.cabinet1', frame: PROP.filingCabinet.shut, col: 6, row: 11, solid: { dy: 1, width: 1, height: 1 } },
-  { id: 'control.cabinet2', frame: PROP.filingCabinet.shut, col: 33, row: 11, solid: { dy: 1, width: 1, height: 1 } },
-  { id: 'control.chair1', frame: PROP.foldingChair, col: 11, row: 15, solid: { width: 1, height: 1 } },
-  { id: 'control.chair2', frame: PROP.foldingChair, col: 26, row: 15, solid: { width: 1, height: 1 } },
-  { id: 'control.cooler', frame: PROP.waterCooler, col: 4, row: 19, solid: { dy: 1, width: 1, height: 1 } },
-  { id: 'control.sidetable', frame: PROP.officeDesk, col: 13, row: 20, solid: { width: 2, height: 1 } },
+  { id: 'control.cabinet1', frame: PROP.baseFilingCabinet.shut, col: 6, row: 11, solid: { dy: 1, width: 1, height: 1 } },
+  { id: 'control.cabinet2', frame: PROP.baseFilingCabinet.shut, col: 33, row: 11, solid: { dy: 1, width: 1, height: 1 } },
+  { id: 'control.chair1', frame: PROP.officeChair, col: 11, row: 15, solid: { width: 1, height: 1 } },
+  { id: 'control.chair2', frame: PROP.officeChair, col: 26, row: 15, solid: { width: 1, height: 1 } },
+  { id: 'control.cooler', frame: PROP.baseWaterCooler[0], col: 4, row: 19, solid: { dy: 1, width: 1, height: 1 } },
+  { id: 'control.sidetable', frame: PROP.baseDesk.tidy, col: 13, row: 20, solid: { width: 2, height: 1 } },
 ];
 
 /** The broadcast console on its dais in the south-east of the room (the dais is walkable; the console is solid). */
@@ -200,23 +203,22 @@ export function anteroomScreen(): ScreenLayout {
   c.rect(2, 6, 2, 6, 'c');
   // The waiting area: carpet, a row of seats at each end and a low table between.
   c.rect(17, 8, 10, 5, 'a');
-  c.rect(18, 8, 3, 1, 's').rect(23, 8, 3, 1, 's').rect(18, 12, 3, 1, 's').rect(23, 12, 3, 1, 's');
+  // The chairs are props (`PROP.waitingChairs`, 3 wide, solid) on the carpet.
   c.rect(21, 10, 2, 1, 't');
 
   const exits: ExitDef[] = [{ id: 'c10.ante.control', area: ANTE_TO_CONTROL, toScreen: 'c10.control', spawn: CONTROL_FROM_ANTE }];
   const props: PropPlacement[] = [
-    // Stand-in: `PROP.trophyShelf` for the decanter cabinet (a glass-fronted cabinet of dusty decanters).
-    ...CABINET_TILES.map((t, i) => ({ id: `bar.cabinet${i + 1}`, frame: PROP.trophyShelf, col: t.col, row: t.row })),
+    ...CABINET_TILES.map((t, i) => ({ id: `bar.cabinet${i + 1}`, frame: PROP.drinksCabinet, col: t.col, row: t.row })),
     // The tea trolley: the hot-drink prop. Steam while the free drink can be taken (the script shows and hides it).
     { id: 'bar.trolley', frame: PROP.teaTrolley, col: TROLLEY_TILE.col, row: TROLLEY_TILE.row, solid: { dy: 1, width: 2, height: 1 } },
     { id: 'bar.steam', frame: PROP.steam[0], frames: PROP.steam, frameRate: 4, col: TROLLEY_TILE.col, row: TROLLEY_TILE.row - 1, hidden: true },
-    // Stand-in: `PROP.officeDesk` x2 for the receptionist's desk (empty: no chair, no one).
-    { id: 'ante.desk1', frame: PROP.officeDesk, col: RECEPTION_DESK.col, row: RECEPTION_DESK.row, solid: { width: 2, height: 1 } },
-    { id: 'ante.desk2', frame: PROP.officeDesk, col: RECEPTION_DESK.col + 2, row: RECEPTION_DESK.row, solid: { width: 2, height: 1 } },
-    { id: 'ante.ticket', frame: PROP.ticketMachine, col: TICKET_TILE.col, row: TICKET_TILE.row, solid: { dy: 1, width: 1, height: 1 } },
-    // Stand-in: `PROP.flowerPot` for a tidy office plant.
-    { id: 'ante.plant', frame: PROP.flowerPot, col: PLANT_TILE.col, row: PLANT_TILE.row, solid: { width: 1, height: 1 } },
-    { id: 'ante.cooler', frame: PROP.waterCooler, col: 20, row: 3, solid: { dy: 1, width: 1, height: 1 } },
+    // The receptionist's desk (empty): the art is 48 x 24, one row above its solid row.
+    { id: 'ante.desk', frame: PROP.receptionDesk, col: RECEPTION_DESK.col, row: RECEPTION_DESK.row - 1, solid: { dy: 1, width: RECEPTION_DESK.width, height: 1 } },
+    { id: 'ante.ticket', frame: PROP.baseTicketMachine, col: TICKET_TILE.col, row: TICKET_TILE.row, solid: { dy: 1, width: 1, height: 1 } },
+    // The plant is 16 x 24: one row above its solid tile.
+    { id: 'ante.plant', frame: PROP.pottedPlant, col: PLANT_TILE.col, row: PLANT_TILE.row - 1, solid: { dy: 1, width: 1, height: 1 } },
+    { id: 'ante.cooler', frame: PROP.baseWaterCooler[0], frames: PROP.baseWaterCooler, frameRate: 2, col: 20, row: 3, solid: { dy: 1, width: 1, height: 1 } },
+    ...[[18, 8], [23, 8], [18, 12], [23, 12]].map(([col, row], i): PropPlacement => ({ id: `ante.chairs${i + 1}`, frame: PROP.waitingChairs, col: col as number, row: row as number, solid: { width: 3, height: 1 } })),
   ];
   const dressing: ScreenDressing = { props };
   return c.build('c10.anteroom', exits, BAR_ARRIVAL, { mykoStart: MYKO_BAR, dressing });
@@ -237,11 +239,17 @@ export function controlScreen(): ScreenLayout {
 
   const exits: ExitDef[] = [{ id: 'c10.control.ante', area: CONTROL_TO_ANTE, toScreen: 'c10.anteroom', spawn: ANTE_FROM_CONTROL }];
   const props: PropPlacement[] = [
-    // Stand-in: `PROP.officeDesk` x3 for the Administrator's desk (a large tidy desk). Solid; the shield is the script's.
-    ...[0, 2, 4].map((dx) => ({ id: `control.desk${dx / 2 + 1}`, frame: PROP.officeDesk, col: ADMIN_DESK.col + dx, row: ADMIN_DESK.row, solid: { width: 2, height: 1 } })),
-    // Stand-in: `PROP.securityDesk` x3 for the broadcast console (five sockets and a large button).
-    ...[0, 2, 4].map((dx) => ({ id: `control.console${dx / 2 + 1}`, frame: PROP.securityDesk, col: CONSOLE.col + dx, row: CONSOLE.row, solid: { width: 2, height: 1 } })),
-    ...LOOSE_FURNITURE.map((f): PropPlacement => ({ id: f.id, frame: f.frame, col: f.col, row: f.row, solid: f.solid })),
+    // The Administrator's desk (48 x 32, drawn over him) one row above its solid row, and the shield dome over it. The
+    // shield wants to sit at the desk minus (8, 12) px; props sit on tiles, so it is 8 px left and 4 px above that.
+    { id: 'control.desk', frame: PROP.adminDesk, col: ADMIN_DESK.col, row: ADMIN_DESK.row - 1, solid: { dy: 1, width: ADMIN_DESK.width, height: 1 } },
+    { id: 'control.shield', frame: PROP.deskShield[0], frames: PROP.deskShield, frameRate: 3, col: ADMIN_DESK.col - 1, row: ADMIN_DESK.row - 2, layer: 'floor' },
+    // The wall of screens along the top, 64 x 32 each, clear of the north switch at column 30.
+    ...[2, 6, 10, 14, 18, 22, 26].map((col, i): PropPlacement => ({ id: `control.screens${i + 1}`, frame: PROP.screenWall[0], frames: PROP.screenWall, frameRate: 1, col, row: 1, layer: 'floor' })),
+    { id: 'control.screens8', frame: PROP.screenWall[0], frames: PROP.screenWall, frameRate: 1, col: 31, row: 1, layer: 'floor' },
+    { id: 'control.hook', frame: PROP.coatHook.empty, col: 36, row: 1, layer: 'floor' },
+    // The broadcast console (80 x 32, five sockets) one row above its solid row, and the big button on its post.
+    { id: 'control.console', frame: PROP.broadcastConsole, col: CONSOLE.col, row: CONSOLE.row - 1, solid: { dy: 1, width: CONSOLE.width, height: 1 } },
+    { id: 'control.button', frame: PROP.bigButton.covered, col: 36, row: 17, solid: { dy: 1, width: 1, height: 1 } },
     ...CONTROL_BOTTLE_TILES.map((t, i): PropPlacement => ({ id: `control.crate${i + 1}`, frame: PROP.bottleCrate, col: t.col, row: t.row, solid: { width: 1, height: 1 }, breakable: {} })),
   ];
   return c.build('c10.control', exits, CONTROL_FROM_ANTE, { mykoStart: MYKO_CONTROL, dressing: { props } });
@@ -249,13 +257,28 @@ export function controlScreen(): ScreenLayout {
 
 export function feeneysScreen(): ScreenLayout {
   const pub = c1PubScreen();
-  // Daylight: chapter 1's pub has no ambient tint. No fighting, so the breakables and the urn's steam go; the telly
-  // and the fruit machine get ids so the script can use them. Stand-in: `PROP.telly` is the only telly frame (it should
-  // show the weather map, lit).
+  // Daylight (`FEENEYS_DAYLIGHT`): no ambient tint (the pub has none), every window tile becomes `windowDay` with a sun shaft
+  // under it. No fighting, so the breakables and the urn's steam go; the telly cycles its four pictures and the fruit
+  // machine still has his euro.
+  const windowFrame = tileIndex('kilnamoe', 'window');
+  const dayFrame = tileIndex('kilnamoe', FEENEYS_DAYLIGHT.windowTile);
+  const width = pub.grid.widthTiles;
+  const tiles = (pub.tiles ?? []).map((t) => (t === windowFrame ? dayFrame : t));
+  const shafts: PropPlacement[] = [];
+  tiles.forEach((t, i) => {
+    if (t === dayFrame) shafts.push({ id: `pub.sun${shafts.length + 1}`, frame: PROP.sunShaft, col: i % width, row: Math.floor(i / width), layer: 'floor' });
+  });
+  const lit = FEENEYS_DAYLIGHT.tellyOrder.map((k) => PROP.tellyOn[k]);
   const props = (pub.dressing?.props ?? [])
     .filter((p) => !p.breakable && p.id !== 'urn.steam')
-    .map((p): PropPlacement => (p.frame === PROP.telly ? { ...p, id: 'pub.telly' } : p.frame === PROP.fruitMachine ? { ...p, id: 'pub.machine' } : p));
+    .map((p): PropPlacement =>
+      p.frame === PROP.telly
+        ? { ...p, id: 'pub.telly', frame: lit[0] ?? p.frame, frames: lit, frameRate: 1000 / FEENEYS_DAYLIGHT.tellyFrameMs }
+        : p.frame === PROP.fruitMachine
+          ? { ...p, id: 'pub.machine' }
+          : p,
+    );
   // Dympna is at the stool's end of the bar, so she is beside him when he sits. Nobody else is in: nothing to count.
   const npcs: NpcPlacement[] = [{ id: 'dympna', npc: 'dympna', col: DYMPNA_TILE.col, row: DYMPNA_TILE.row, facing: 'down' }];
-  return { ...pub, id: 'c10.pub', exits: [], playerStart: PUB_ENTRY, mykoStart: MYKO_PUB, dressing: { props, npcs } };
+  return { ...pub, id: 'c10.pub', tiles, exits: [], playerStart: PUB_ENTRY, mykoStart: MYKO_PUB, noMeter: true, dressing: { props: [...props, ...shafts], npcs } };
 }

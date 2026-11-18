@@ -21,6 +21,7 @@ import type {
   WeaponId,
   ObjectiveId,
   PuzzleSectionId,
+  ProofId,
   Kit,
   HotDrinkId,
   MoveId,
@@ -36,6 +37,8 @@ import { GameEvents } from '../../core/types';
 import { assignMove, assignWeapon, gainWeapon, holds, learnMove, selectItem, takeHotDrink, useSelected, useSpirit } from '../../systems/kit';
 import type { KitChange } from '../../systems/kit';
 import { levelFor, overhaulTuning, stateFor } from '../../systems/meter';
+import type { BroadcastView, PlugTry } from '../../systems/broadcast';
+import type { EpilogueCard } from '../../systems/epilogue';
 import type { HeatState } from '../../systems/heat';
 import type { RedactionTry, RedactionView } from '../../systems/redaction';
 import type { TellsTry, TellsView } from '../../systems/tells';
@@ -280,6 +283,49 @@ export class FakeSource implements UiStateSource {
     if (this.tellsPicked.length < 3) return null;
     return this.submitTells(puzzleId, [...this.tellsPicked]);
   }
+  /** The console view the harness shows; null keeps it shut. Sockets 4 and 5 look alike until examined (as in the chapter). */
+  broadcast: BroadcastView | null = null;
+  /** Which proof goes in which socket, for `plugProof`. */
+  broadcastSolution: Readonly<Record<string, ProofId>> = { s1: 'c9.proof.log', s2: 'c9.proof.contract', s3: 'c9.proof.craft', s4: 'c9.proof.directory', s5: 'c9.proof.footage' };
+  activeBroadcast = (): BroadcastView | null => this.broadcast;
+  plugProof(puzzleId: PuzzleSectionId, proofId: ProofId, socketId: string): PlugTry {
+    const view = this.broadcast;
+    const socket = view?.sockets.find((s) => s.id === socketId);
+    const plug = view?.plugs.find((p) => p.proofId === proofId);
+    this.log.push(`plug ${puzzleId} ${proofId} ${socketId}`);
+    if (!view || !socket || !plug) return { ok: false, refusal: 'unknown' };
+    if (socket.plugged !== null) return { ok: false, refusal: 'occupied' };
+    if (plug.placed) return { ok: false, refusal: 'alreadyPlugged' };
+    if (this.broadcastSolution[socketId] !== proofId) return { ok: false, refusal: 'wrongShape', textId: 'c10.broadcast.wrong' };
+    const sockets = view.sockets.map((s) => (s.id === socketId ? { ...s, plugged: proofId, shown: this.broadcastShapes[s.id] ?? s.shown } : s));
+    const plugs = view.plugs.map((p) => (p.proofId === proofId ? { ...p, placed: true } : p));
+    this.broadcast = { ...view, sockets, plugs, ready: sockets.every((s) => s.plugged !== null) };
+    return { ok: true };
+  }
+  /** The real shape of each socket, revealed on examine or plug. */
+  broadcastShapes: Readonly<Record<string, string>> = { s1: 'triangle', s2: 'square', s3: 'circle', s4: 'notched', s5: 'twinHole' };
+  examineSocket(puzzleId: PuzzleSectionId, socketId: string): boolean {
+    const view = this.broadcast;
+    const socket = view?.sockets.find((s) => s.id === socketId);
+    this.log.push(`examine ${puzzleId} ${socketId}`);
+    if (!view || !socket || socket.examined) return false;
+    this.broadcast = { ...view, sockets: view.sockets.map((s) => (s.id === socketId ? { ...s, examined: true, shown: this.broadcastShapes[s.id] ?? s.shown } : s)) };
+    return true;
+  }
+  pressBroadcast(puzzleId: PuzzleSectionId): boolean {
+    const view = this.broadcast;
+    this.log.push(`press ${puzzleId}`);
+    if (!view || !view.ready || view.pressed) return false;
+    this.broadcast = { ...view, pressed: true };
+    return true;
+  }
+  /** The card the harness shows; null keeps the card scene shut. */
+  card: { index: number; total: number; card: EpilogueCard } | null = null;
+  activeCard = (): { readonly index: number; readonly total: number; readonly card: EpilogueCard } | null => this.card;
+  advanceCard(): void {
+    this.log.push('advanceCard');
+    this.card = null;
+  }
   /** Chapter 8: what the HUD's sun mark reads, and the flashbang's white. */
   heatState: HeatState = { active: false, sunnyScreen: false, inSun: false };
   whiteout = 0;
@@ -314,4 +360,23 @@ export class FakeSource implements UiStateSource {
   quitToTitle(): void {
     this.log.push('quitToTitle');
   }
+}
+
+/** A fresh console as chapter 10 lays it out: five sockets (the square and the notched look alike) and five proofs held. */
+export function sampleBroadcastView(): BroadcastView {
+  const sockets = [
+    { id: 's1', examinableId: 'c10.channel.1', shown: 'triangle', examined: false, ambiguous: false, plugged: null },
+    { id: 's2', examinableId: 'c10.channel.2', shown: 'square', examined: false, ambiguous: true, plugged: null },
+    { id: 's3', examinableId: 'c10.channel.3', shown: 'circle', examined: false, ambiguous: false, plugged: null },
+    { id: 's4', examinableId: 'c10.channel.4', shown: 'square', examined: false, ambiguous: true, plugged: null },
+    { id: 's5', examinableId: 'c10.channel.5', shown: 'twinHole', examined: false, ambiguous: false, plugged: null },
+  ] as const;
+  const plugs = [
+    { proofId: 'c9.proof.craft', shape: 'circle' },
+    { proofId: 'c9.proof.contract', shape: 'square' },
+    { proofId: 'c9.proof.directory', shape: 'notched' },
+    { proofId: 'c9.proof.log', shape: 'triangle' },
+    { proofId: 'c9.proof.footage', shape: 'twinHole' },
+  ] as const;
+  return { sockets: [...sockets], plugs: plugs.map((p) => ({ ...p, owned: true, placed: false })), ready: false, pressed: false };
 }

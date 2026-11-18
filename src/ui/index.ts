@@ -5,6 +5,8 @@
 
 import type Phaser from 'phaser';
 import type { TextId } from '../core/types';
+import { BroadcastScene } from './scenes/BroadcastScene';
+import { CardScene } from './scenes/CardScene';
 import { DeductionScene } from './scenes/DeductionScene';
 import { HotDrinkScene } from './scenes/HotDrinkScene';
 import { HudScene } from './scenes/HudScene';
@@ -23,7 +25,7 @@ import type { UiStateSource } from './contract';
 export { UiSceneKeys };
 export type { UiHooks, UiStateSource };
 export { toggleFullscreen } from './fullscreen';
-export { showPrompt, showSlotPrompt, hidePrompt, openHotDrinkChoice, onTabOpened } from './prompts';
+export { showPrompt, showSlotPrompt, hidePrompt, openHotDrinkChoice, openBroadcastConsole, onTabOpened } from './prompts';
 
 export function createUiScenes(source: UiStateSource, hooks: UiHooks = {}): Phaser.Scene[] {
   const shared = createShared(source, hooks);
@@ -37,6 +39,8 @@ export function createUiScenes(source: UiStateSource, hooks: UiHooks = {}): Phas
     new TellsScene(shared),
     new SettingsScene(shared),
     new HotDrinkScene(shared),
+    new BroadcastScene(shared),
+    new CardScene(shared),
   ];
 }
 

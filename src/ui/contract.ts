@@ -24,6 +24,7 @@ import type {
   MoveId,
   ObjectiveId,
   PuzzleSectionId,
+  ProofId,
   OverhaulSaveState,
   MoveSlotView,
   ThrowAim,
@@ -31,6 +32,8 @@ import type {
   Vec2,
   WeaponId,
 } from '../core/types';
+import type { BroadcastView, PlugTry } from '../systems/broadcast';
+import type { EpilogueCard } from '../systems/epilogue';
 import type { HeatState } from '../systems/heat';
 import type { RedactionTry, RedactionView } from '../systems/redaction';
 import type { TellsTry, TellsView } from '../systems/tells';
@@ -109,6 +112,18 @@ export interface UiStateSource {
   heat(): HeatState;
   /** Chapter 8: Pruitt's flashbang, 0..1 white over the whole screen. */
   whiteoutAlpha(): number;
+  /** Chapter 10 console: what to draw (sockets as shown, plugs, ready, pressed), or null when this screen has no console. */
+  activeBroadcast(): BroadcastView | null;
+  /** Chapter 10 console: plug a proof into a channel. A wrong shape costs nothing and returns the line to show. */
+  plugProof(id: PuzzleSectionId, proofId: ProofId, socketId: string): PlugTry;
+  /** Chapter 10 console: look closely at a socket (its notch shows). False if unknown or already examined. */
+  examineSocket(id: PuzzleSectionId, socketId: string): boolean;
+  /** Chapter 10 console: press the big button. Works once, only after all five are in. */
+  pressBroadcast(id: PuzzleSectionId): boolean;
+  /** Chapter 10 cards (the reaction, the title, the credits): the card on view, or null. */
+  activeCard(): { readonly index: number; readonly total: number; readonly card: EpilogueCard } | null;
+  /** Chapter 10 cards: a key press skips the card on view (a scene card ends by itself). */
+  advanceCard(): void;
   /** The UI calls this when it has finished showing a sequence. */
   dialogueFinished(sequenceId: DialogueId): void;
   /** Stored save, for Continue and Chapter Select; null if none. */
