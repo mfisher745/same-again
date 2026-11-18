@@ -3,18 +3,8 @@
  * its bar, Little Green Gifts, and the stockroom with its yard, all in the `roswell` region, plus every constant
  * the script needs (the six figures, Gary, the stockroom stealth, the yard fight, the van, the mascot arena).
  *
- * STAND-IN ART (no chapter 7 art exists yet; each is marked `STAND-IN` below and listed in the hand-off):
- * - the six costumed figures use `touristA`, `touristB`, `americanA` (tourists) and `alienClerk` (aliens) NPC looks;
- *   they should be six different people in alien costumes;
- * - the abduction photo booth is `PROP.vendingMachine`;
- * - the street lamps with eyes are `PROP.floodlightMast`;
- * - the rack of inflatable aliens is `PROP.weapon.inflatableAlien` four times (it wants a rail and a price tag);
- * - the bartender is the `attendant` NPC look (it wants antennae and a sunburn);
- * - the green tea is `PROP.kettle` beside `PROP.coffeePot`;
- * - the saucer diner is wall tiles, neon and `PROP.dinerSign` (it wants a saucer-shaped sprite);
- * - the tourist leaflet is `PROP.brochure`; the staff fridge is `PROP.clubFridge`; the stout can is `PROP.stoutPint`;
- * - the bus stop is `PROP.busTicketMachine` and seat tiles (it wants a sign and a shelter);
- * - the till is the counter tile (no till sprite for this region).
+ * Art: the chapter 7 props are in `PROP` (propsC78.ts) and the six costumed figures and the bartender are NPC looks of
+ * their own. The one stand-in left is the clean-run stout, drawn as the can (`PROP.stoutCan`) with no pickup frame of its own.
  */
 
 import type { NpcId } from '../../art/cast';
@@ -93,6 +83,16 @@ export const RACK_TILES: readonly TileCoord[] = [
   { col: 57, row: 16 },
 ];
 export const RACK_SPOT = T(55, 15);
+/** The rack sprite's top-left tile: 4 wide, 2 tall, solid along its bottom row. */
+export const RACK_TILE = { col: 54, row: 15 } as const;
+/** The four street lamps with eyes (top-left tiles). */
+export const LAMP_TILES: readonly TileCoord[] = [
+  { col: 14, row: 5 },
+  { col: 19, row: 15 },
+  { col: 52, row: 5 },
+  { col: 57, row: 14 },
+];
+export const LAMP_IDS: readonly string[] = LAMP_TILES.map((_, i) => `strip.lamp${i + 1}`);
 /** The closing scene: outside the shop at night. Andrew and Gary stand here (Gary is moved by the script). */
 export const CLOSING_SPOT = T(53, 5);
 export const CLOSING_GARY_SPOT = T(54, 5);
@@ -106,8 +106,8 @@ export function stripScreen(): ScreenLayout {
   c.rect(1, 1, 1, 17, 'W').rect(58, 1, 1, 17, 'W');
   // The bar: open-fronted. A floor two rows deep behind a counter, a back wall of bottle shelves, a neon sign over it.
   c.rect(2, 2, 12, 2, '.').rect(2, 2, 12, 1, 'S').rect(2, 4, 12, 1, 'c').rect(3, 1, 10, 1, 'N');
-  // The diner's saucer: windows along the frontage with the dome in neon.
-  c.rect(16, 1, 16, 3, 'W').rect(19, 1, 10, 1, 'N').rect(17, 2, 3, 1, 'w').rect(27, 2, 3, 1, 'w').rect(19, 3, 2, 1, 'w').rect(27, 3, 2, 1, 'w');
+  // The diner's saucer: its sprite covers the frontage (cols 16 to 31, rows 1 to 3), so the tiles under it are plain wall.
+  c.rect(16, 1, 16, 3, 'W');
   // The shop: neon over its door, windows either side.
   c.rect(48, 2, 10, 1, 'N').rect(49, 3, 2, 1, 'w').rect(56, 3, 2, 1, 'w').rect(53, 3, 2, 1, 'd');
   // The back gate in the south wall.
@@ -116,7 +116,6 @@ export function stripScreen(): ScreenLayout {
   c.rect(ZIP_TUMBLE_LINE.toCol, ZIP_TUMBLE_LINE.row, ZIP_TUMBLE_LINE.fromCol - ZIP_TUMBLE_LINE.toCol + 1, 1, 'm');
   // The bar's forecourt tables, each with seats either side; the bus stop's bench.
   c.set(5, 7, 't').set(4, 7, 's').set(6, 7, 's').set(11, 7, 't').set(10, 7, 's').set(12, 7, 's');
-  c.rect(2, 16, 3, 1, 's');
   // Cactus in the verge, and a bit of rough.
   c.set(14, 17, 'x').set(57, 17, 'x').rect(15, 15, 3, 2, 'r').rect(42, 16, 3, 1, 'r');
 
@@ -128,28 +127,30 @@ export function stripScreen(): ScreenLayout {
     // Behind the counter: the coffee, its steam while it is on offer, and the green tea.
     { id: 'bar.coffee', frame: PROP.coffeePot, col: BAR_COFFEE_TILE.col, row: BAR_COFFEE_TILE.row },
     { id: 'bar.steam', frame: PROP.steam[0], frames: PROP.steam, frameRate: 4, col: BAR_COFFEE_TILE.col, row: BAR_COFFEE_TILE.row - 1, hidden: true },
-    { id: 'bar.tea', frame: PROP.kettle, col: BAR_TEA_TILE.col, row: BAR_TEA_TILE.row },
-    // The bus stop: the ticket machine at the west end of the forecourt.
-    { id: 'strip.busStop', frame: PROP.busTicketMachine, col: 2, row: 14, solid: { dy: 1, width: 1, height: 1 } },
+    { id: 'bar.tea', frame: PROP.greenTea, col: BAR_TEA_TILE.col, row: BAR_TEA_TILE.row },
+    // The diner: a saucer over its frontage.
+    { id: 'strip.diner', frame: PROP.saucerDiner, col: 16, row: 1 },
+    // The bus stop at the west end of the forecourt: the shelter (it draws its own bench) and the pole.
+    { id: 'strip.busStop', frame: PROP.busStop.shelter, col: 2, row: 15, solid: { dy: 1, width: 3, height: 1 } },
+    { id: 'strip.busSign', frame: PROP.busStop.sign, col: 5, row: 15, solid: { dy: 1, width: 1, height: 1 } },
     // The leaflet on the table.
     { id: 'strip.leaflet', frame: PROP.brochure, col: 11, row: 7 },
-    // The diner's sign over the saucer.
-    { id: 'strip.dinerSign', frame: PROP.dinerSign, col: 22, row: 3 },
-    // Street lamps with eyes, two each side of the arena.
-    { id: 'strip.lamp1', frame: PROP.floodlightMast, col: 14, row: 5, solid: { dy: 1, width: 1, height: 1 } },
-    { id: 'strip.lamp2', frame: PROP.floodlightMast, col: 19, row: 15, solid: { dy: 1, width: 1, height: 1 } },
-    { id: 'strip.lamp3', frame: PROP.floodlightMast, col: 52, row: 5, solid: { dy: 1, width: 1, height: 1 } },
-    { id: 'strip.lamp4', frame: PROP.floodlightMast, col: 57, row: 14, solid: { dy: 1, width: 1, height: 1 } },
-    // The rack of inflatable aliens by the shop.
-    ...RACK_TILES.map((t, i) => ({ id: `strip.rack${i + 1}`, frame: PROP.weapon.inflatableAlien, col: t.col, row: t.row, solid: { width: 1, height: 1 } })),
+    // Street lamps with eyes, two each side of the arena. Their eyes light at sunset (`LAMP_IDS`).
+    ...LAMP_TILES.map((t, i) => ({ id: LAMP_IDS[i]!, frame: PROP.eyeLamp.day, col: t.col, row: t.row, solid: { dy: 1, width: 1, height: 1 } })),
+    // The rack of inflatable aliens by the shop (the prize is taken from it).
+    { id: 'strip.rack', frame: PROP.inflatableRack.full, col: RACK_TILE.col, row: RACK_TILE.row, solid: { dy: 1, width: 4, height: 1 } },
     // Bottle crates at the arena's corners.
     ...MASCOT_BOTTLE_TILES.map((t, i) => ({ id: `strip.arenaCrate${i + 1}`, frame: PROP.bottleCrate, col: t.col, row: t.row, solid: { width: 1, height: 1 }, breakable: {} })),
   ];
   const npcs: NpcPlacement[] = [
-    // STAND-IN: the attendant look for the antennae'd, sunburnt bartender.
-    { id: 'bartender', npc: 'attendant', col: BARTENDER_TILE.col, row: BARTENDER_TILE.row, facing: 'down', examinableId: 'c7.bar.tequila' },
+    { id: 'bartender', npc: 'roswellBartender', col: BARTENDER_TILE.col, row: BARTENDER_TILE.row, facing: 'down', examinableId: 'c7.bar.tequila' },
     { id: 'tourist1', npc: 'touristA', col: TOURIST1_TILE.col, row: TOURIST1_TILE.row, facing: 'down', examinableId: 'c7.strip.tourist1' },
     { id: 'tourist2', npc: 'americanA', col: TOURIST2_TILE.col, row: TOURIST2_TILE.row, facing: 'left', examinableId: 'c7.strip.tourist2' },
+    // The crowd that films the mascots and applauds, and the one who tips; just outside the arena.
+    ...STRIP_CROWD_SPOTS.map((p, i) => ({ id: `crowd${i + 1}`, npc: (i % 2 === 0 ? 'touristB' : 'americanB') as NpcId, col: Math.floor(p.x / 16), row: Math.floor(p.y / 16), facing: (p.x < 400 ? 'right' : 'left') as 'right' | 'left' })),
+    { id: 'tipper', npc: 'touristA', col: TIPPING_TOURIST.col, row: TIPPING_TOURIST.row, facing: 'left' },
+    // Gary, outside the shop for the closing scene.
+    { id: 'closing.gary', npc: 'gary', col: Math.floor(CLOSING_GARY_SPOT.x / 16), row: Math.floor(CLOSING_GARY_SPOT.y / 16), facing: 'left', hidden: true },
   ];
   const dressing: ScreenDressing = { props, npcs };
   return c.build('c7.strip', exits, BAR_ARRIVAL, { mykoStart: MYKO_BAR, dressing });
@@ -173,6 +174,15 @@ export const GARY_TILE = { col: 31, row: 3 } as const;
 export const GARY_SPOT = T(31, 5);
 /** The till counter (the tourists leave through the front door when Gary says they are closing). */
 export const TILL_COUNTER = { col: 27, row: 4, width: 10, height: 1 } as const;
+/** The till sprite, on a counter tile beside Gary. */
+export const TILL_PROP_TILE = { col: 30, row: 4 } as const;
+/** The four runs of snow-globe shelves: the sprite row is one above `row`; each sprite is two tiles wide. */
+export const SHELF_RUNS: readonly { readonly col: number; readonly row: number; readonly width: number }[] = [
+  { col: 4, row: 7, width: 8 },
+  { col: 4, row: 12, width: 8 },
+  { col: 4, row: 17, width: 8 },
+  { col: 24, row: 12, width: 8 },
+];
 /** Where the tourists go when Gary says "Folks, we're closing": out of the front door. */
 export const SHOP_CLOSING_EXIT = T(19, 22);
 
@@ -197,12 +207,11 @@ export interface FigureDef {
 }
 
 export const FIGURES: readonly FigureDef[] = [
-  // STAND-IN looks: touristA / touristB / americanA / alienClerk for the six, no costumes yet.
-  { key: 'a', npcId: 'figure.a', npc: 'touristA', nameTextId: 'name.costumeA', col: 17, row: 19, facing: 'down', alien: false, tellsDialogueId: 'c7.tells.a', spot: T(17, 20) },
-  { key: 'b', npcId: 'figure.b', npc: 'alienClerk', nameTextId: 'name.costumeB', col: 8, row: 8, facing: 'up', alien: true, tellsDialogueId: 'c7.tells.b', spot: T(8, 9) },
-  { key: 'c', npcId: 'figure.c', npc: 'touristB', nameTextId: 'name.costumeC', col: 33, row: 13, facing: 'right', alien: false, tellsDialogueId: 'c7.tells.c', spot: T(33, 14) },
-  { key: 'd', npcId: 'figure.d', npc: 'alienClerk', nameTextId: 'name.costumeD', col: 31, row: 7, facing: 'up', alien: true, tellsDialogueId: 'c7.tells.d', spot: T(31, 8) },
-  { key: 'e', npcId: 'figure.e', npc: 'americanA', nameTextId: 'name.costumeE', col: 22, row: 10, facing: 'up', alien: false, tellsDialogueId: 'c7.tells.e', spot: T(22, 11) },
+  { key: 'a', npcId: 'figure.a', npc: 'costumeA', nameTextId: 'name.costumeA', col: 17, row: 19, facing: 'down', alien: false, tellsDialogueId: 'c7.tells.a', spot: T(17, 20) },
+  { key: 'b', npcId: 'figure.b', npc: 'costumeB', nameTextId: 'name.costumeB', col: 8, row: 8, facing: 'up', alien: true, tellsDialogueId: 'c7.tells.b', spot: T(8, 9) },
+  { key: 'c', npcId: 'figure.c', npc: 'costumeC', nameTextId: 'name.costumeC', col: 33, row: 13, facing: 'right', alien: false, tellsDialogueId: 'c7.tells.c', spot: T(33, 14) },
+  { key: 'd', npcId: 'figure.d', npc: 'costumeD', nameTextId: 'name.costumeD', col: 31, row: 7, facing: 'up', alien: true, tellsDialogueId: 'c7.tells.d', spot: T(31, 8) },
+  { key: 'e', npcId: 'figure.e', npc: 'costumeE', nameTextId: 'name.costumeE', col: 22, row: 10, facing: 'up', alien: false, tellsDialogueId: 'c7.tells.e', spot: T(22, 11) },
   { key: 'gary', npcId: 'gary', npc: 'gary', col: GARY_TILE.col, row: GARY_TILE.row, facing: 'down', alien: true, tellsDialogueId: 'c7.tells.right', spot: GARY_SPOT },
 ];
 /** Which three are the aliens, fixed. */
@@ -217,8 +226,7 @@ export function shopScreen(): ScreenLayout {
   c.rect(10, 1, 10, 1, 'N').rect(8, 23, 2, 1, 'w').rect(30, 23, 2, 1, 'w');
   // Doors: the front onto the strip, the back to the stockroom.
   c.rect(19, 23, 2, 1, 'd').rect(3, 1, 2, 1, 'd');
-  // Shelves of snow globes.
-  c.rect(4, 7, 8, 1, 'S').rect(4, 12, 8, 1, 'S').rect(4, 17, 8, 1, 'S').rect(24, 12, 8, 1, 'S');
+  // Shelves of snow globes: the sprites stand on the floor (`SHELF_RUNS`), so the tiles under them are floor.
   // The till counter, with Gary behind it.
   c.rect(TILL_COUNTER.col, TILL_COUNTER.row, TILL_COUNTER.width, TILL_COUNTER.height, 'c');
   // The fridge-magnet table.
@@ -229,8 +237,12 @@ export function shopScreen(): ScreenLayout {
     { id: 'c7.shop.stock', area: SHOP_TO_STOCK, toScreen: 'c7.stock', spawn: STOCK_FROM_SHOP },
   ];
   const props: PropPlacement[] = [
-    // STAND-IN: the abduction photo booth is a vending machine.
-    { id: 'shop.booth', frame: PROP.vendingMachine, col: 34, row: 12, solid: { dy: 1, width: 1, height: 1 } },
+    // The abduction photo booth.
+    { id: 'shop.booth', frame: PROP.photoBooth, col: 34, row: 12, solid: { dy: 1, width: 2, height: 1 } },
+    // Gary's till, on the counter beside him.
+    { id: 'shop.till', frame: PROP.till, col: TILL_PROP_TILE.col, row: TILL_PROP_TILE.row },
+    // Shelves of snow globes: two sprites to a run of four tiles, each solid along its bottom row.
+    ...SHELF_RUNS.flatMap((run, r) => [0, 2, 4, 6].filter((dx) => dx < run.width).map((dx) => ({ id: `shop.shelf${r + 1}.${dx / 2 + 1}`, frame: PROP.snowGlobeShelf, col: run.col + dx, row: run.row - 1, solid: { dy: 1, width: 2, height: 1 } }))),
     { id: 'shop.bins', frame: PROP.bins, col: 36, row: 20, solid: { width: 1, height: 1 } },
     { id: 'shop.crate', frame: PROP.cardboardBox, col: 3, row: 21, solid: { width: 1, height: 1 } },
     { id: 'shop.crate2', frame: PROP.cardboardBox, col: 4, row: 21, solid: { width: 1, height: 1 } },
@@ -351,8 +363,8 @@ export function stockScreen(): ScreenLayout {
   const props: PropPlacement[] = [
     // The staff noticeboard on the back wall, and the staff fridge by the roller door.
     { id: 'stock.board', frame: PROP.noticeboard, col: NOTICEBOARD_TILE.col, row: NOTICEBOARD_TILE.row, solid: { dy: 1, width: 1, height: 1 } },
-    { id: 'stock.fridge', frame: PROP.clubFridge, col: FRIDGE_TILE.col, row: FRIDGE_TILE.row, solid: { dy: 1, width: 1, height: 1 } },
-    { id: 'stock.stout', frame: PROP.stoutPint, col: STOUT_TILE.col, row: STOUT_TILE.row, hidden: true },
+    { id: 'stock.fridge', frame: PROP.staffFridge.shut, col: FRIDGE_TILE.col, row: FRIDGE_TILE.row, solid: { dy: 1, width: 1, height: 1 } },
+    { id: 'stock.stout', frame: PROP.stoutCan, col: STOUT_TILE.col, row: STOUT_TILE.row, hidden: true },
     // Staff vending machine and water cooler, against the west wall.
     { id: 'stock.vending', frame: PROP.vendingMachine, col: 2, row: 9, solid: { dy: 1, width: 1, height: 1 } },
     { id: 'stock.cooler', frame: PROP.waterCooler, col: 2, row: 4, solid: { dy: 1, width: 1, height: 1 } },
@@ -361,7 +373,7 @@ export function stockScreen(): ScreenLayout {
     { frame: PROP.crate, col: 3, row: 13, solid: { width: 1, height: 1 } },
     { frame: PROP.cardboardBox, col: 13, row: 17, solid: { width: 1, height: 1 } },
     // The yard: the van, bottle crates and bins.
-    { id: 'yard.van', frame: PROP.van.right, col: VAN_TILE.col, row: VAN_TILE.row, solid: { width: 3, height: 2 } },
+    { id: 'yard.van', frame: PROP.deliveryVan.right, col: VAN_TILE.col, row: VAN_TILE.row, solid: { width: 3, height: 2 } },
     ...YARD_BOTTLE_TILES.map((t, i) => ({ id: `yard.crate${i + 1}`, frame: PROP.bottleCrate, col: t.col, row: t.row, solid: { width: 1, height: 1 }, breakable: {} })),
     { frame: PROP.bins, col: 27, row: 12, solid: { width: 1, height: 1 } },
   ];

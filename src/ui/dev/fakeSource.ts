@@ -36,7 +36,9 @@ import { GameEvents } from '../../core/types';
 import { assignMove, assignWeapon, gainWeapon, holds, learnMove, selectItem, takeHotDrink, useSelected, useSpirit } from '../../systems/kit';
 import type { KitChange } from '../../systems/kit';
 import { levelFor, overhaulTuning, stateFor } from '../../systems/meter';
+import type { HeatState } from '../../systems/heat';
 import type { RedactionTry, RedactionView } from '../../systems/redaction';
+import type { TellsTry, TellsView } from '../../systems/tells';
 import type { UiStateSource } from '../contract';
 
 export class FakeBus implements GameEventBus {
@@ -246,6 +248,43 @@ export class FakeSource implements UiStateSource {
     if (correct) this.redaction = null;
     return { correct, textId: correct ? 'c5.redacted.right' : 'c5.redacted.wrong', refused: !held };
   }
+  /** The accuse screen's view the harness shows; null keeps it shut. */
+  tells: TellsView | null = null;
+  /** The three that are aliens. */
+  tellsCorrect: readonly string[] = ['b', 'd', 'gary'];
+  private tellsPicked: string[] = [];
+  activeTells = (): TellsView | null => this.tells;
+  tellsSelection = (): readonly string[] => this.tellsPicked;
+  closeTells = (): void => {
+    this.tells = null;
+    this.tellsPicked = [];
+  };
+  submitTells(puzzleId: PuzzleSectionId, figureIds: readonly string[]): TellsTry {
+    const view = this.tells;
+    const held = view !== null && new Set(figureIds).size === 3 && figureIds.length === 3 && figureIds.every((id) => view.figures.some((f) => f.id === id && f.examined));
+    const correct = held && this.tellsCorrect.every((id) => figureIds.includes(id));
+    this.log.push(`accuse ${puzzleId} ${figureIds.join(',')} -> ${String(correct)}`);
+    this.tellsPicked = [];
+    if (correct) this.tells = null;
+    return { correct, textId: correct ? 'c7.tells.right' : 'c7.tells.wrong', refused: !held };
+  }
+  selectTells(puzzleId: PuzzleSectionId, figureId: string): TellsTry | null {
+    const view = this.tells;
+    if (view === null || !view.figures.some((f) => f.id === figureId && f.examined)) return null;
+    const at = this.tellsPicked.indexOf(figureId);
+    if (at >= 0) {
+      this.tellsPicked.splice(at, 1);
+      return null;
+    }
+    this.tellsPicked.push(figureId);
+    if (this.tellsPicked.length < 3) return null;
+    return this.submitTells(puzzleId, [...this.tellsPicked]);
+  }
+  /** Chapter 8: what the HUD's sun mark reads, and the flashbang's white. */
+  heatState: HeatState = { active: false, sunnyScreen: false, inSun: false };
+  whiteout = 0;
+  heat = (): HeatState => this.heatState;
+  whiteoutAlpha = (): number => this.whiteout;
   dialogueFinished(id: DialogueId): void {
     this.log.push(`finished ${id}`);
     this.bus.emit('dialogue:finished', { sequenceId: id });

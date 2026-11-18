@@ -310,14 +310,14 @@ export class HudScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     if (kb !== null) {
       const onEsc = (e: KeyboardEvent): void => {
-        if (e.repeat || this.returnLive() || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Settings) || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.Redaction) || this.scene.isActive(UiSceneKeys.HotDrink)) return;
+        if (e.repeat || this.returnLive() || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Settings) || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.Redaction) || this.scene.isActive(UiSceneKeys.Tells) || this.scene.isActive(UiSceneKeys.HotDrink)) return;
         if (this.shared.overlays.isOpen('tab')) this.closeTab();
         else if (this.shared.overlays.isOpen('pause')) this.closePause();
         else this.openPause();
       };
       const onTab = (e: KeyboardEvent): void => {
         e.preventDefault();
-        if (e.repeat || this.returnLive() || this.shared.overlays.isOpen('pause') || this.shared.overlays.isOpen('hotdrink') || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.Redaction)) return;
+        if (e.repeat || this.returnLive() || this.shared.overlays.isOpen('pause') || this.shared.overlays.isOpen('hotdrink') || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.Redaction) || this.scene.isActive(UiSceneKeys.Tells)) return;
         if (this.shared.overlays.isOpen('tab')) {
           if (this.shared.source.tabMode() === 'toggle') this.closeTab();
         } else if (!this.queue.blocking) this.openTab();
@@ -335,7 +335,7 @@ export class HudScene extends Phaser.Scene {
       kb.on('keydown-E', onE);
       // B: back to a deduction board he stepped away from.
       const onB = (e: KeyboardEvent): void => {
-        if (e.repeat || this.returnLive() || this.queue.blocking || this.shared.overlays.any || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.Redaction)) return;
+        if (e.repeat || this.returnLive() || this.queue.blocking || this.shared.overlays.any || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.Redaction) || this.scene.isActive(UiSceneKeys.Tells)) return;
         this.shared.source.reopenDeduction();
       };
       kb.on('keydown-B', onB);
@@ -395,11 +395,12 @@ export class HudScene extends Phaser.Scene {
   private teardown(): void {
     for (const u of this.unsubs) u();
     this.unsubs = [];
-    for (const key of [UiSceneKeys.Pause, UiSceneKeys.Settings, UiSceneKeys.Tab, UiSceneKeys.Deduction, UiSceneKeys.Redaction, UiSceneKeys.HotDrink]) this.scene.stop(key);
+    for (const key of [UiSceneKeys.Pause, UiSceneKeys.Settings, UiSceneKeys.Tab, UiSceneKeys.Deduction, UiSceneKeys.Redaction, UiSceneKeys.Tells, UiSceneKeys.HotDrink]) this.scene.stop(key);
     this.shared.overlays.hide('pause');
     this.shared.overlays.hide('tab');
     this.shared.overlays.hide('hotdrink');
     this.shared.overlays.hide('redaction');
+    this.shared.overlays.hide('tells');
     this.shared.overlays.hide('return');
     this.returns.cancel();
     this.returnPhase = 'none';
@@ -461,9 +462,13 @@ export class HudScene extends Phaser.Scene {
       this.scene.launch(UiSceneKeys.Deduction);
       this.scene.bringToTop(UiSceneKeys.Deduction);
     }
-    if (source.activeRedaction() !== null && !this.scene.isActive(UiSceneKeys.Redaction)) {
+    if (source.activeRedaction() !== null && !this.scene.isActive(UiSceneKeys.Redaction) || this.scene.isActive(UiSceneKeys.Tells)) {
       this.scene.launch(UiSceneKeys.Redaction);
       this.scene.bringToTop(UiSceneKeys.Redaction);
+    }
+    if (source.activeTells() !== null && !this.scene.isActive(UiSceneKeys.Tells)) {
+      this.scene.launch(UiSceneKeys.Tells);
+      this.scene.bringToTop(UiSceneKeys.Tells);
     }
   }
 

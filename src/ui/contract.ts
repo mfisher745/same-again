@@ -31,7 +31,9 @@ import type {
   Vec2,
   WeaponId,
 } from '../core/types';
+import type { HeatState } from '../systems/heat';
 import type { RedactionTry, RedactionView } from '../systems/redaction';
+import type { TellsTry, TellsView } from '../systems/tells';
 
 export interface UiStateSource {
   readonly bus: GameEventBus;
@@ -93,6 +95,20 @@ export interface UiStateSource {
   submitRedaction(puzzleId: PuzzleSectionId, sheetIds: readonly string[]): RedactionTry;
   /** Chapter 5 lightbox: step back without answering. */
   closeRedaction(): void;
+  /** Chapter 7 accuse screen: waiting for three names, or null while it should be shut. */
+  activeTells(): TellsView | null;
+  /** Chapter 7 accuse screen: the figures ticked so far (at most two; the third accuses). */
+  tellsSelection(): readonly string[];
+  /** Chapter 7 accuse screen: tick or untick a figure; the third tick accuses and returns the try, else null. */
+  selectTells(puzzleId: PuzzleSectionId, figureId: string): TellsTry | null;
+  /** Chapter 7 accuse screen: accuse three at once. `refused` is not three distinct examined figures. */
+  submitTells(puzzleId: PuzzleSectionId, figureIds: readonly string[]): TellsTry;
+  /** Chapter 7 accuse screen: step back without accusing. */
+  closeTells(): void;
+  /** Chapter 8: heat (`active`, `sunnyScreen`, `inSun`) for the HUD's sun mark. */
+  heat(): HeatState;
+  /** Chapter 8: Pruitt's flashbang, 0..1 white over the whole screen. */
+  whiteoutAlpha(): number;
   /** The UI calls this when it has finished showing a sequence. */
   dialogueFinished(sequenceId: DialogueId): void;
   /** Stored save, for Continue and Chapter Select; null if none. */
