@@ -89,6 +89,7 @@ import type {
   Vec2,
   BarReturnReason,
   WeaponId,
+  ProofId,
 } from '../core/types';
 import { SAVE_VERSION_OVERHAUL } from '../core/types';
 import { BarFlow } from './barFlow';
@@ -104,8 +105,8 @@ import { LoneEnemies } from './loneEnemy';
 import type { LoneEnemyHandle, LoneEnemyOptions } from './loneEnemy';
 import type { ActorStats, CombatWorld } from './enemies';
 import { FightRunner } from './fight';
-import { add, angleFromFacing, distance, fromAngle, normalize, rectContains, scale } from './geometry';
-import { TILE, bandClear, isBlocked, isShade, moveBox, tileOf } from './grid';
+import { add, angleDiff, angleFromFacing, angleTo, distance, fromAngle, normalize, rectContains, scale } from './geometry';
+import { TILE, bandClear, isBlocked, isShade, moveBox, tileCentre, tileOf } from './grid';
 import { Casebook, DeductionBoard, PuzzleBase } from './investigation';
 import { assignMove, assignWeapon, clampBottles, cycleDrink, gainWeapon, learnMove, selectItem, spiritLimit, topUpForLeaving, useSelected, useSpirit } from './kit';
 import { GlintTracker } from './glint';
@@ -134,6 +135,12 @@ import { RedactionPuzzle } from './redaction';
 import { JunctionPuzzle } from './junctions';
 import { MascotDirector } from './mascots';
 import { Pruitt2Director } from './pruitt2';
+import { GravityPuzzle } from './gravity';
+import { LockdownDirector } from './lockdown';
+import { AdministratorDirector } from './administrator';
+import { BroadcastPuzzle } from './broadcast';
+import { CardSequence } from './epilogue';
+import type { EpilogueCard } from './epilogue';
 import { ShadeField } from './heat';
 import type { HeatState, ShadeRect } from './heat';
 import { TellsPuzzle } from './tells';
@@ -234,6 +241,8 @@ interface Directors {
   combine?: CombineDirector;
   mascots?: MascotDirector;
   pruitt2?: Pruitt2Director;
+  lockdown?: LockdownDirector;
+  administrator?: AdministratorDirector;
 }
 
 /** The flags the systems keep (saved with the chapter's flags, put back on a return to the bar). */
@@ -241,6 +250,9 @@ const FLAG_HEAT_OFF = 'sys.heatOff';
 const FLAG_NIGHT = 'sys.night';
 const flagTells = (id: string): string => `tells.${id}`;
 const flagJunctions = (id: string): string => `junctions.${id}`;
+const flagGravity = (id: string): string => `gravity.${id}`;
+const flagBroadcast = (id: string): string => `broadcast.${id}`;
+const flagBroadcastPressed = (id: string): string => `broadcast.${id}.pressed`;
 
 export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   readonly bus: GameEventBus;
@@ -297,6 +309,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** The board has been opened this run: stepping back from it leaves it waiting to be reopened. */
   private deductionStarted = false;
   private currentSection: CompletableSectionId | null = null;
+  /** Weapons left on the floor (`spawnWeaponPickup`). Run-time only. */
+  private weaponPickups: { readonly id: string; readonly weaponId: WeaponId; readonly screenId: ScreenId; readonly position: Vec2 }[] = [];
+  /** A scripted card sequence under way (`playCards`). */
+  private cardSeq: CardSequence | null = null;
+  /** Andrew is sitting (`sitDown`). */
+  private seatedAt: { readonly pos: Vec2; readonly facing: Facing } | null = null;
 
   // Screen
   private screen: ScreenLayout;
@@ -365,7 +383,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (save.meterHidden) this.player.setMeterHidden(true);
     if (save.drainHeld) this.player.holdDrain(true);
     this.combat = new PlayerCombat(this.combatHost());
-    this.mykoVoice = new MykoMeterVoice({ rng: this.rng, pool: (id) => this.opts.pool(id), say: (id) => void this.say(id, { repeat: true }), meterHidden: () => this.player.meterHidden });
+    this.mykoVoice = new MykoMeterVoice({ rng: this.rng, pool: (id) => this.opts.pool(id), say: (id) => void this.say(id, { repeat: true }), meterHidden: () => this.player.meterHidden || this.player.calm });
     this.dialogue = new DialogueRunner(this.bus, opts.dialogue, {
       played: save.playedDialogue,
       context: {
@@ -593,7 +611,13 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       this.myko.tickCall(dtMs);
       return;
     }
+    if (this.cardSeq) {
+      this.cardSeq.tick(dtMs);
+      if (this.cardSeq.finished) this.cardSeq = null;
+    }
     if (this.dialogue.blocking) return;
+    // The world waits while the cards are on.
+    if (this.cardSeq) return;
 
     const live = this.controlsLocked || this.forced !== null || this.myko.callInProgress || this.deduction?.isOpen === true ? lockedInput(input) : input;
     const p = this.player;
@@ -631,6 +655,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     for (const { puzzle } of this.pushPuzzlesHere()) puzzle.update(dtMs, p.pos, live.move);
     for (const { puzzle } of this.sheepPuzzlesHere()) puzzle.update(dtMs, p.pos);
     for (const { puzzle } of this.slidePuzzlesHere()) puzzle.update(dtMs);
+    for (const { puzzle } of this.gravityHere()) puzzle.update(dtMs, p.pos, live.move);
     this.tickHazards(dtMs);
 
     // Actors, projectiles.
@@ -648,6 +673,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       d.combine?.tick(dtMs, boss);
       d.mascots?.tick(dtMs, boss, boss.active && !boss.suspended);
       d.pruitt2?.tick(dtMs, boss, boss.active && !boss.suspended);
+      d.lockdown?.tick(dtMs, boss, boss.active && !boss.suspended);
+      d.administrator?.tick(dtMs, boss, boss.active && !boss.suspended);
     }
     for (const { puzzle } of this.mazePuzzlesHere()) puzzle.update(p.pos);
     // Act Natural is a move now (`moves.ts`); tall corn hides him without it.
@@ -664,6 +691,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
     this.checkAreas();
     this.checkPickups();
+    this.checkWeaponPickups();
     this.script.onUpdate?.(dtMs);
 
     // Myko.
@@ -801,6 +829,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       dirs.combine?.reset();
       dirs.mascots?.reset();
       dirs.pruitt2?.reset();
+      dirs.lockdown?.reset();
+      dirs.administrator?.reset();
       if (dirs.combine) this.regrowCorn();
     }
     this.stealthRunners.get(id as StealthSectionId)?.runner.reset();
@@ -859,6 +889,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     for (const { puzzle } of this.pushPuzzlesHere()) if (puzzle.occupies(col, row)) return true;
     for (const { puzzle } of this.sheepPuzzlesHere()) if (puzzle.blocks(col, row)) return true;
     for (const { puzzle } of this.slidePuzzlesHere()) if (puzzle.blocks(col, row)) return true;
+    for (const { puzzle } of this.gravityHere()) if (puzzle.occupies(col, row)) return true;
+    for (const d of this.directorsHere()) if (d.lockdown?.blocks(col, row)) return true;
     return false;
   }
 
@@ -890,6 +922,54 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** Pruitt round two on the current screen (director, runner), for drawing. */
   pruittHere(): { director: Pruitt2Director; boss: BossRunner | null }[] {
     return this.directorsHere().flatMap((d) => (d.pruitt2 ? [{ director: d.pruitt2, boss: this.bosses.get(d.pruitt2.bossId) ?? null }] : []));
+  }
+
+  /** The lockdown on the current screen (director, runner), for drawing. */
+  lockdownHere(): { director: LockdownDirector; boss: BossRunner | null }[] {
+    return this.directorsHere().flatMap((d) => (d.lockdown ? [{ director: d.lockdown, boss: this.bosses.get(d.lockdown.bossId) ?? null }] : []));
+  }
+
+  /** The Administrator on the current screen (director, runner), for drawing. */
+  administratorHere(): { director: AdministratorDirector; boss: BossRunner | null }[] {
+    return this.directorsHere().flatMap((d) => (d.administrator ? [{ director: d.administrator, boss: this.bosses.get(d.administrator.bossId) ?? null }] : []));
+  }
+
+  /** The gravity puzzles with rooms on the current screen, for drawing and input. */
+  gravityHere(): { puzzle: GravityPuzzle; placement: import('../core/chapter').GravityPlacement }[] {
+    const out: { puzzle: GravityPuzzle; placement: import('../core/chapter').GravityPlacement }[] = [];
+    for (const p of this.module.gravityPuzzles ?? []) {
+      if (p.screenId !== this.screen.id) continue;
+      const e = this.sections.get(p.sectionId);
+      if (e && e.completable instanceof GravityPuzzle) out.push({ puzzle: e.completable, placement: p });
+    }
+    return out;
+  }
+
+  /** The broadcast console on the current screen, for drawing. */
+  broadcastHere(): { puzzle: BroadcastPuzzle; placement: import('../core/chapter').BroadcastPlacement }[] {
+    const out: { puzzle: BroadcastPuzzle; placement: import('../core/chapter').BroadcastPlacement }[] = [];
+    for (const p of this.module.broadcastPuzzles ?? []) {
+      if (p.screenId !== this.screen.id) continue;
+      const e = this.sections.get(p.sectionId);
+      if (e && e.completable instanceof BroadcastPuzzle) out.push({ puzzle: e.completable, placement: p });
+    }
+    return out;
+  }
+
+  /** Weapons lying on the current screen, for drawing. */
+  weaponPickupsHere(): readonly { readonly id: string; readonly weaponId: WeaponId; readonly position: Vec2 }[] {
+    return this.weaponPickups.filter((w) => w.screenId === this.screen.id);
+  }
+
+  /** The card on view of a scripted card sequence, or null. */
+  activeCard(): { readonly index: number; readonly total: number; readonly card: EpilogueCard } | null {
+    const c = this.cardSeq?.current();
+    return this.cardSeq && c ? { index: this.cardSeq.index, total: this.cardSeq.cards.length, card: c } : null;
+  }
+
+  /** A key press during a card sequence: skips the card on view. */
+  advanceCard(): void {
+    this.cardSeq?.advance();
   }
 
   /** The screen-white overlay (0..1) while Pruitt's flashbang has caught Andrew. */
@@ -1628,6 +1708,91 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     return e && e.completable instanceof JunctionPuzzle ? e.completable : null;
   }
 
+  gravity(id: PuzzleSectionId): GravityPuzzle | null {
+    const e = this.sections.get(id);
+    return e && e.completable instanceof GravityPuzzle ? e.completable : null;
+  }
+
+  broadcast(id: PuzzleSectionId): BroadcastPuzzle | null {
+    const e = this.sections.get(id);
+    return e && e.completable instanceof BroadcastPuzzle ? e.completable : null;
+  }
+
+  lockdown(bossId: BossId): LockdownDirector | null {
+    return this.directors.get(bossId)?.lockdown ?? null;
+  }
+
+  administrator(bossId: BossId): AdministratorDirector | null {
+    return this.directors.get(bossId)?.administrator ?? null;
+  }
+
+  hasGlove(): boolean {
+    return this.player.kit.moves.includes('borrowedGlove');
+  }
+
+  /** E or the Glove at a gravity switch: everything loose in the room slides; Andrew too, along `forced`. */
+  private workGravitySwitch(puzzle: GravityPuzzle, examinableId: string, viaGlove: boolean): void {
+    if (this.forced) return;
+    const pull = puzzle.pull(examinableId, tileOf(this.player.pos), viaGlove);
+    if (pull && pull.andrewMoved) this.slidePlayerTo(tileCentre(pull.andrewTo), pull.durationMs);
+  }
+
+  /** Andrew is carried to `to` over `durationMs` (his controls are held meanwhile). */
+  private slidePlayerTo(to: Vec2, durationMs: number): void {
+    if (this.forced) return;
+    let resolve: () => void = () => undefined;
+    const promise = new Promise<void>((r) => {
+      resolve = r;
+    });
+    this.forced = { from: { ...this.player.pos }, to, elapsedMs: 0, durationMs: Math.max(1, durationMs), resolve, promise };
+  }
+
+  spawnWeaponPickup(weaponId: WeaponId, position: Vec2, screenId: ScreenId = this.screen.id): void {
+    if (this.player.kit.weapons.includes(weaponId)) return;
+    const id = 'weapon.' + weaponId;
+    this.weaponPickups = [...this.weaponPickups.filter((w) => w.id !== id), { id, weaponId, screenId, position }];
+  }
+
+  private checkWeaponPickups(): void {
+    if (this.weaponPickups.length === 0) return;
+    const radius = TUNING.investigation.interactRadius;
+    for (const w of this.weaponPickups) {
+      if (w.screenId !== this.screen.id || distance(w.position, this.player.pos) > radius) continue;
+      this.weaponPickups = this.weaponPickups.filter((x) => x !== w);
+      this.gainWeapon(w.weaponId);
+    }
+  }
+
+  mykoCallsUsed(): number {
+    return this.calls.length;
+  }
+
+  playCards(cards: readonly EpilogueCard[]): Promise<void> {
+    if (this.cardSeq) return this.cardSeq.done;
+    const seq = new CardSequence(cards, { bus: this.bus, say: (id) => this.say(id, { repeat: true }) });
+    this.cardSeq = seq;
+    seq.start();
+    return seq.done;
+  }
+
+  sitDown(pos: Vec2, facing: Facing): void {
+    this.seatedAt = { pos: { ...pos }, facing };
+    this.player.pos = { ...pos };
+    this.player.facing = facing;
+    this.controlsLocked = true;
+  }
+
+  standUp(): void {
+    if (!this.seatedAt) return;
+    this.seatedAt = null;
+    this.controlsLocked = false;
+  }
+
+  /** Where Andrew sits, or null. For the view. */
+  get seated(): { readonly pos: Vec2; readonly facing: Facing } | null {
+    return this.seatedAt;
+  }
+
   /** Puts every junction puzzle's lines onto its stealth section's sensors again (after the hazards were rebuilt). */
   private applyJunctions(): void {
     for (const p of this.module.junctionPuzzles ?? []) {
@@ -1895,6 +2060,35 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       }
       this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: null, entrance: null, start: () => puzzle.start() });
     }
+    for (const p of m.gravityPuzzles ?? []) {
+      const layout = this.layout(p.screenId);
+      if (!layout) continue;
+      const def = m.def.puzzle.id === p.sectionId ? m.def.puzzle : { id: p.sectionId, chapter: this.chapter, kind: 'gravity' as const };
+      const puzzle = new GravityPuzzle(def, p.layout, this.dressing.gridFor(layout), this, this.bus, this.sectionReward(p.sectionId));
+      puzzle.hasGlove = () => this.hasGlove();
+      puzzle.onPush = () => this.opts.playEffect?.('push');
+      puzzle.onRoomSolved = (ids) => this.setFlag(flagGravity(p.sectionId), ids.join(','));
+      const solvedFlag = this.flags[flagGravity(p.sectionId)];
+      if (typeof solvedFlag === 'string' && solvedFlag !== '') puzzle.restoreSolved(solvedFlag.split(','));
+      if (this.completed.has(p.sectionId)) {
+        puzzle.restoreComplete();
+        puzzle.restoreSolved(puzzle.roomIds());
+      }
+      this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: p.screenId, entrance: null, start: () => puzzle.start() });
+    }
+    for (const p of m.broadcastPuzzles ?? []) {
+      const def = m.def.puzzle.id === p.sectionId ? m.def.puzzle : { id: p.sectionId, chapter: this.chapter, kind: 'broadcast' as const };
+      const puzzle = new BroadcastPuzzle(def, p.layout, { hasProof: (id: ProofId) => this.casebook.hasEvidence(id) }, this, this.bus, this.sectionReward(p.sectionId));
+      puzzle.onChanged = (pairs) => this.setFlag(flagBroadcast(p.sectionId), pairs.join(','));
+      puzzle.onPressed = () => this.setFlag(flagBroadcastPressed(p.sectionId), true);
+      const pairsFlag = this.flags[flagBroadcast(p.sectionId)];
+      puzzle.restore(typeof pairsFlag === 'string' && pairsFlag !== '' ? pairsFlag.split(',') : [], this.flags[flagBroadcastPressed(p.sectionId)] === true);
+      if (this.completed.has(p.sectionId)) {
+        puzzle.restoreComplete();
+        puzzle.restore(puzzle.solvedPairs(), this.flags[flagBroadcastPressed(p.sectionId)] === true);
+      }
+      this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: p.screenId, entrance: null, start: () => puzzle.start() });
+    }
     const board = m.def.deductionBoard;
     if (board) {
       // Wrong-answer lines answer the player's own submission, so they may repeat.
@@ -1937,7 +2131,9 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (b.combine) dirs.combine = new CombineDirector(b.bossId, b.combine, this.directorHost(b.screenId));
     if (b.mascots) dirs.mascots = new MascotDirector(b.bossId, b.mascots, this.mascotHost());
     if (b.pruitt2) dirs.pruitt2 = new Pruitt2Director(b.bossId, b.pruitt2, this.directorHost());
-    if (dirs.shelves || dirs.combine || dirs.mascots || dirs.pruitt2) this.directors.set(b.bossId, dirs);
+    if (b.lockdown) dirs.lockdown = new LockdownDirector(b.bossId, b.lockdown, this.lockdownHost(b.lockdown));
+    if (b.administrator) dirs.administrator = new AdministratorDirector(b.bossId, b.administrator, this.administratorHost());
+    if (dirs.shelves || dirs.combine || dirs.mascots || dirs.pruitt2 || dirs.lockdown || dirs.administrator) this.directors.set(b.bossId, dirs);
     const lazy = this.lazyBossHooks(b.bossId);
     const hooks: import('./boss').BossHooks = {
       ...lazy,
@@ -1949,6 +2145,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       onEnd: (bo, by) => {
         dirs.mascots?.end(by);
         dirs.pruitt2?.end(by);
+        dirs.lockdown?.end(by);
+        dirs.administrator?.end(by);
         lazy.onEnd?.(bo, by);
       },
     };
@@ -1956,6 +2154,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (dirs.shelves) runner.directedAttackIds = ['shelf'];
     if (dirs.mascots) runner.directedAttackIds = ['zipTumble', 'zapFan'];
     if (dirs.pruitt2) runner.directedAttackIds = ['flashbang', 'barrier', 'truckPass'];
+    if (dirs.lockdown) runner.directedAttackIds = ['door'];
+    if (dirs.administrator) runner.directedAttackIds = ['stamp', 'gravityFlip', 'stunPulse', 'teleportStrike', 'beamSweep'];
     if (this.completed.has(b.bossId)) runner.restoreComplete();
     this.bosses.set(b.bossId, runner);
     this.sections.set(b.bossId, {
@@ -1969,6 +2169,37 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
         runner.suspended = on;
       },
     });
+  }
+
+  private lockdownHost(placement: import('./lockdown').LockdownPlacement): import('./lockdown').LockdownHost {
+    const lanyard = placement.lanyard;
+    return {
+      bus: this.bus,
+      playerPosition: () => this.player.pos,
+      playerTargetable: () => this.playerTargetable(),
+      hitPlayer: (hit) => this.hitPlayer(hit),
+      teleportPlayer: (pos) => {
+        this.player.pos = { ...pos };
+        this.endForcedLurch();
+      },
+      hasGlove: () => this.hasGlove(),
+      hasProof: (id) => this.casebook.hasEvidence(id),
+      hasLanyard: () => this.flags[lanyard?.flag ?? 'lanyard'] === true || this.casebook.hasEvidence((lanyard?.evidenceId ?? 'c8.clue.shift') as EvidenceId),
+      giveProof: (id) => this.addEvidence(id),
+      spawnWeaponPickup: (weaponId, pos) => this.spawnWeaponPickup(weaponId, pos),
+    };
+  }
+
+  private administratorHost(): import('./administrator').AdministratorHost {
+    return {
+      bus: this.bus,
+      rng: this.rng,
+      playerPosition: () => this.player.pos,
+      playerFacingDeg: () => angleFromFacing(this.player.facing),
+      playerTargetable: () => this.playerTargetable(),
+      hitPlayer: (hit) => this.hitPlayer(hit),
+      tileBlocked: (c, r) => isBlocked(this.grid, c, r),
+    };
   }
 
   private mascotHost(): import('./mascots').MascotHost {
@@ -2263,6 +2494,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     // Areas Andrew spawns inside fire on the next tick (insideTriggers was cleared above).
     const def = this.module.def.screens.find((s) => s.id === id);
     this.screenInSun = def?.sun === true;
+    // Chapter 10: a screen with no meter (Feeney's in daylight).
+    this.player.setCalm(layout.noMeter === true);
     if (this.isNight()) this.applyNight();
     const region = def?.region;
     if (region) this.bus.emit(GameEvents.ScreenEntered, { screenId: id, region });
@@ -2317,7 +2550,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
    * over at `pub.step` 2 ("talked") for Andrew to drink himself; blocking it would soft-lock the opening.
    */
   private drinkingNotYet(action: 'drink' | 'useSpirit'): boolean {
-    if (!this.player.meterHidden) return false;
+    if (!this.player.meterHidden && !this.player.calm) return false;
     if (this.chapter === 1 && Number(this.flags['pub.step'] ?? 0) === FIRST_PINT_STEP) return false;
     this.bus.emit(GameEvents.KitUseRefused, { action, textId: 'ui.use.notYet', reason: 'meterHidden' });
     return true;
@@ -2519,6 +2752,23 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       if (puzzle && box && puzzle.toggle(box.id)) this.setFlag(flagJunctions(jp.sectionId), puzzle.linesOff().join(','));
     }
     for (const pp of this.pushPuzzlesHere()) if (pp.placement.resetExaminableId === best.id) pp.puzzle.reset();
+    // Chapter 9: a gravity switch (needs the Glove, which `puzzle.hasGlove` checks) and a room's reset panel.
+    for (const gp of this.gravityHere()) {
+      if (gp.puzzle.switchFor(best.id)) this.workGravitySwitch(gp.puzzle, best.id, false);
+      const room = gp.puzzle.resetFor(best.id);
+      if (room) {
+        const where = gp.puzzle.resetRoom(room.id, tileOf(this.player.pos));
+        if (where) this.player.pos = tileCentre(where);
+      }
+    }
+    for (const ld of this.lockdownHere()) ld.director.interact(best.id, ld.boss);
+    for (const ad of this.administratorHere()) ad.director.interact(best.id, ad.boss);
+    // Chapter 10: looking at a socket, the button.
+    for (const bp of this.broadcastHere()) {
+      const socket = bp.puzzle.socketForExaminable(best.id);
+      if (socket) bp.puzzle.examine(socket.id);
+      if (bp.puzzle.isButton(best.id)) bp.puzzle.press();
+    }
     // E at a container lever pulls it (Andrew in the piece's way refuses); the lever's prop flips.
     for (const sp of this.slidePuzzlesHere()) {
       const lever = sp.puzzle.leverFor(best.id);
@@ -2622,6 +2872,21 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.scope.on(GameEvents.BuzzLevelChanged, ({ from, to, value }) => {
       this.mykoVoice.trigger({ kind: 'levelChanged', from, to }, value);
       this.payOwedMove(to);
+    });
+    this.scope.on(GameEvents.AbilityGlovePulse, ({ screenId, position, radius, aimDeg, angleDeg }) => {
+      if (screenId !== this.screen.id || aimDeg === undefined || angleDeg === undefined) return;
+      // The Glove's cone works a switch it reaches: a gravity room's, a bay's, one of the Administrator's.
+      for (const gp of this.gravityHere()) {
+        for (const room of gp.placement.layout.rooms) {
+          for (const sw of room.switches) {
+            const ex = this.module.examinables.find((e) => e.id === sw.examinableId);
+            if (!ex || distance(position, ex.position) > radius) continue;
+            if (Math.abs(angleDiff(aimDeg, angleTo(position, ex.position))) <= angleDeg / 2) this.workGravitySwitch(gp.puzzle, sw.examinableId, true);
+          }
+        }
+      }
+      for (const ld of this.lockdownHere()) ld.director.glovePulse(position, radius, aimDeg, angleDeg);
+      for (const ad of this.administratorHere()) ad.director.glovePulse(position, radius, aimDeg, angleDeg, ad.boss);
     });
     this.scope.on(GameEvents.SpiritStarted, ({ drinkId }) => this.mykoVoice.trigger({ kind: 'spiritStarted', drinkId }, this.player.meter.value));
     this.scope.on(GameEvents.DialogueShow, ({ sequenceId }) => {

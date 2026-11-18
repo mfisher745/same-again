@@ -24,9 +24,11 @@ import { seededRandom } from '../core/random';
 import { MemoryStorage, SaveStore } from '../core/save';
 import type { RedactionTry, RedactionView } from './redaction';
 import type { TellsTry, TellsView } from './tells';
+import type { BroadcastView, PlugTry } from './broadcast';
+import type { EpilogueCard } from './epilogue';
 import type { HeatState } from './heat';
 import { GameEvents, SAVE_VERSION_OVERHAUL } from '../core/types';
-import type { PuzzleSectionId } from '../core/types';
+import type { ProofId, PuzzleSectionId } from '../core/types';
 import type {
   BarReturnReason,
   Vec2,
@@ -521,6 +523,30 @@ export function createUiState(session: GameSession) {
     /** Chapter 8: the heat state for the HUD's sun mark (`inSun`) and anything else that wants it. */
     heat(): HeatState {
       return run()?.heat() ?? { active: false, sunnyScreen: false, inSun: false };
+    },
+    /** Chapter 10 console: what to draw (sockets, plugs, ready, pressed), or null when this screen has none. */
+    activeBroadcast(): BroadcastView | null {
+      return run()?.broadcastHere()[0]?.puzzle.views() ?? null;
+    },
+    /** Chapter 10 console: plug a proof into a channel. */
+    plugProof(id: PuzzleSectionId, proofId: ProofId, socketId: string): PlugTry {
+      return run()?.broadcast(id)?.plug(proofId, socketId) ?? { ok: false, refusal: 'unknown' };
+    },
+    /** Chapter 10 console: look closely at a socket. */
+    examineSocket(id: PuzzleSectionId, socketId: string): boolean {
+      return run()?.broadcast(id)?.examine(socketId) ?? false;
+    },
+    /** Chapter 10 console: press the button (once all five are in). */
+    pressBroadcast(id: PuzzleSectionId): boolean {
+      return run()?.broadcast(id)?.press() ?? false;
+    },
+    /** Chapter 10 cards (the reaction, the title, the credits): the card on view, or null. */
+    activeCard(): { readonly index: number; readonly total: number; readonly card: EpilogueCard } | null {
+      return run()?.activeCard() ?? null;
+    },
+    /** Chapter 10 cards: a key press skips the card on view. */
+    advanceCard(): void {
+      run()?.advanceCard();
     },
     /** Pruitt's flashbang: 0..1 white overlay for the whole screen. */
     whiteoutAlpha(): number {

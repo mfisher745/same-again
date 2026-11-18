@@ -102,6 +102,8 @@ export class BroadcastPuzzle extends PuzzleBase {
   private pressedFlag = false;
   /** Called when the plugged set changes, with `socketId:proofId` pairs (the run saves it). */
   onChanged: ((pairs: readonly string[]) => void) | null = null;
+  /** Called when the button is pressed (the run saves it). */
+  onPressed: (() => void) | null = null;
 
   constructor(
     def: PuzzleDef,
@@ -139,6 +141,14 @@ export class BroadcastPuzzle extends PuzzleBase {
 
   get pressed(): boolean {
     return this.pressedFlag;
+  }
+
+  /** The five right pairs, `socketId:proofId` (a solved console). */
+  solvedPairs(): string[] {
+    return this.layout.plugs.flatMap((p) => {
+      const socket = this.layout.sockets.find((x) => x.shape === p.shape);
+      return socket ? [`${socket.id}:${p.proofId}`] : [];
+    });
   }
 
   /** `socketId:proofId` for every plug in, for saving. */
@@ -212,6 +222,7 @@ export class BroadcastPuzzle extends PuzzleBase {
     if (!this.ready || this.pressedFlag) return false;
     this.pressedFlag = true;
     this.events.emit(GameEvents.BroadcastChanged, { puzzleId: this.def.id, phase: 'pressed' });
+    this.onPressed?.();
     return true;
   }
 

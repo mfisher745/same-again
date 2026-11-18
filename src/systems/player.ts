@@ -55,6 +55,8 @@ export class Player {
   private hiddenMeter = false;
   /** A chapter script is holding the drain. Survives a return to the bar. */
   private drainIsHeld = false;
+  /** Chapter 10: a screen with no meter (`ScreenLayout.noMeter`): hidden, no drain, nothing hurts. Run-time only, never saved. */
+  private calmScreen = false;
 
   private invulnMs = 0;
   private kb: Vec2 = { x: 0, y: 0 };
@@ -78,11 +80,23 @@ export class Player {
   }
 
   meterSnapshot(): MeterSnapshot {
-    return { ...snapshot(this.meter), hidden: this.hiddenMeter, drainHeld: this.drainIsHeld };
+    return { ...snapshot(this.meter), hidden: this.hiddenMeter || this.calmScreen, drainHeld: this.drainIsHeld || this.calmScreen };
   }
 
   get meterHidden(): boolean {
     return this.hiddenMeter;
+  }
+
+  /** Standing on a no-meter screen. */
+  get calm(): boolean {
+    return this.calmScreen;
+  }
+
+  /** Enter or leave a no-meter screen: the meter is hidden and does not drain, and nothing hurts. Emits `meter:hiddenChanged`. */
+  setCalm(on: boolean): void {
+    if (this.calmScreen === on) return;
+    this.calmScreen = on;
+    this.bus.emit(GameEvents.MeterHiddenChanged, { hidden: on || this.hiddenMeter });
   }
 
   get drainHeld(): boolean {
@@ -93,7 +107,7 @@ export class Player {
   setMeterHidden(hidden: boolean): void {
     if (this.hiddenMeter === hidden) return;
     this.hiddenMeter = hidden;
-    this.bus.emit(GameEvents.MeterHiddenChanged, { hidden });
+    this.bus.emit(GameEvents.MeterHiddenChanged, { hidden: hidden || this.calmScreen });
   }
 
   /** Hold the plain drain (spirit and tea timers still run). */
@@ -161,7 +175,7 @@ export class Player {
 
   /** Constant drain, spirit window and tea (DESIGN.md 7.1). */
   tickMeter(dtMs: number): void {
-    if (this.returning) return;
+    if (this.returning || this.calmScreen) return;
     this.applyMeter(stepMeter(this.meter, dtMs, undefined, this.drainIsHeld));
   }
 
@@ -225,7 +239,7 @@ export class Player {
    * and knockback. Returns true if it landed. DESIGN.md 7.1 "Being hit".
    */
   takeHit(hit: HitInfo): boolean {
-    if (this.invulnerable || this.meter.returnReason) return false;
+    if (this.invulnerable || this.calmScreen || this.meter.returnReason) return false;
     const r = applyHit(this.meter, hit.weight ?? 'ordinary');
     this.applyMeter(r);
     if (r.direction === null) return false;

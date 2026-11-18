@@ -1616,7 +1616,14 @@ export interface GameEventPayloads {
   /** Andrew arrived on a screen; audio switches the regional theme. */
   'screen:entered': { readonly screenId: ScreenId; readonly region: RegionId };
   /** The Borrowed Glove fired; gravity-switch puzzles listen for this. */
-  'ability:glovePulse': { readonly screenId: ScreenId; readonly position: Vec2; readonly radius: number };
+  'ability:glovePulse': {
+    readonly screenId: ScreenId;
+    readonly position: Vec2;
+    readonly radius: number;
+    /** The cone's aim and width, degrees: a gravity switch inside it is worked. */
+    readonly aimDeg?: number;
+    readonly angleDeg?: number;
+  };
   /** Myko finished a call-in and the section is complete. */
   'myko:callFinished': { readonly sectionId: CompletableSectionId; readonly kind: MykoCallKind };
   /**
@@ -1737,6 +1744,9 @@ export interface GameEventPayloads {
     readonly channelId?: string;
     readonly proofId?: ProofId;
   };
+  /** Chapter 10 epilogue (`epilogue.ts`): a card of a scripted card sequence came up, or the sequence finished. */
+  'epilogue:card': { readonly index: number; readonly total: number; readonly cardId: string; readonly kind: EpilogueCardKind };
+  'epilogue:done': { readonly total: number };
   /** The heat switch changed (`ChapterContext.setHeatActive`): night has fallen when `active` is false. */
   'heat:switched': { readonly active: boolean };
   'prop:broken': { readonly screenId: ScreenId; readonly propId: string; readonly frame: string };
@@ -1865,6 +1875,8 @@ export const GameEvents = {
   JunctionsToggled: 'junctions:toggled',
   MascotsChanged: 'mascots:changed',
   PruittChanged: 'pruitt:changed',
+  EpilogueCard: 'epilogue:card',
+  EpilogueDone: 'epilogue:done',
   GravityChanged: 'gravity:changed',
   LockdownChanged: 'lockdown:changed',
   AdministratorChanged: 'administrator:changed',
@@ -2424,6 +2436,9 @@ export interface OverhaulTuning {
   /** Chapter 10 Administrator (`administrator.ts`). */
   readonly administrator?: AdministratorTuning;
 }
+
+/** What a card in a scripted card sequence is (`epilogue.ts`). */
+export type EpilogueCardKind = 'caption' | 'scene' | 'title' | 'credits';
 
 /** The four directions "down" can point in a gravity room. */
 export type GravityDir = 'up' | 'down' | 'left' | 'right';

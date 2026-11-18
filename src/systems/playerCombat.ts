@@ -418,7 +418,7 @@ export class PlayerCombat {
       case 'stunCone': {
         h.addFx('glove', p.pos, p.aimDeg, effect.range, effect.angleDeg, 250);
         for (const a of byId(selectTargets(effect, p.pos, p.aimDeg, candidates))) hit(a, 0, 0, effect.durationMs);
-        h.bus.emit(GameEvents.AbilityGlovePulse, { screenId: h.screenId(), position: p.pos, radius: effect.range });
+        h.bus.emit(GameEvents.AbilityGlovePulse, { screenId: h.screenId(), position: p.pos, radius: effect.range, aimDeg: p.aimDeg, angleDeg: effect.angleDeg });
         h.emitNoise({ kind: 'combat', position: p.pos, radius: effect.range });
         break;
       }
