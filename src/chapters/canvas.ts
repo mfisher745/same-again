@@ -2,7 +2,7 @@
  * The tile canvas the chapters paint their screens on: a grid of characters
  * turned into tile frames and a collision and sight grid derived from
  * `tileFlags`, so the art and the walls cannot drift. Chapters 1 and 2 are in
- * the `kilnamoe` region; chapters 4 and 5 paint in `cities` and chapter 6 in `ohio`, each with its own legend.
+ * the `kilnamoe` region; chapters 4 and 5 paint in `cities`, chapter 6 in `ohio` and chapter 7 in `roswell`, each with its own legend.
  */
 
 import { tileFlags, tileIndex } from '../art/tiles';
@@ -114,7 +114,33 @@ const OHIO_LEGEND: Readonly<Record<string, string>> = {
   X: 'cornWall',
 };
 
-const LEGENDS: Readonly<Partial<Record<RegionId, Readonly<Record<string, string>>>>> = { cities: CITIES_LEGEND, ohio: OHIO_LEGEND };
+/** Canvas character to `roswell` tile name (chapter 7). */
+const ROSWELL_LEGEND: Readonly<Record<string, string>> = {
+  '#': 'wallTop',
+  W: 'wallFace',
+  '.': 'floor',
+  a: 'floorAlt',
+  p: 'path',
+  r: 'rough',
+  o: 'cover',
+  t: 'table',
+  s: 'seat',
+  c: 'counter',
+  f: 'fence',
+  w: 'window',
+  m: 'marking',
+  d: 'doorStrip',
+  R: 'road',
+  q: 'water',
+  // Chapter 7: snow-globe shelves (solid, block sight), a neon sign in a wall, a cactus, stacked stock boxes (solid, block sight), the stockroom floor.
+  S: 'shopShelf',
+  N: 'neon',
+  x: 'cactus',
+  B: 'boxStack',
+  F: 'stockFloor',
+};
+
+const LEGENDS: Readonly<Partial<Record<RegionId, Readonly<Record<string, string>>>>> = { cities: CITIES_LEGEND, ohio: OHIO_LEGEND, roswell: ROSWELL_LEGEND };
 
 export interface Extras {
   readonly mykoStart?: Vec2;
