@@ -318,16 +318,24 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
 
   // --- Barred ---
 
+  /** He is out and the move was Barred (in whichever order the two events arrive). */
+  let loneOut = false;
+  const barredDone = (): void => {
+    if (loneOut && barredUsed) void ctx.say('c8.barred.done');
+  };
   const loneFell = (): void => {
-    if (flag('barred.done')) return;
+    loneOut = true;
     setFlag('barred.done');
-    if (barredUsed) void ctx.say('c8.barred.done');
+    barredDone();
   };
 
   /** Walking in at the wash's mouth: the lone agent is at the end of it, and the lesson plays (once per save). */
   const barredTrigger = async (): Promise<void> => {
     if (flag('barred.done')) return;
-    if (lone?.alive() !== true) lone = ctx.spawnLoneEnemy('agent', BARRED_AGENT_SPOT, { onDefeated: loneFell });
+    if (lone?.alive() !== true) {
+      loneOut = false;
+      lone = ctx.spawnLoneEnemy('agent', BARRED_AGENT_SPOT, { onDefeated: loneFell });
+    }
     if (ctx.kit().moves.includes('barred') || barredLesson) return;
     barredLesson = true;
     const mine = epoch;
@@ -335,7 +343,9 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     barredLesson = false;
     if (disposed || mine !== epoch) return;
     ctx.learnMove('barred');
-    setSlotPrompt(4, PROMPT_LINGER_MS);
+    // Slot 4 may be taken by another move: then the player puts Barred there from the Tab screen.
+    if (ctx.kit().slots.specials[3] === 'barred') setSlotPrompt(4, PROMPT_LINGER_MS);
+    else setPrompt('ui.prompt.kit', PROMPT_LINGER_MS);
   };
 
   // --- The perimeter ---
@@ -566,6 +576,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
           if (moveId === 'barred') {
             barredUsed = true;
             clearPrompt('ui.prompt.slot');
+            barredDone();
           }
         }),
         ctx.bus.on(GameEvents.SectionStarted, ({ sectionId }) => {
