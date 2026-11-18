@@ -2,7 +2,7 @@
  * The tile canvas the chapters paint their screens on: a grid of characters
  * turned into tile frames and a collision and sight grid derived from
  * `tileFlags`, so the art and the walls cannot drift. Chapters 1 and 2 are in
- * the `kilnamoe` region; chapters 4 and 5 paint in `cities`, chapter 6 in `ohio`, chapter 7 in `roswell` and chapter 8 in `nevada`, each with its own legend.
+ * the `kilnamoe` region; chapters 4 and 5 paint in `cities`, chapter 6 in `ohio`, chapter 7 in `roswell`, chapter 8 in `nevada` and chapter 10 in `base`, each with its own legend.
  */
 
 import { tileFlags, tileIndex } from '../art/tiles';
@@ -167,7 +167,33 @@ const NEVADA_LEGEND: Readonly<Record<string, string>> = {
   J: 'junctionBox',
 };
 
-const LEGENDS: Readonly<Partial<Record<RegionId, Readonly<Record<string, string>>>>> = { cities: CITIES_LEGEND, ohio: OHIO_LEGEND, roswell: ROSWELL_LEGEND, nevada: NEVADA_LEGEND };
+/** Canvas character to `base` tile name (chapter 10: cold, teal and violet, very tidy). */
+const BASE_LEGEND: Readonly<Record<string, string>> = {
+  '#': 'wallTop',
+  W: 'wallFace',
+  '.': 'floor',
+  a: 'floorAlt',
+  p: 'path',
+  r: 'rough',
+  o: 'cover',
+  t: 'table',
+  s: 'seat',
+  c: 'counter',
+  f: 'fence',
+  w: 'window',
+  m: 'marking',
+  d: 'doorStrip',
+  q: 'water',
+  // Chapter 10: a gravity switch in a wall (solid), the wall of screens (solid), the console's dais (walkable), a glass
+  // panel (solid) and a blast frame (solid).
+  G: 'gravitySwitch',
+  P: 'panel',
+  D: 'consoleDais',
+  g: 'glass',
+  F: 'blastFrame',
+};
+
+const LEGENDS: Readonly<Partial<Record<RegionId, Readonly<Record<string, string>>>>> = { cities: CITIES_LEGEND, ohio: OHIO_LEGEND, roswell: ROSWELL_LEGEND, nevada: NEVADA_LEGEND, base: BASE_LEGEND };
 
 export interface Extras {
   readonly mykoStart?: Vec2;
