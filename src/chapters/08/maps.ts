@@ -3,21 +3,20 @@
  * and the road, the perimeter and Gate C, all in the `nevada` region, plus every constant the script and the systems
  * need (shade, sensor lines, masts, truck tracks, junction boxes, the fence fight and the gate arena).
  *
- * Art: `nevada` tiles (shade, sensor posts and wire, thermal masts, junction boxes, rock `cover`) and existing props.
- * STAND-INS, to be replaced when there is art (frame: what it should be):
- * - `van.right` (Pruitt's car): a plain grey government sedan, 48 x 32.
- * - `van.left` (the parked truck on the road, the patrol truck at the fence): a pickup with a spotter's rail.
- * - `noticeboard` (the road sign): a highway sign with the distances to everything.
- * - `bollard` (the barrier arm's posts): a barrier post with a light.
- * - `fieldGate.along3` (the barrier arm): a striped arm across the service road.
- * - `fieldGate.across3` (the fence's gates): a chain-link gate. The fence itself is the `fence` mesh tile.
- * - `weapon.clipboard` (the dropped clipboard): a clipboard on the ground.
- * - `flask` (Pruitt's thermos) and the `seat` tile (his folding chair).
+ * Art: `nevada` tiles (shade, sensor posts and wire, thermal masts, junction boxes, rock `cover`) and the chapter 8 props
+ * in `src/art/propsC78.ts` (awning, pump, sign, government car, outcrops, junction boxes, fence, gates, barrier arm,
+ * guard hut, floodlights, chair, thermos). The sensor lamps, mast heads, lit path and flashbang marker are drawn by the
+ * world view. STAND-INS still in use: `van.left` and `van.right` (the parked truck on the road and the patrol truck at
+ * the fence: the existing truck sprite) and `weapon.clipboard` (the dropped clipboard).
  */
 
 import { PROP } from '../../art/props';
-import type { ExitDef, PropPlacement, ScreenDressing, ScreenLayout } from '../../core/chapter';
+import type { LinePair } from '../../art/propsC78';
+import { TUNING } from '../../content/tuning';
+import type { ExitDef, HeadlightPlacement, LightSource, PropPlacement, ScreenAmbient, ScreenDressing, ScreenLayout } from '../../core/chapter';
 import type { PatrolRoute, StealthSectionDef, Vec2 } from '../../core/types';
+import { perimeterHazards } from '../../systems/perimeter';
+import type { Pruitt2Placement } from '../../systems/pruitt2';
 import { Canvas, T, tilesArea } from '../canvas';
 
 export { T, tilesArea };
@@ -62,6 +61,22 @@ const rock = (id: string, col: number, row: number, width: number, height: numbe
   shade: { col: col - 2, row, width: 2, height },
 });
 
+function perimeterTuning() {
+  const t = TUNING.overhaul?.perimeter;
+  if (!t) throw new Error('TUNING.overhaul.perimeter is missing');
+  return t;
+}
+
+/** What `ctx.sunset()` puts on a screen: the default night tint with this screen's own lights cut out of it. */
+const nightAmbient = (lights: readonly LightSource[]): ScreenAmbient => {
+  const t = TUNING.overhaul?.sunsetAmbient;
+  if (!t) throw new Error('TUNING.overhaul.sunsetAmbient is missing');
+  return { tint: t.tint, strength: t.strength, lights };
+};
+
+/** The outcrop's sprite (48 x 32 over its three by two tiles). The tiles under it stay `cover`, so it blocks and shades as before. */
+const rockProp = (o: Outcrop): PropPlacement => ({ id: o.id, frame: PROP.rockOutcrop.large, col: o.col, row: o.row });
+
 // ---------------------------------------------------------------------------
 // c8.road: Highway and roadhouse, 60 x 20
 // ---------------------------------------------------------------------------
@@ -103,15 +118,18 @@ export const ROAD_FROM_SERVICE = T(21, 12);
 export const BARRED_AGENT_SPOT = T(45, 4);
 export const BARRED_TRIGGER = tilesArea(44, 9, 4, 2);
 
-/** Outcrops on the road screen: two along the wash (shade down its west side), two on the south verge. */
+/** Outcrops on the road screen: two along the wash (shade down its west side), two on the south verge. All 3 x 2 tiles, one `rockOutcrop.large` each. */
 export const ROAD_OUTCROPS: readonly Outcrop[] = [
-  rock('road.rockA', 48, 2, 2, 3),
-  rock('road.rockB', 48, 8, 2, 3),
+  rock('road.rockA', 48, 2, 3, 2),
+  rock('road.rockB', 48, 8, 3, 2),
   rock('road.rockC', 10, 17, 3, 2),
   rock('road.rockD', 50, 17, 3, 2),
 ];
+/** Inside the roadhouse (under its roof): shade, so the bar is not in the sun. */
+export const ROADHOUSE_SHADE: TileRect = { col: 6, row: 1, width: 20, height: 9 };
 /** Every shade area on the road screen, in pixels. */
 export const ROAD_SHADE = [
+  rectArea(ROADHOUSE_SHADE),
   rectArea(AWNING_SHADE),
   rectArea(TRUCK_SHADE),
   ...ROAD_OUTCROPS.map((o) => rectArea(o.shade)),
@@ -119,6 +137,13 @@ export const ROAD_SHADE = [
 
 /** Beer crates to throw. */
 export const ROAD_BOTTLE_SPOTS: readonly Vec2[] = [T(31, 12), T(52, 12)];
+
+/** The roadhouse at night: the window light and the pump's lamp. */
+const ROAD_NIGHT = nightAmbient([
+  { x: 12 * 16 + 8, y: 9 * 16 + 8, radius: 40, colour: 'amberLight' },
+  { x: 20 * 16 + 8, y: 9 * 16 + 8, radius: 40, colour: 'amberLight' },
+  { x: 24 * 16 + 8, y: 11 * 16, radius: 32, colour: 'amberLight', glow: 0.2 },
+]);
 
 export function roadScreen(): ScreenLayout {
   const c = new Canvas(60, 20, '.', 'nevada');
@@ -147,18 +172,24 @@ export function roadScreen(): ScreenLayout {
     { id: 'bar.tea', frame: PROP.cardboardBox, col: 10, row: 3 },
     { id: 'bar.taps', frame: PROP.beerTaps, col: 14, row: 3 },
     { id: 'bar.fuelLog', frame: PROP.logbook, col: 14, row: 4 },
-    // Pruitt's car (stand-in), with its foot solid.
-    { id: 'road.car', frame: PROP.van.right, col: CAR_PROP.col, row: CAR_PROP.row, solid: { dy: 1, width: 3, height: 1 } },
-    // The sign (stand-in).
-    { id: 'road.sign', frame: PROP.noticeboard, col: 28, row: 10, solid: { dy: 1, width: 1, height: 1 } },
-    // The parked truck (stand-in).
+    // Pruitt's plain grey car, with its foot solid.
+    { id: 'road.car', frame: PROP.govCar.right, col: CAR_PROP.col, row: CAR_PROP.row, solid: { dy: 1, width: 3, height: 1 } },
+    // The sign with the distance to everything.
+    { id: 'road.sign', frame: PROP.distanceSign, col: 28, row: 10, solid: { dy: 1, width: 2, height: 1 } },
+    // The parked truck (the existing truck sprite).
     { id: 'road.truck', frame: PROP.van.left, col: TRUCK_PROP.col, row: TRUCK_PROP.row, solid: { dy: 1, width: 3, height: 1 } },
+    // The fuel pump on the apron.
+    { id: 'road.pump', frame: PROP.fuelPump, col: 24, row: 10, solid: { dy: 1, width: 1, height: 1 } },
+    // The awning: two 64 x 32 lengths over the shade, drawn over Andrew (their feet are at the shade's south edge). The posts are solid, one at each end.
+    { id: 'road.awning1', frame: PROP.awning, col: AWNING_SHADE.col, row: AWNING_SHADE.row, solid: { dy: 1, width: 1, height: 1 } },
+    { id: 'road.awning2', frame: PROP.awning, col: AWNING_SHADE.col + 4, row: AWNING_SHADE.row, solid: { dx: 3, dy: 1, width: 1, height: 1 } },
+    ...ROAD_OUTCROPS.map(rockProp),
   ];
   const dressing: ScreenDressing = {
     props,
     npcs: [{ id: 'attendant', npc: 'attendant', col: ATTENDANT_TILE.col, row: ATTENDANT_TILE.row, facing: 'down', examinableId: 'c8.attendant' }],
   };
-  return c.build('c8.road', exits, BAR_ARRIVAL, { mykoStart: MYKO_BAR, dressing });
+  return c.build('c8.road', exits, BAR_ARRIVAL, { mykoStart: MYKO_BAR, dressing, shadeAreas: ROAD_SHADE, nightAmbient: ROAD_NIGHT });
 }
 
 // ---------------------------------------------------------------------------
@@ -171,11 +202,11 @@ export const PERIMETER_TO_ROAD = tilesArea(20, 39, 3, 1);
 /** Where he arrives from Gate C: in the pocket behind the fence. */
 export const PERIMETER_FROM_GATE = T(50, 3);
 /** The way through the fence to Gate C, and the pocket behind it. */
-export const FENCE_GATE_TILES = { col: 49, row: 4, width: 3, height: 1 } as const;
+export const FENCE_GATE_TILES = { col: 49, row: 4, width: 2, height: 1 } as const;
 export const PERIMETER_TO_GATE = tilesArea(49, 1, 3, 1);
 /** The service gate: the clean-run reward, west end of the fence. It opens onto the road beside the roadhouse. */
-export const SERVICE_GATE_TILES = { col: 5, row: 4, width: 3, height: 1 } as const;
-export const SERVICE_GATE_EXIT = tilesArea(5, 4, 3, 1);
+export const SERVICE_GATE_TILES = { col: 5, row: 4, width: 2, height: 1 } as const;
+export const SERVICE_GATE_EXIT = tilesArea(5, 4, 2, 1);
 /** Where Andrew stands to open it, on the fence's south side. */
 export const SERVICE_GATE_SPOT = T(6, 5);
 
@@ -203,7 +234,10 @@ export const PERIMETER_OUTCROPS: readonly Outcrop[] = [
 ];
 /** The shadow of the truck parked at the fence. */
 export const FIGHT_TRUCK_SHADE: TileRect = { col: 50, row: 9, width: 3, height: 1 };
-export const PERIMETER_SHADE = [...PERIMETER_OUTCROPS.map((o) => rectArea(o.shade)), rectArea(FIGHT_TRUCK_SHADE)];
+/** The static shade of the perimeter: the outcrops'. The parked truck's shadow is not here: the script puts it down with `ctx.setShadeArea` when the truck parks. */
+export const PERIMETER_SHADE = PERIMETER_OUTCROPS.map((o) => rectArea(o.shade));
+/** The id the script gives the parked truck's shade. */
+export const FIGHT_TRUCK_SHADE_ID = 'truck';
 
 /**
  * Five sensor lines, numbered 1 to 5 from the south edge to the fence. Each is a row of ground sensors every four
@@ -244,16 +278,18 @@ export const TRACKS: readonly TileRect[] = [
   { col: 2, row: 33, width: 96, height: 2 },
   { col: 2, row: 21, width: 96, height: 2 },
 ];
-const truckRoute = (from: Vec2, to: Vec2, facing: 'left' | 'right'): PatrolRoute => ({
+/**
+ * A truck's route: it starts partway along its track, drives to one end, turns and drives the whole track to the other
+ * end, and back (ping-pong through the points in order). So a truck is always somewhere along the track, not parked at
+ * an end where the walk begins.
+ */
+const truckRoute = (points: readonly [Vec2, Vec2, Vec2]): PatrolRoute => ({
   mode: 'pingPong',
-  waypoints: [
-    { position: from, waitMs: 2000, facing },
-    { position: to, waitMs: 2000, facing: facing === 'right' ? 'left' : 'right' },
-  ],
+  waypoints: points.map((position, i) => ({ position, waitMs: 2000, facing: (points[i + 1] ?? points[i - 1] ?? position).x > position.x ? ('right' as const) : ('left' as const) })),
 });
 export const PATROL_TRUCKS = [
-  { id: 'truck1', route: truckRoute(T(3, 33), T(96, 33), 'right') },
-  { id: 'truck2', route: truckRoute(T(96, 21), T(3, 21), 'left') },
+  { id: 'truck1', route: truckRoute([T(46, 33), T(3, 33), T(96, 33)]) },
+  { id: 'truck2', route: truckRoute([T(56, 21), T(3, 21), T(96, 21)]) },
 ] as const;
 
 /**
@@ -282,6 +318,27 @@ export function pressJunction(state: readonly boolean[], box: JunctionBox): bool
 export function junctionSolved(state: readonly boolean[]): boolean {
   return CORRIDOR_LINES.every((l) => state[l - 1] === false);
 }
+/**
+ * The art's diagram numbers the sensor lines from the northmost (row 1) to the southmost (row 5); the layout numbers them
+ * from the south edge up to the fence. This is the art's number for a layout line, so the highlighted rows on a box's door
+ * are the lines it really switches, and the text on the door (`c8.junction.diagram`) says the same numbers.
+ */
+export const artLine = (line: number): number => 6 - line;
+/** A box's pair key in the art (`'1-2'` .. `'4-5'`, the smaller number first). */
+export function boxPair(b: JunctionBox): LinePair {
+  const [a, c] = [artLine(b.lines[0]), artLine(b.lines[1])].sort((x, y) => x - y);
+  return `${a}-${c}` as LinePair;
+}
+/** The frame of a box: the diagram with the lever up, or thrown (down). */
+export const boxFrame = (b: JunctionBox, thrown: boolean): string => (thrown ? PROP.junctionBox.thrown[boxPair(b)] : PROP.junctionBox.lines[boxPair(b)]);
+/** The prop id of a box. */
+export const junctionPropId = (boxId: string): string => `junction.${boxId}`;
+/** The line only this box touches: it is off exactly when the box has been thrown (and no other box touches it). */
+export function ownLine(b: JunctionBox): number {
+  const own = b.lines.find((l) => JUNCTION_BOXES.filter((o) => o !== b).every((o) => !o.lines.includes(l)));
+  if (own === undefined) throw new Error(`junction box ${b.id} has no line of its own`);
+  return own;
+}
 export const JUNCTION_TRIGGER = tilesArea(26, 34, 8, 4);
 
 /** The fence fight: the zone at the fence, the four agents, the truck that parks and adds its headlights, the clipboard. */
@@ -292,6 +349,16 @@ export const FIGHT_ENTRANCE = T(46, 11);
 export const FIGHT_TRUCK_ENTRY = T(3, 8);
 export const FIGHT_TRUCK_PARK = T(51, 8);
 export const FIGHT_TRUCK_PROP = { col: 50, row: 7 } as const;
+export const FIGHT_TRUCK_ENTRY_TILE = { col: 3 } as const;
+/**
+ * The parked truck's headlights: at its nose, facing east down the fence zone (it drove in from the west). The cone is
+ * the patrol trucks' own (`TUNING.overhaul.perimeter.truckCone`).
+ */
+export const FIGHT_HEADLIGHTS: HeadlightPlacement = {
+  position: { x: (FIGHT_TRUCK_PROP.col + 3) * 16, y: FIGHT_TRUCK_PARK.y },
+  facingDeg: 0,
+  cone: perimeterTuning().truckCone,
+};
 export const CLIPBOARD_SPOT = T(42, 8);
 
 /** Walking in at the wash's mouth: the perimeter's opening scene. */
@@ -299,14 +366,31 @@ export const PERIMETER_OPEN_AREA = tilesArea(18, 36, 8, 3);
 
 export const PERIMETER_BOTTLE_SPOTS: readonly Vec2[] = [T(24, 38), T(56, 34), T(74, 26), T(42, 16), T(60, 7)];
 
-/** The stealth section's definition. Hazards (sensors, masts, trucks) are built from the constants above by the script. */
+/** The stealth section's definition. Its hazards (sensors, masts, trucks) are built from the constants above. */
 export const PERIMETER_STEALTH: StealthSectionDef = {
   id: 'c8.stealth.perimeter',
   checkpointId: 'c8.cp.perimeter',
   guards: PERIMETER_GUARDS,
-  hazards: [],
+  hazards: perimeterHazards({ lines: SENSOR_LINES, masts: THERMAL_MASTS, trucks: PATROL_TRUCKS }),
   hidingProps: [],
 };
+
+/** One `perimeterFence` segment over every fence tile of row 4 except the two gates (their sprites cover the gap). */
+function fenceSegments(): PropPlacement[] {
+  const out: PropPlacement[] = [];
+  for (let col = 1; col <= 98; col++) {
+    const gate = (g: TileRect) => col >= g.col && col < g.col + g.width;
+    if (gate(FENCE_GATE_TILES) || gate(SERVICE_GATE_TILES)) continue;
+    out.push({ frame: PROP.perimeterFence, col, row: 3 });
+  }
+  return out;
+}
+
+/** The perimeter at night: the truck's headlights at the fence and the service gate's lamp. */
+const PERIMETER_NIGHT = nightAmbient([
+  { x: FIGHT_HEADLIGHTS.position.x, y: FIGHT_HEADLIGHTS.position.y, radius: 56, colour: 'white', glow: 0.35 },
+  { x: SERVICE_GATE_SPOT.x, y: SERVICE_GATE_SPOT.y, radius: 32, colour: 'amberLight', glow: 0.2 },
+]);
 
 export function perimeterScreen(): ScreenLayout {
   const c = new Canvas(100, 40, '.', 'nevada');
@@ -320,6 +404,8 @@ export function perimeterScreen(): ScreenLayout {
   c.rect(SERVICE_GATE_TILES.col, SERVICE_GATE_TILES.row, SERVICE_GATE_TILES.width, 1, 'p');
   c.rect(20, 39, 3, 1, 'r');
   c.rect(49, 1, 3, 3, 'p');
+  // The gates are two tiles wide (a 32 x 32 sprite); the third tile of each gap stays fence.
+  c.set(FENCE_GATE_TILES.col + 2, 4, 'f').set(SERVICE_GATE_TILES.col + 2, 4, 'f');
   // Sensor lines: wire, then posts.
   for (const l of SENSOR_LINES) {
     c.rect(l.fromCol, l.row, l.toCol - l.fromCol + 1, 1, 'l');
@@ -328,22 +414,32 @@ export function perimeterScreen(): ScreenLayout {
   for (const m of THERMAL_MASTS) c.set(Math.floor(m.x / 16), Math.floor(m.y / 16), 'M');
   for (const b of JUNCTION_BOXES) c.set(b.col, b.row, 'J');
   for (const o of PERIMETER_OUTCROPS) outcrop(c, o);
-  c.rect(FIGHT_TRUCK_SHADE.col, FIGHT_TRUCK_SHADE.row, FIGHT_TRUCK_SHADE.width, FIGHT_TRUCK_SHADE.height, 'S');
   const exits: ExitDef[] = [
     { id: 'c8.perimeter.wash', area: PERIMETER_TO_ROAD, toScreen: 'c8.road', spawn: ROAD_FROM_PERIMETER },
     { id: 'c8.perimeter.service', area: SERVICE_GATE_EXIT, toScreen: 'c8.road', spawn: ROAD_FROM_SERVICE },
     { id: 'c8.perimeter.gate', area: PERIMETER_TO_GATE, toScreen: 'c8.gate', spawn: GATE_FROM_PERIMETER },
   ];
   const props: PropPlacement[] = [
-    // The fence's gates, shut until the script opens them (STAND-IN art).
-    { id: 'fence.gate', frame: PROP.fieldGate.across3, col: FENCE_GATE_TILES.col, row: FENCE_GATE_TILES.row, solid: { width: 3, height: 1 } },
-    { id: 'fence.service', frame: PROP.fieldGate.across3, col: SERVICE_GATE_TILES.col, row: SERVICE_GATE_TILES.row, solid: { width: 3, height: 1 } },
+    // The fence, a segment a tile, over the fence tiles (the gates have their own sprites).
+    ...fenceSegments(),
+    // The fence's gates, shut until the script opens them.
+    { id: 'fence.gate', frame: PROP.serviceGate.shut, col: FENCE_GATE_TILES.col, row: FENCE_GATE_TILES.row - 1, solid: { dy: 1, width: 2, height: 1 } },
+    { id: 'fence.service', frame: PROP.serviceGate.shut, col: SERVICE_GATE_TILES.col, row: SERVICE_GATE_TILES.row - 1, solid: { dy: 1, width: 2, height: 1 } },
+    // The gates swung open: shown in place of the shut ones, with nothing solid.
+    { id: 'fence.gate.open', frame: PROP.serviceGate.open, col: FENCE_GATE_TILES.col, row: FENCE_GATE_TILES.row - 1, hidden: true },
+    { id: 'fence.service.open', frame: PROP.serviceGate.open, col: SERVICE_GATE_TILES.col, row: SERVICE_GATE_TILES.row - 1, hidden: true },
+    // The junction boxes, each with the diagram of its two lines on the door.
+    ...JUNCTION_BOXES.map((b) => ({ id: junctionPropId(b.id), frame: boxFrame(b, false), col: b.col, row: b.row })),
+    // The outcrops.
+    ...PERIMETER_OUTCROPS.map(rockProp),
     // The truck that parks at the fence, hidden until it does.
     { id: 'fight.truck', frame: PROP.van.right, col: FIGHT_TRUCK_PROP.col, row: FIGHT_TRUCK_PROP.row, solid: { dy: 1, width: 3, height: 1 }, hidden: true },
+    // The same truck while it drives in (no solid, so it never traps Andrew); the script moves it tile by tile.
+    { id: 'fight.truckDrive', frame: PROP.van.right, col: FIGHT_TRUCK_ENTRY_TILE.col, row: FIGHT_TRUCK_PROP.row, hidden: true },
     // The dropped clipboard, hidden until the fight is over.
     { id: 'fence.clipboard', frame: PROP.weapon.clipboard, col: 42, row: 8, hidden: true },
   ];
-  return c.build('c8.perimeter', exits, PERIMETER_FROM_ROAD, { mykoStart: STEALTH_ENTRANCE, dressing: { props } });
+  return c.build('c8.perimeter', exits, PERIMETER_FROM_ROAD, { mykoStart: STEALTH_ENTRANCE, dressing: { props }, shadeAreas: PERIMETER_SHADE, nightAmbient: PERIMETER_NIGHT });
 }
 
 // ---------------------------------------------------------------------------
@@ -361,8 +457,8 @@ export const PRUITT_CHAIR_TILE = { col: 20, row: 5 } as const;
 export const PRUITT_CHAIR = T(PRUITT_CHAIR_TILE.col, PRUITT_CHAIR_TILE.row);
 export const PRUITT_START = T(20, 6);
 export const PRUITT_TRIGGER = tilesArea(8, 8, 4, 4);
-/** The guard hut. */
-export const GUARD_HUT: TileRect = { col: 14, row: 3, width: 5, height: 4 };
+/** The guard hut (one 32 x 32 sprite; its two by two tiles are solid). */
+export const GUARD_HUT: TileRect = { col: 16, row: 4, width: 2, height: 2 };
 /** The barrier arm and the marked line it drops on (a column of marking across the service road). */
 export const BARRIER_ARM_LINE: TileRect = { col: 22, row: 6, width: 1, height: 8 };
 export const BARRIER_PROP = { col: 22, row: 8 } as const;
@@ -382,6 +478,28 @@ export const GATE_CLOSING_AREA = tilesArea(35, 9, 3, 2);
 export const GATE_BOTTLE_SPOTS: readonly Vec2[] = [T(6, 4), T(33, 4), T(6, 15), T(33, 15)];
 export const GATE_ARRIVE_AREA = tilesArea(1, 8, 4, 4);
 
+/** Pruitt round two: the one marked line the arm drops on, and the lit path the phase 2 truck drives (west to east). */
+export const PRUITT2: Pruitt2Placement = {
+  barrierLines: [
+    {
+      id: 'arm',
+      from: { x: BARRIER_ARM_LINE.col * 16 + 8, y: BARRIER_ARM_LINE.row * 16 },
+      to: { x: BARRIER_ARM_LINE.col * 16 + 8, y: (BARRIER_ARM_LINE.row + BARRIER_ARM_LINE.height) * 16 },
+    },
+  ],
+  truckPath: {
+    from: { x: GATE_LIT_PATH.col * 16, y: (GATE_LIT_PATH.row + GATE_LIT_PATH.height / 2) * 16 },
+    to: { x: (GATE_LIT_PATH.col + GATE_LIT_PATH.width) * 16, y: (GATE_LIT_PATH.row + GATE_LIT_PATH.height / 2) * 16 },
+    width: GATE_LIT_PATH.height * 16,
+  },
+};
+
+/** Gate C at night: the four floodlights, the hut's window and the thermos on the chair's side. */
+const GATE_NIGHT = nightAmbient([
+  ...FLOODLIGHT_SPOTS.map((p) => ({ x: p.x, y: p.y, radius: 88, colour: 'white' as const, glow: 0.3 })),
+  { x: (GUARD_HUT.col + 1) * 16, y: (GUARD_HUT.row + 1) * 16, radius: 40, colour: 'amberLight' as const },
+]);
+
 export function gateScreen(): ScreenLayout {
   const c = new Canvas(40, 20, '.', 'nevada');
   scatter(c);
@@ -395,19 +513,18 @@ export function gateScreen(): ScreenLayout {
   c.rect(GATE_LIT_PATH.col, GATE_LIT_PATH.row, GATE_LIT_PATH.width, GATE_LIT_PATH.height, 'a');
   // The barrier's marked line.
   c.rect(BARRIER_ARM_LINE.col, BARRIER_ARM_LINE.row, BARRIER_ARM_LINE.width, BARRIER_ARM_LINE.height, 'm');
-  // The guard hut, with windows, and Pruitt's chair.
-  c.rect(GUARD_HUT.col, GUARD_HUT.row, GUARD_HUT.width, GUARD_HUT.height, 'W').rect(GUARD_HUT.col, GUARD_HUT.row, GUARD_HUT.width, 1, '#');
-  c.set(15, 6, 'w').set(17, 6, 'w');
-  c.set(PRUITT_CHAIR_TILE.col, PRUITT_CHAIR_TILE.row, 's');
+  // The guard hut under its sprite.
+  c.rect(GUARD_HUT.col, GUARD_HUT.row, GUARD_HUT.width, GUARD_HUT.height, 'W');
   const exits: ExitDef[] = [{ id: 'c8.gate.fence', area: GATE_TO_PERIMETER, toScreen: 'c8.perimeter', spawn: PERIMETER_FROM_GATE }];
   const props: PropPlacement[] = [
-    { id: 'gate.thermos', frame: PROP.flask, col: 19, row: 5 },
-    // The barrier arm (stand-in), raised, with its posts (stand-ins).
-    { id: 'gate.barrier', frame: PROP.fieldGate.along3, col: BARRIER_PROP.col, row: BARRIER_PROP.row },
-    { id: 'gate.post1', frame: PROP.bollard, col: 22, row: 5, solid: { width: 1, height: 1 } },
-    { id: 'gate.post2', frame: PROP.bollard, col: 22, row: 15, solid: { width: 1, height: 1 } },
+    { id: 'gate.hut', frame: PROP.guardHut.day, col: GUARD_HUT.col, row: GUARD_HUT.row },
+    { id: 'gate.chair', frame: PROP.foldingChair, col: PRUITT_CHAIR_TILE.col, row: PRUITT_CHAIR_TILE.row },
+    { id: 'gate.thermos', frame: PROP.thermos, col: 19, row: 5 },
+    // The barrier arm, raised; its housing is the solid foot.
+    { id: 'gate.barrier', frame: PROP.barrierArm.up, col: BARRIER_PROP.col, row: BARRIER_PROP.row, solid: { dy: 2, width: 1, height: 1 } },
     // Floodlights at the arena's corners.
-    ...FLOODLIGHT_TILES.map((t, i) => ({ id: `gate.flood${i + 1}`, frame: PROP.floodlightMast, col: t.col, row: t.row, solid: { dy: 1, width: 1, height: 1 } })),
+    ...FLOODLIGHT_TILES.map((t, i) => ({ id: `gate.flood${i + 1}`, frame: PROP.gateFloodlight.off, col: t.col, row: t.row, solid: { dy: 1, width: 1, height: 1 } })),
   ];
-  return c.build('c8.gate', exits, GATE_FROM_PERIMETER, { mykoStart: GATE_MYKO_START, dressing: { props } });
+  const npcs = [{ id: 'gate.pruitt', npc: 'pruitt' as const, col: PRUITT_CHAIR_TILE.col, row: PRUITT_CHAIR_TILE.row, facing: 'down' as const }];
+  return c.build('c8.gate', exits, GATE_FROM_PERIMETER, { mykoStart: GATE_MYKO_START, dressing: { props, npcs }, nightAmbient: GATE_NIGHT });
 }
