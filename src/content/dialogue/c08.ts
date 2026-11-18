@@ -69,6 +69,8 @@ export const C08: DialogueFile = {
     'c8.call.fight.margin': 'I came up from the road and then they all lay down.',
     'c8.call.puzzle.casebook': 'Sensor grid, three junction boxes. Worked out the combination. Myko had a look.',
     'c8.call.puzzle.margin': 'I flicked one switch. It was the one you were standing beside.',
+    'c8.call.pruitt.casebook': 'Agent Pruitt at Gate C. He let me through at midnight. Myko spoke to him first.',
+    'c8.call.pruitt.margin': 'About an ice machine. He took it very well.',
   },
   sequences: [
     caption('c8.caption.title', 'The Long Road'),
@@ -223,7 +225,7 @@ export const C08: DialogueFile = {
     box('c8.hint.perimeter.1', ['myko', 'Rock to rock. Let it settle at each one. Slow between.', 'by phone']),
     box('c8.hint.perimeter.2', ['myko', 'Hold Shift past the posts, stay at Grand or under near a mast, and get behind an outcrop when you hear an engine.', 'by phone']),
     box('c8.hint.junctions.1', ['myko', "Work out which box touches a line nothing else does. Start with that.", 'by phone']),
-    box('c8.hint.junctions.2', ['myko', 'Near box, far box, near box again, then the middle one.', 'by phone']),
+    box('c8.hint.junctions.2', ['myko', 'Each box once. Any order. Twice on the same box is the same as never.', 'by phone']),
     box('c8.hint.fence.1', ['myko', "Stay out of the headlights. They shoot faster when they can see what they're doing.", 'by phone']),
     box('c8.hint.fence.2', ['myko', 'Pull them into the dark by the fence post and hold them there. Poke along the wire with the umbrella.', 'by phone']),
     box('c8.hint.board.1', ['myko', "When's the gate thin? And what have you in your pocket since Roswell?"]),
