@@ -230,6 +230,8 @@ function kilnamoe(): TileDef[] {
     }), true),
     // Churned mud for the farmyard and the lane verge.
     t('mud', flat('turfDark', 'turf', 5, 31)),
+    // Chapter 10: Feeney's in daylight. The same window with the sky in it instead of the lamplight.
+    t('windowDay', windowTile(bricks('turfDark', 'ink', 'turf'), 'ink', 'skyPale', 'white'), true, true),
   ];
 }
 
@@ -440,6 +442,14 @@ function base(): TileDef[] {
     t('panel', on(wall, (b) => void b.rect(2, 3, 12, 9, 'ink').rect(3, 4, 4, 3, 'teal').rect(9, 4, 4, 3, 'amber').hline(3, 9, 10, 'fluoro')), true, true),
     t('waterCooler', on(carpet, (b) => void b.rect(5, 1, 6, 7, 'skyPale').rect(5, 8, 6, 7, 'alienGrey').hline(5, 14, 6, 'steel')), true),
     t('consoleDais', solid('violet', 'violetDark', 'fluoro')),
+    // Chapter 9: office carpet tiles, laid in squares with the pile turned on alternate ones; a glass partition
+    // running north-south (`glass` runs east-west).
+    t('carpetTile', (b) => {
+      carpet(b);
+      b.hline(0, 0, 16, 'ink').vline(0, 0, 16, 'ink');
+      for (let y = 2; y < 16; y += 4) for (let x = 2; x < 16; x += 4) b.set(x, y, 'violet');
+    }),
+    t('glassAlong', on(floor, (b) => void b.rect(5, 0, 6, 16, 'teal').vline(6, 0, 16, 'fluoro')), true),
   ];
 }
 
