@@ -591,7 +591,7 @@ const bosses: Tuning['bosses'] = {
     ],
     360,
   ),
-  'c8.boss.pruitt2': boss(
+  'c8.boss.pruitt2': { ...boss(
     'c8.boss.pruitt2',
     'boss',
     [30, 14],
@@ -621,7 +621,7 @@ const bosses: Tuning['bosses'] = {
       },
     ],
     340,
-  ),
+  ), letThrough: true },
   'c9.setpiece.lockdown': boss('c9.setpiece.lockdown', 'setpiece', [50, 30], { moveSpeed: 0 }, { kind: 'reachExit' }, [
     {
       id: 'doors',
@@ -874,6 +874,20 @@ const overhaul: OverhaulTuning = {
   corn: { rustleRadius: 56, sneakRustleRadius: 28 },
   // Chapter 5 rolling shelves; the 1 s rail light is the `shelf` attack's telegraph.
   // Phase 2 closes pairs of lanes, so two shelves in five lanes leave one safe lane.
+  // stand-in: creative director to set. Chapter 7 clerks stand in a line toward Andrew, this far apart.
+  clerkLine: { spacingPx: 20 },
+  // stand-in: creative director to set. Chapter 7 mascot boss; the attack numbers are in `c7.boss.mascots`.
+  mascots: { frontOffsetPx: 34, sideOffsetPx: 30, standOffPx: 120, signKnockedMs: 3000, fanSpreadDeg: 28, tumbleSpeed: 260, tumbleTriggerPx: 48, applauseMs: 3000 },
+  // stand-in: creative director to set. Chapter 8 Pruitt round two; the attack numbers are in `c8.boss.pruitt2`.
+  pruitt2: { whiteoutMs: 1000, barrierDownMs: 1500, truckTravelMs: 1200, barrierWidthPx: 16 },
+  // stand-in: creative director to set. Chapter 8 perimeter hardware (ground sensors, thermal masts, patrol trucks).
+  perimeter: { sensorRadiusPx: 12, mastRangePx: 120, truckSpeed: 40, truckCone: { range: 110, angleDeg: 50 } },
+  // stand-in: creative director to set. Agents' darts fly this much faster inside the parked truck's headlight cone.
+  headlights: { dartSpeedMultiplier: 1.6 },
+  // stand-in: creative director to set. A Barred throw takes this long in the air (view only).
+  throwOutFlightMs: 350,
+  // stand-in: creative director to set. The tint put over a screen at sunset when the chapter gave it no `nightAmbient`.
+  sunsetAmbient: { tint: 'navyDark', strength: 0.55 },
   shelves: { slideMs: 600, closedMs: 1500, pushOutPx: 24, lanesPerShelfByPhase: { oneShelf: 1, twoShelves: 2 } },
   // stand-in: creative director to set. The camera looks this far ahead of Andrew down the ram lane.
   cameraLeadPx: 96,

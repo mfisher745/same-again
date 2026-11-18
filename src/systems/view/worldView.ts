@@ -13,6 +13,7 @@
 
 import Phaser from 'phaser';
 import { animKey, frameName, PALETTE, PROPS_KEY, TEX, tilesetKey } from '../../art';
+import { TUNING } from '../../content/tuning';
 import { tileIndex } from '../../art/tiles';
 import { GameEvents } from '../../core/types';
 import type { Facing, RegionId, TileCoord, Vec2, WeaponId } from '../../core/types';
@@ -24,6 +25,8 @@ import { cutCornTiles, ditchSinkPx, isSensorLightBody } from './c56';
 import { DressingView } from './dressingView';
 import { ObjectsView } from './objectsView';
 import { SetpieceView } from './setpieceView';
+import { HazardView } from './hazardView';
+import { throwPoint } from './c78';
 
 export interface WorldViewOptions {
   /** Draw the debug shapes (checkpoints, areas, radii). `?debug=1`. */
@@ -63,6 +66,7 @@ export class WorldView {
   private readonly dressing: DressingView;
   private readonly objects: ObjectsView;
   private readonly setpieces: SetpieceView;
+  private readonly hazards: HazardView;
   /** The tile image of each cell of the screen, by `row * width + col`. */
   private readonly tileAt = new Map<number, Phaser.GameObjects.Image>();
   /** Chapter 6: this screen's corn tiles, the frames for standing and cut, and which are drawn cut now. */
@@ -94,6 +98,7 @@ export class WorldView {
     this.dressing = new DressingView(scene, run);
     this.objects = new ObjectsView(scene, run);
     this.setpieces = new SetpieceView(scene, run);
+    this.hazards = new HazardView(scene, run);
     this.offCornCut = run.bus.on(GameEvents.CornCut, () => {
       this.cornDirty = true;
     });
@@ -131,7 +136,8 @@ export class WorldView {
       const body = this.bodyFor(a.instanceId, a.spriteKey, 16, 22, this.enemyColour(a));
       // A drone dropped to fire (or stunned) is `low`; aloft it uses the normal animations.
       const lowDrone = a.enemyId === 'drone' && !a.aloft && !a.down;
-      this.place(body, a.pos, a.spriteKey, a.down ? 'down' : lowDrone ? 'low' : a.status === 'telegraphing' ? 'telegraph' : 'walk', facingFromAngle(a.facingDeg));
+      const onBack = a.tag === 'zip' && a.status === 'stunned' && !a.down;
+      this.place(body, a.pos, a.spriteKey, a.down || onBack ? 'down' : lowDrone ? 'low' : a.status === 'telegraphing' ? 'telegraph' : 'walk', facingFromAngle(a.facingDeg));
       if (a.tag === 'harvester') this.sinkHarvester(body, a);
       if (body instanceof Phaser.GameObjects.Rectangle) {
         body.setFillStyle(a.down ? PALETTE.coal : a.status === 'telegraphing' ? PALETTE.alarm : a.disguised ? PALETTE.lime : this.enemyColour(a));
@@ -153,6 +159,7 @@ export class WorldView {
     this.dressing.sync();
     this.syncCorn();
     this.setpieces.sync();
+    this.hazards.sync();
     const now = this.scene.time.now;
     const dt = this.lastSync < 0 ? 0 : now - this.lastSync;
     this.lastSync = now;
@@ -232,6 +239,7 @@ export class WorldView {
     this.dressing.destroy();
     this.objects.destroy();
     this.setpieces.destroy();
+    this.hazards.destroy();
     this.offCornCut();
     this.g.destroy();
     this.playerBody.destroy();
@@ -395,6 +403,22 @@ export class WorldView {
         case 'blocked':
           g.lineStyle(2, PALETTE.fluoro, alpha).strokeCircle(f.pos.x, f.pos.y, 8);
           break;
+        case 'wipe': {
+          // Last Orders: a ring sweeps out from Andrew over the whole screen.
+          const k = 1 - f.ttlMs / 500;
+          g.lineStyle(3, PALETTE.amberLight, Math.max(0, 1 - k)).strokeCircle(f.pos.x, f.pos.y, f.radius * Math.max(0.05, k));
+          break;
+        }
+        case 'throw': {
+          // Barred: he is lifted to Andrew's hands and thrown to where he comes down, then a ring where he lands.
+          const flight = TUNING.overhaul?.throwOutFlightMs ?? 350;
+          const k = 1 - f.ttlMs / flight;
+          const from = f.from ?? f.pos;
+          const t = throwPoint(from, f.pos, k, 18);
+          g.fillStyle(PALETTE.brickDark, 1).fillRect(t.pos.x - 4, t.pos.y - t.height - 10, 8, 10);
+          if (k > 0.8) g.lineStyle(2, PALETTE.amberLight, 0.8).strokeCircle(f.pos.x, f.pos.y, f.radius);
+          break;
+        }
       }
     }
 

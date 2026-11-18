@@ -131,21 +131,29 @@ import { CornField } from './corn';
 import type { PixelRect } from './corn';
 import { MazePuzzle } from './maze';
 import { RedactionPuzzle } from './redaction';
+import { JunctionPuzzle } from './junctions';
+import { MascotDirector } from './mascots';
+import { Pruitt2Director } from './pruitt2';
+import { ShadeField } from './heat';
+import type { HeatState, ShadeRect } from './heat';
+import { TellsPuzzle } from './tells';
 import { ShelfDirector } from './shelves';
 import { PROP } from '../art/props';
 import { CompletableSection, ScriptedCompletable } from './sections';
 import type { SectionHost } from './sections';
-import { StealthRunner, actingNatural } from './stealth';
+import { StealthRunner, actingNatural, canSee } from './stealth';
 import type { Guard, StealthHost } from './stealth';
 
 /** Short-lived things for the view to draw (swings, slams, impacts). */
 export interface FxEvent {
-  readonly kind: 'swing' | 'slam' | 'breath' | 'glove' | 'impact' | 'blocked' | 'hit';
+  readonly kind: 'swing' | 'slam' | 'breath' | 'glove' | 'impact' | 'blocked' | 'hit' | 'throw' | 'wipe';
   readonly pos: Vec2;
   readonly angleDeg: number;
   readonly radius: number;
   readonly arcDeg: number;
   ttlMs: number;
+  /** `throw` (Barred): where he was lifted from (Andrew's hands); `pos` is where he comes down. */
+  readonly from?: Vec2;
 }
 
 export interface LivePickup {
@@ -220,6 +228,20 @@ function sweepPos(h: LiveSweep): Vec2 {
   return { x: o.from.x + (o.to.x - o.from.x) * t, y: o.from.y + (o.to.y - o.from.y) * t };
 }
 
+/** A boss's directors: Pruitt's shelves, the combine, the mascots, Pruitt round two. */
+interface Directors {
+  shelves?: ShelfDirector;
+  combine?: CombineDirector;
+  mascots?: MascotDirector;
+  pruitt2?: Pruitt2Director;
+}
+
+/** The flags the systems keep (saved with the chapter's flags, put back on a return to the bar). */
+const FLAG_HEAT_OFF = 'sys.heatOff';
+const FLAG_NIGHT = 'sys.night';
+const flagTells = (id: string): string => `tells.${id}`;
+const flagJunctions = (id: string): string => `junctions.${id}`;
+
 export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   readonly bus: GameEventBus;
   readonly rng: Random;
@@ -269,7 +291,9 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
   /** Standing corn by screen (chapter 6). */
   readonly corn = new CornField();
   /** Boss directors: Pruitt's shelves, the combine. */
-  private readonly directors = new Map<BossId, { shelves?: ShelfDirector; combine?: CombineDirector }>();
+  private readonly directors = new Map<BossId, Directors>();
+  /** Shade areas (static and moving) for the heat. */
+  private readonly shade = new ShadeField();
   /** The board has been opened this run: stepping back from it leaves it waiting to be reopened. */
   private deductionStarted = false;
   private currentSection: CompletableSectionId | null = null;
@@ -366,6 +390,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.screen = screen;
     this.barFlow = new BarFlow(this.barFlowHost());
 
+    for (const sc of this.module.screens) if (sc.shadeAreas) this.shade.mark(sc.id, sc.shadeAreas);
     this.buildSections();
     this.script = this.module.createScript?.(this) ?? {};
     this.wireBus();
@@ -576,7 +601,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     // Player: move, then the meter (sun first, so this tick's drain is right).
     p.move(dtMs, live, this.grid, (c, r) => this.extraBlocked(c, r), this.groundSpeed());
     this.tickForcedLurch(dtMs);
-    p.setInSun(this.screenInSun && !isShade(this.grid, p.pos));
+    p.setInSun(this.heatActive() && this.screenInSun && !isShade(this.grid, p.pos) && !this.shade.inShade(this.screen.id, p.pos));
     p.tickMeter(dtMs);
     this.mykoVoice.step(dtMs);
     if (p.meter.returnReason) this.handleReturn();
@@ -621,6 +646,8 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       if (!boss) continue;
       d.shelves?.tick(dtMs, boss.phase, boss.active && !boss.suspended);
       d.combine?.tick(dtMs, boss);
+      d.mascots?.tick(dtMs, boss, boss.active && !boss.suspended);
+      d.pruitt2?.tick(dtMs, boss, boss.active && !boss.suspended);
     }
     for (const { puzzle } of this.mazePuzzlesHere()) puzzle.update(p.pos);
     // Act Natural is a move now (`moves.ts`); tall corn hides him without it.
@@ -735,8 +762,11 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       barBeer: () => barBeerOf(this.module.def),
       placeAt: (where) => this.loadScreen(where.screenId, where.position),
       restoreSaved: () => {
+        // The time of day is not undone by a return to the bar: sunset stays.
+        const keep = { [FLAG_HEAT_OFF]: this.flags[FLAG_HEAT_OFF], [FLAG_NIGHT]: this.flags[FLAG_NIGHT] };
         for (const k of Object.keys(this.flags)) delete this.flags[k];
         Object.assign(this.flags, this.savedFlags);
+        for (const [k, v] of Object.entries(keep)) if (v !== undefined) this.flags[k] = v;
       },
       scriptReturned: (reason, resetSectionId) => this.script.onBarReturn?.({ reason, resetSectionId }),
     };
@@ -760,6 +790,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       this.fights.delete(id as AlarmFightId);
       this.sections.delete(id as AlarmFightId);
       this.stealthRunners.get(stealthId)?.runner.reset();
+      this.applyJunctions();
       return;
     }
     this.fights.get(id as FightSectionId)?.reset();
@@ -768,9 +799,12 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (dirs) {
       dirs.shelves?.reset();
       dirs.combine?.reset();
+      dirs.mascots?.reset();
+      dirs.pruitt2?.reset();
       if (dirs.combine) this.regrowCorn();
     }
     this.stealthRunners.get(id as StealthSectionId)?.runner.reset();
+    this.applyJunctions();
     // An unsolved push or sheep puzzle keeps the state Andrew left it in (docs/chapters/README.md).
   }
 
@@ -848,8 +882,49 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     return this.directorsHere().flatMap((d) => (d.combine ? [d.combine] : []));
   }
 
-  private directorsHere(): { shelves?: ShelfDirector; combine?: CombineDirector }[] {
-    const out: { shelves?: ShelfDirector; combine?: CombineDirector }[] = [];
+  /** The mascot boss on the current screen (director, runner), for drawing. */
+  mascotsHere(): { director: MascotDirector; boss: BossRunner | null }[] {
+    return this.directorsHere().flatMap((d) => (d.mascots ? [{ director: d.mascots, boss: this.bosses.get(d.mascots.bossId) ?? null }] : []));
+  }
+
+  /** Pruitt round two on the current screen (director, runner), for drawing. */
+  pruittHere(): { director: Pruitt2Director; boss: BossRunner | null }[] {
+    return this.directorsHere().flatMap((d) => (d.pruitt2 ? [{ director: d.pruitt2, boss: this.bosses.get(d.pruitt2.bossId) ?? null }] : []));
+  }
+
+  /** The screen-white overlay (0..1) while Pruitt's flashbang has caught Andrew. */
+  whiteoutAlpha(): number {
+    let a = 0;
+    for (const d of this.directors.values()) a = Math.max(a, d.pruitt2?.whiteoutAlpha() ?? 0);
+    return a;
+  }
+
+  /** Parked trucks whose headlights are on now (a fight with `headlights` under way on this screen), for drawing and the dart speed. */
+  headlightsHere(): readonly import('../core/chapter').HeadlightPlacement[] {
+    return this.module.fights.filter((f) => f.headlights !== undefined && f.screenId === this.screen.id && this.fights.get(f.sectionId)?.active === true).map((f) => f.headlights as import('../core/chapter').HeadlightPlacement);
+  }
+
+  /** Shade areas on the current screen (static and moving), for drawing. */
+  shadeAreasHere(): readonly ShadeRect[] {
+    return this.shade.areas(this.screen.id);
+  }
+
+  tellsHere(): readonly TellsPuzzle[] {
+    return (this.module.tellsPuzzles ?? []).flatMap((p) => {
+      const e = this.sections.get(p.sectionId);
+      return e && e.completable instanceof TellsPuzzle ? [e.completable] : [];
+    });
+  }
+
+  junctionsHere(): readonly JunctionPuzzle[] {
+    return (this.module.junctionPuzzles ?? []).flatMap((p) => {
+      const e = this.sections.get(p.sectionId);
+      return e && e.completable instanceof JunctionPuzzle ? [e.completable] : [];
+    });
+  }
+
+  private directorsHere(): Directors[] {
+    const out: Directors[] = [];
     for (const [id, d] of this.directors) {
       if (this.module.bosses.find((b) => b.bossId === id)?.screenId === this.screen.id) out.push(d);
     }
@@ -1476,8 +1551,90 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     this.exitLocks.set(exitId, locked);
   }
 
-  /** The heat meter is gone (DESIGN.md 7.1: the sun doubles the drain instead). Kept so scripts compile. */
-  setHeatActive(): void {}
+  setHeatActive(active: boolean): void {
+    if (this.heatActive() === active) return;
+    this.setFlag(FLAG_HEAT_OFF, !active);
+    this.bus.emit(GameEvents.HeatSwitched, { active });
+  }
+
+  heatActive(): boolean {
+    return this.flags[FLAG_HEAT_OFF] !== true;
+  }
+
+  heat(): HeatState {
+    return { active: this.heatActive(), sunnyScreen: this.screenInSun, inSun: this.player.meter.inSun };
+  }
+
+  setShadeArea(id: string, area: AreaRect | null, screenId: ScreenId = this.screen.id): void {
+    this.shade.set(id, screenId, area);
+  }
+
+  sunset(): void {
+    if (this.isNight()) return;
+    this.setFlag(FLAG_NIGHT, true);
+    this.setHeatActive(false);
+    this.applyNight();
+  }
+
+  isNight(): boolean {
+    return this.flags[FLAG_NIGHT] === true;
+  }
+
+  /** Every screen takes its `nightAmbient` (or the default tint). */
+  private applyNight(): void {
+    const d = TUNING.overhaul?.sunsetAmbient;
+    for (const sc of this.module.screens) {
+      const ambient: ScreenAmbient | null = sc.nightAmbient ?? (d ? { tint: d.tint, strength: d.strength } : null);
+      this.dressing.setAmbient(sc.id, ambient);
+    }
+  }
+
+  tells(id: PuzzleSectionId): TellsPuzzle | null {
+    const e = this.sections.get(id);
+    return e && e.completable instanceof TellsPuzzle ? e.completable : null;
+  }
+
+  examineFigure(id: PuzzleSectionId, figureId: string): boolean {
+    const t = this.tells(id);
+    if (!t || t.isComplete() || !t.examine(figureId)) return false;
+    this.setFlag(flagTells(id), t.examined().join(','));
+    return true;
+  }
+
+  openTells(id: PuzzleSectionId): boolean {
+    const t = this.tells(id);
+    if (!t || !t.openScreen()) return false;
+    this.currentSection = id;
+    return true;
+  }
+
+  /** The accuse screen waiting for three names, or null. For the UI. */
+  activeTells(): TellsPuzzle | null {
+    return this.tellsHere().find((t) => t.isOpen) ?? null;
+  }
+
+  submitTells(id: PuzzleSectionId, figureIds: readonly string[]): import('./tells').TellsTry {
+    const t = this.tells(id);
+    if (!t) return { correct: false, textId: '', refused: true };
+    return t.submit(figureIds);
+  }
+
+  closeTells(): void {
+    this.activeTells()?.closeScreen();
+  }
+
+  junctions(id: PuzzleSectionId): JunctionPuzzle | null {
+    const e = this.sections.get(id);
+    return e && e.completable instanceof JunctionPuzzle ? e.completable : null;
+  }
+
+  /** Puts every junction puzzle's lines onto its stealth section's sensors again (after the hazards were rebuilt). */
+  private applyJunctions(): void {
+    for (const p of this.module.junctionPuzzles ?? []) {
+      const e = this.sections.get(p.sectionId);
+      if (e && e.completable instanceof JunctionPuzzle) e.completable.apply();
+    }
+  }
 
   /** Send Myko to `pos` (or release him with null). `hurry` makes the walk the `hurry` animation. */
   setMykoScripted(pos: Vec2 | null, hurry = false): void {
@@ -1714,6 +1871,30 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       if (typeof flagged === 'string') for (const id of flagged.split(',')) puzzle.collect(id);
       this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: null, entrance: null, start: () => puzzle.start() });
     }
+    for (const p of m.tellsPuzzles ?? []) {
+      const def = m.def.puzzle.id === p.sectionId ? m.def.puzzle : { id: p.sectionId, chapter: this.chapter, kind: 'spotTheAlien' as const };
+      const puzzle = new TellsPuzzle(def, p.layout, this, this.bus, this.sectionReward(p.sectionId));
+      if (this.completed.has(p.sectionId)) puzzle.restoreComplete();
+      const seen = this.flags[flagTells(p.sectionId)];
+      if (typeof seen === 'string') for (const id of seen.split(',')) puzzle.examine(id);
+      this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: null, entrance: null, start: () => puzzle.start() });
+    }
+    for (const p of m.junctionPuzzles ?? []) {
+      const def = m.def.puzzle.id === p.sectionId ? m.def.puzzle : { id: p.sectionId, chapter: this.chapter, kind: 'junctions' as const };
+      const puzzle = new JunctionPuzzle(def, p.layout, this, this.bus, this.sectionReward(p.sectionId));
+      puzzle.setLine = (line, on) => {
+        const ctl = this.stealth(p.layout.stealthId as StealthSectionId);
+        for (const sid of line.sensorIds) ctl?.setHazardEnabled(sid, on);
+      };
+      const off = this.flags[flagJunctions(p.sectionId)];
+      if (typeof off === 'string' && off !== '') puzzle.restoreOff(off.split(','));
+      if (this.completed.has(p.sectionId)) {
+        puzzle.restoreComplete();
+        // A solved puzzle keeps its target lines off even if the flag was lost.
+        puzzle.restoreOff([...new Set([...puzzle.linesOff(), ...p.layout.targetOff])]);
+      }
+      this.sections.set(p.sectionId, { completable: puzzle, kind: 'puzzle', screenId: null, entrance: null, start: () => puzzle.start() });
+    }
     const board = m.def.deductionBoard;
     if (board) {
       // Wrong-answer lines answer the player's own submission, so they may repeat.
@@ -1728,6 +1909,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       if (this.completed.has(def.id)) runner.resolve();
       this.stealthRunners.set(def.id, { runner, placement });
     }
+    this.applyJunctions();
   }
 
   private addFight(f: FightPlacement): void {
@@ -1750,20 +1932,30 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
 
   private addBoss(b: BossPlacement): void {
     const def = TUNING.bosses[b.bossId];
-    const dirs: { shelves?: ShelfDirector; combine?: CombineDirector } = {};
+    const dirs: Directors = {};
     if (b.shelves) dirs.shelves = new ShelfDirector(b.bossId, b.shelves, this.directorHost());
     if (b.combine) dirs.combine = new CombineDirector(b.bossId, b.combine, this.directorHost(b.screenId));
-    if (dirs.shelves || dirs.combine) this.directors.set(b.bossId, dirs);
+    if (b.mascots) dirs.mascots = new MascotDirector(b.bossId, b.mascots, this.mascotHost());
+    if (b.pruitt2) dirs.pruitt2 = new Pruitt2Director(b.bossId, b.pruitt2, this.directorHost());
+    if (dirs.shelves || dirs.combine || dirs.mascots || dirs.pruitt2) this.directors.set(b.bossId, dirs);
     const lazy = this.lazyBossHooks(b.bossId);
     const hooks: import('./boss').BossHooks = {
       ...lazy,
       onStart: (bo) => {
         dirs.combine?.start(bo);
+        dirs.mascots?.start(bo);
         lazy.onStart?.(bo);
+      },
+      onEnd: (bo, by) => {
+        dirs.mascots?.end(by);
+        dirs.pruitt2?.end(by);
+        lazy.onEnd?.(bo, by);
       },
     };
     const runner = new BossRunner(def, b.bodies, this, this, b.exitArea ?? null, this.sectionReward(b.bossId), hooks);
     if (dirs.shelves) runner.directedAttackIds = ['shelf'];
+    if (dirs.mascots) runner.directedAttackIds = ['zipTumble', 'zapFan'];
+    if (dirs.pruitt2) runner.directedAttackIds = ['flashbang', 'barrier', 'truckPass'];
     if (this.completed.has(b.bossId)) runner.restoreComplete();
     this.bosses.set(b.bossId, runner);
     this.sections.set(b.bossId, {
@@ -1777,6 +1969,19 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
         runner.suspended = on;
       },
     });
+  }
+
+  private mascotHost(): import('./mascots').MascotHost {
+    return {
+      bus: this.bus,
+      screenId: () => this.screen.id,
+      grid: () => this.grid,
+      extraBlocked: (c, r) => this.extraBlocked(c, r),
+      playerPosition: () => this.player.pos,
+      playerTargetable: () => this.playerTargetable(),
+      hitPlayer: (hit) => this.hitPlayer(hit),
+      spawnProjectile: (spawn) => this.spawnProjectile(spawn),
+    };
   }
 
   private directorHost(screenId?: ScreenId): import('./shelves').ShelfHost & import('./combine').CombineHost {
@@ -2058,6 +2263,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     // Areas Andrew spawns inside fire on the next tick (insideTriggers was cleared above).
     const def = this.module.def.screens.find((s) => s.id === id);
     this.screenInSun = def?.sun === true;
+    if (this.isNight()) this.applyNight();
     const region = def?.region;
     if (region) this.bus.emit(GameEvents.ScreenEntered, { screenId: id, region });
     this.script?.onScreenEntered?.(id);
@@ -2201,7 +2407,7 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       alarmGuardsHit: (shape, angle) => this.alarmGuardsHit(shape, angle),
       emitNoise: (n) => this.emitNoise(n),
       spawnProjectile: (s) => this.spawnProjectile(s),
-      addFx: (kind, pos, angleDeg, radius, arcDeg, ttlMs) => this.fx.push({ kind, pos, angleDeg, radius, arcDeg, ttlMs }),
+      addFx: (kind, pos, angleDeg, radius, arcDeg, ttlMs, from) => this.fx.push({ kind, pos, angleDeg, radius, arcDeg, ttlMs, ...(from ? { from } : {}) }),
     };
   }
 
@@ -2238,6 +2444,11 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     const p = this.player;
     for (const proj of this.projectileList) {
       if (proj.done) continue;
+      // The fence fight's parked truck: a dart (agents' only projectile) flies faster inside its headlight cone.
+      if (proj.owner === 'enemy' && proj.frame === 'dart') {
+        const mult = TUNING.overhaul?.headlights?.dartSpeedMultiplier ?? 1;
+        proj.speedScale = this.headlightsHere().some((h) => canSee(this.grid, h.position, h.facingDeg, h.cone, proj.pos)) ? mult : 1;
+      }
       const before = proj.pos;
       const landedNow = stepProjectile(proj, this.grid, dtMs);
       const checkHits = !proj.shape.lobbed || landedNow;
@@ -2296,6 +2507,17 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
     if (best.item) this.give(best.item);
     if (this.module.deduction?.examinableId === best.id) this.openDeduction();
     for (const rp of this.module.redactionPuzzles ?? []) if (rp.examinableId === best.id) this.openRedaction(rp.sectionId);
+    for (const tp of this.module.tellsPuzzles ?? []) {
+      const puzzle = this.tells(tp.sectionId);
+      const fig = puzzle?.figureForExaminable(best.id);
+      if (fig) this.examineFigure(tp.sectionId, fig.id);
+      if (tp.accuseExaminableId === best.id) this.openTells(tp.sectionId);
+    }
+    for (const jp of this.module.junctionPuzzles ?? []) {
+      const puzzle = this.junctions(jp.sectionId);
+      const box = puzzle?.boxForExaminable(best.id);
+      if (puzzle && box && puzzle.toggle(box.id)) this.setFlag(flagJunctions(jp.sectionId), puzzle.linesOff().join(','));
+    }
     for (const pp of this.pushPuzzlesHere()) if (pp.placement.resetExaminableId === best.id) pp.puzzle.reset();
     // E at a container lever pulls it (Andrew in the piece's way refuses); the lever's prop flips.
     for (const sp of this.slidePuzzlesHere()) {
