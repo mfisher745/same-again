@@ -2,7 +2,7 @@
  * The tile canvas the chapters paint their screens on: a grid of characters
  * turned into tile frames and a collision and sight grid derived from
  * `tileFlags`, so the art and the walls cannot drift. Chapters 1 and 2 are in
- * the `kilnamoe` region; chapters 4 and 5 paint in `cities` and chapter 6 in `ohio`, each with its own legend.
+ * the `kilnamoe` region; chapters 4 and 5 paint in `cities` and chapter 6 in `ohio` and chapter 8 in `nevada`, each with its own legend.
  */
 
 import { tileFlags, tileIndex } from '../art/tiles';
@@ -114,7 +114,34 @@ const OHIO_LEGEND: Readonly<Record<string, string>> = {
   X: 'cornWall',
 };
 
-const LEGENDS: Readonly<Partial<Record<RegionId, Readonly<Record<string, string>>>>> = { cities: CITIES_LEGEND, ohio: OHIO_LEGEND };
+/** Canvas character to `nevada` tile name (chapter 8). */
+const NEVADA_LEGEND: Readonly<Record<string, string>> = {
+  '#': 'wallTop',
+  W: 'wallFace',
+  w: 'window',
+  '.': 'floor',
+  ',': 'floorAlt',
+  p: 'path',
+  r: 'rough',
+  o: 'cover',
+  c: 'counter',
+  t: 'table',
+  s: 'seat',
+  d: 'doorStrip',
+  f: 'fence',
+  m: 'marking',
+  q: 'water',
+  a: 'asphalt',
+  // Chapter 8: shade (walkable), ground sensor posts and the wire between them (the wire is walkable), thermal masts,
+  // junction boxes.
+  S: 'shade',
+  P: 'sensorPost',
+  l: 'sensorLine',
+  M: 'thermalMast',
+  J: 'junctionBox',
+};
+
+const LEGENDS: Readonly<Partial<Record<RegionId, Readonly<Record<string, string>>>>> = { cities: CITIES_LEGEND, ohio: OHIO_LEGEND, nevada: NEVADA_LEGEND };
 
 export interface Extras {
   readonly mykoStart?: Vec2;
