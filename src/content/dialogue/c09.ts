@@ -70,6 +70,8 @@ export const C09: DialogueFile = {
     'c9.call.fight.margin': 'I was involved the way weather is involved.',
     'c9.call.puzzle.casebook': 'Three rooms where gravity changes direction. Solved. Myko has a feel for it.',
     'c9.call.puzzle.margin': 'I pressed one button and stood still. You slid past me twice.',
+    'c9.call.lockdown.casebook': 'The containment hall, sealed one bay at a time. Every door opened. Myko had the tape.',
+    'c9.call.lockdown.margin': 'I asked a man in a lanyard. He said it was not his department and held the door.',
   },
   sequences: [
     caption('c9.caption.title', 'Level Minus Four'),
@@ -108,6 +110,10 @@ export const C09: DialogueFile = {
     box('c9.offices.contract', ['andrew', "It's a lease. They rent this. From Meridian. Since 1962."], ['myko', 'Who’s the landlord?', 'by phone'], ['andrew', 'Halloran’s head office.'], ['myko', "He's never been told. He's a form in."]),
     box('c9.offices.directory', ['andrew', "Staff directory. Four hundred. Gary's in it."], ['myko', 'Is he smiling?', 'by phone'], ['andrew', 'He is.'], ['myko', 'Good man Gary.']),
     box('c9.offices.clean', ['myko', "Not one of them looked twice. There's a bottle in that kitchenette, left over from a leaving do. Tequila. I doubt they knew what it was for.", 'by phone']),
+    box('c9.examine.signUp', ['andrew', 'The sign-up sheet for the party. Forty names. A second sheet taped on for the overflow.'], ['myko', 'Forty. The Starlite did a lock-in once and four came. One was the dog.', 'by phone']),
+    box('c9.examine.dartboard', ['andrew', 'Every dart dead centre. Every one.'], ['myko', "Then it's not a game. It's a demonstration.", 'by phone']),
+    box('c9.examine.fridge', ['andrew', 'Milk, labelled. Yoghurts, labelled. A note: “Whoever is taking the oat milk, we know.”']),
+    box('c9.examine.recorder', ['andrew', 'A tape recorder in the wall. The reels are turning. The label says “HANGAR”.'], ['myko', "That's the footage. Three seconds to get it out. The doors won't wait.", 'by phone']),
     box('c9.offices.caught', ['npc:name.clerk', 'Excuse me. Do you have a visitor badge? I’m going to have to raise a ticket.']),
 
     // --- The Glove ---
@@ -190,6 +196,9 @@ export const C09: DialogueFile = {
     box('c9.lockdown.myko.2', ['myko', "Bay three. The box on the wall with the red light. That's the tape. It's three seconds. Take it.", 'by phone']),
     box('c9.lockdown.myko.3', ['myko', "Leave them. LEAVE them. They'll still be there. The door won't.", 'by phone']),
     box('c9.lockdown.myko.4', ['myko', "Last one. Lanyard out. Don't drop the bag.", 'by phone']),
+    box('c9.gravity.noGlove', ['andrew', "It's a panel with a hand on it. It doesn't want my hand."], ['myko', "There'll be a glove somewhere. Lost property. There's always a glove in lost property.", 'by phone']),
+    box('c9.lockdown.liftRefused', ['npc:name.announcement', 'Lift access requires five items of supporting documentation and a valid lanyard. Thank you.']),
+    box('c9.lockdown.takeStarted', ['andrew', 'Come on. Come on.']),
     box('c9.lockdown.shut', ['myko', "It caught you. Back you go. It's only a door. It's a very heavy door, but it's only a door.", 'by phone']),
 
     scene(

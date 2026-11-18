@@ -7,6 +7,8 @@ import { chapter5 } from './05';
 import { chapter6 } from './06';
 import { chapter7 } from './07';
 import { chapter8 } from './08';
+import { chapter9 } from './09';
+import { chapter10 } from './10';
 
 registerChapter(chapter1);
 registerChapter(chapter2);
@@ -16,3 +18,5 @@ registerChapter(chapter5);
 registerChapter(chapter6);
 registerChapter(chapter7);
 registerChapter(chapter8);
+registerChapter(chapter9);
+registerChapter(chapter10);

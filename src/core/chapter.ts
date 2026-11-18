@@ -77,6 +77,11 @@ import type { MascotPlacement } from '../systems/mascots';
 import type { Pruitt2Placement } from '../systems/pruitt2';
 import type { TellsLayout, TellsPuzzle } from '../systems/tells';
 import type { JunctionLayout, JunctionPuzzle } from '../systems/junctions';
+import type { GravityLayout, GravityPuzzle } from '../systems/gravity';
+import type { LockdownDirector, LockdownPlacement } from '../systems/lockdown';
+import type { AdministratorDirector, AdministratorPlacement } from '../systems/administrator';
+import type { BroadcastLayout, BroadcastPuzzle } from '../systems/broadcast';
+import type { EpilogueCard } from '../systems/epilogue';
 import type { HeatState } from '../systems/heat';
 import type { MazePuzzlePlacement } from '../systems/maze';
 import type { RedactionLayout, RedactionPuzzle } from '../systems/redaction';
@@ -299,6 +304,11 @@ export interface ScreenLayout {
   readonly shadeAreas?: readonly AreaRect[];
   /** What `ctx.sunset()` puts on this screen; absent: `TUNING.overhaul.sunsetAmbient` with no lights. */
   readonly nightAmbient?: ScreenAmbient;
+  /**
+   * Chapter 10 (Feeney's in daylight): on this screen the meter is hidden and does not drain, and nothing hurts. It
+   * comes back when Andrew leaves. Run-time only: never saved, so a load never starts with the meter gone.
+   */
+  readonly noMeter?: true;
 }
 
 /** Chapter 8 fence fight: a parked truck's headlights. While the fight is under way, agents' darts are faster inside the cone. */
@@ -360,6 +370,10 @@ export interface BossPlacement {
   readonly mascots?: MascotPlacement;
   /** Chapter 8 boss: Pruitt round two (`pruitt2.ts`). Body tagged 'pruitt'. */
   readonly pruitt2?: Pruitt2Placement;
+  /** Chapter 9 set piece: the containment hall lockdown (`lockdown.ts`). No bodies: the guards are the director's. */
+  readonly lockdown?: LockdownPlacement;
+  /** Chapter 10 boss: the Administrator (`administrator.ts`). One body tagged 'administrator'. */
+  readonly administrator?: AdministratorPlacement;
   readonly entrance: Vec2;
   /**
    * What Myko's call lines for this boss or set piece are called: the chapter's `mykoCallLines.setpiece` set is
@@ -454,6 +468,20 @@ export interface JunctionPlacement {
   readonly layout: JunctionLayout;
 }
 
+/** Chapter 9 `c9.puzzle.gravity`. */
+export interface GravityPlacement {
+  readonly sectionId: PuzzleSectionId;
+  readonly screenId: ScreenId;
+  readonly layout: GravityLayout;
+}
+
+/** Chapter 10 `c10.puzzle.broadcast`. */
+export interface BroadcastPlacement {
+  readonly sectionId: PuzzleSectionId;
+  readonly screenId: ScreenId;
+  readonly layout: BroadcastLayout;
+}
+
 export interface DeductionPlacement {
   /** Examining this opens the board (or the script calls `ctx.openDeduction()`). */
   readonly examinableId?: string;
@@ -488,6 +516,10 @@ export interface ChapterModule {
   readonly tellsPuzzles?: readonly TellsPlacement[];
   /** Chapter 8: the junction boxes. */
   readonly junctionPuzzles?: readonly JunctionPlacement[];
+  /** Chapter 9: the gravity rooms. */
+  readonly gravityPuzzles?: readonly GravityPlacement[];
+  /** Chapter 10: the broadcast console. */
+  readonly broadcastPuzzles?: readonly BroadcastPlacement[];
   readonly deduction?: DeductionPlacement;
   readonly triggers: readonly TriggerDef[];
   /** Pools for Myko's tangents (DESIGN.md 7.5: Ohio from chapter 6). */
@@ -705,6 +737,28 @@ export interface ChapterContext {
   openTells(id: PuzzleSectionId): boolean;
   /** Chapter 8: the junction puzzle `id`, or null. */
   junctions(id: PuzzleSectionId): JunctionPuzzle | null;
+  /** The gravity puzzle (chapter 9), or null. `completeNow()` solves all three rooms. */
+  gravity(id: PuzzleSectionId): GravityPuzzle | null;
+  /** The broadcast console (chapter 10), or null. See `broadcast.ts`: `plug`, `examine`, `press`. */
+  broadcast(id: PuzzleSectionId): BroadcastPuzzle | null;
+  /** The lockdown director of a set piece (chapter 9), or null. */
+  lockdown(bossId: BossId): LockdownDirector | null;
+  /** The Administrator's director (chapter 10), or null. */
+  administrator(bossId: BossId): AdministratorDirector | null;
+  /** Whether Andrew has the Borrowed Glove: from now on E at a gravity switch works it whatever is in slot 3. */
+  hasGlove(): boolean;
+  /** Leaves a weapon on the floor of `screenId` (default: this one) for Andrew to pick up; nothing if he already has it. Run-time only: spawn it again in `onStart` if the section is done and he does not have it. */
+  spawnWeaponPickup(weaponId: WeaponId, position: Vec2, screenId?: ScreenId): void;
+  /** How many Myko calls the whole run used (all chapters), for the epilogue's two versions. */
+  mykoCallsUsed(): number;
+  /**
+   * Plays a scripted card sequence (the world's reaction, the title card, the credits). Gameplay waits while it runs;
+   * resolves when the last card is gone. The UI draws `uiState.activeCard()` and calls `advanceCard()` on a key.
+   */
+  playCards(cards: readonly EpilogueCard[]): Promise<void>;
+  /** Andrew sits at `pos` (the stool), facing `facing`, controls locked, until `standUp()`. Run-time only. */
+  sitDown(pos: Vec2, facing: Facing): void;
+  standUp(): void;
   /** Park Myko at a spot (scripted), or null to let him follow again. */
   setMykoScripted(pos: Vec2 | null): void;
   playerPosition(): Vec2;

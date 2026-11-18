@@ -229,7 +229,7 @@ export const C10: DialogueFile = {
     box('c10.hint.administrator.1', ['myko', "He's behind that desk till the two guards are down. Then he isn't.", 'by phone']),
     box('c10.hint.administrator.2', ['myko', 'Drop both guards and hit him while the desk is dark. When he flips the room, E at a switch to flip it back. When he vanishes, keep walking.', 'by phone']),
     box('c10.hint.broadcast.1', ['myko', "Each plug's a different shape. Match the shape, not the colour."]),
-    box('c10.hint.broadcast.2', ['myko', 'The tape and the photo look like they share a socket. The tape’s has the notch. E on a socket to look closer.']),
+    box('c10.hint.broadcast.2', ['myko', 'The contract and the directory look like they share a socket. They don’t. The directory’s has the notch. Look closer at a socket before you push.']),
     box('c10.hint.button.1', ['myko', "It's the big one. He told you himself."]),
     box('c10.hint.button.2', ['myko', 'E. Go on.']),
     box('c10.hint.pub.1', ['myko', "It's the bar, Andrew. You know the way. You've worn a path."]),

@@ -72,6 +72,8 @@ export function enemySheets(): Sheet[] {
 
 const PRUITT: Look = look(TALL, { hair: 'fog', top: 'slate', topShade: 'coal', tie: 'brickDark', lanyard: 'amber', legs: 'coal', eyes: 'tired' });
 const ADMINISTRATOR: Look = look(ALIEN, { cellHeight: 22, torsoHeight: 6, legLength: 4, top: 'violetDark', topShade: 'ink', tie: 'teal', legs: 'violetDark' });
+/** The end of the fight: sat on the floor, legs gone under him, hands in his lap, still looking at Andrew. Held. */
+const ADMINISTRATOR_SIT: AnimSpec = { poses: [{ drop: 3, arm: 'guard', otherArm: 'guard' }, { drop: 3, arm: 'guard', otherArm: 'guard', glance: 1 }], frameRate: 1 };
 const mascotBoss = (skin: Look['skin'], shade: Look['skinShade']): Look =>
   look({ cellWidth: 24, cellHeight: 36, headWidth: 14, headHeight: 13, torsoWidth: 10, torsoHeight: 11, armWidth: 2, legLength: 7, legWidth: 3, skin, skinShade: shade, top: skin, topShade: shade, legs: shade, shoes: shade, eyes: 'alien' });
 
@@ -91,9 +93,9 @@ export function bossFigureSheets(): Sheet[] {
     figureSheet(key('c7.boss.mascots', '.zap'), mascotBoss('magenta', 'magentaShade'), fighter('pistol')),
     // Zorp holds the novelty sign in every frame: it is his whole job.
     figureSheet(key('c7.boss.mascots', '.zorp'), { ...mascotBoss('tan', 'tanShade'), carries: 'sign' }, fighter('sign')),
-    figureSheet(key('c10.boss.administrator'), ADMINISTRATOR, fighter('pistol')),
-    // Phase 3: jacket hung up properly, shirt sleeves.
-    figureSheet(key('c10.boss.administrator', '.personally'), { ...ADMINISTRATOR, top: 'bone', topShade: 'fog' }, fighter()),
+    figureSheet(key('c10.boss.administrator'), ADMINISTRATOR, { ...fighter('pistol'), sit: ADMINISTRATOR_SIT }),
+    // Phase 3: jacket hung up properly, shirt sleeves. `sit` is the end: sat on the floor, hands in his lap.
+    figureSheet(key('c10.boss.administrator', '.personally'), { ...ADMINISTRATOR, top: 'bone', topShade: 'fog' }, { ...fighter(), sit: ADMINISTRATOR_SIT }),
   ];
 }
 

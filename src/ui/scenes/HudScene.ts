@@ -258,8 +258,13 @@ export class HudScene extends Phaser.Scene {
     this.game.events.on(PROMPT_EVENTS.hide, onHide);
     const onHotDrink = (): void => this.openHotDrink();
     this.game.events.on(PROMPT_EVENTS.hotDrink, onHotDrink);
+    const onBroadcast = (): void => {
+      this.broadcastWanted = true;
+    };
+    this.game.events.on(PROMPT_EVENTS.broadcast, onBroadcast);
     this.unsubs.push(
       () => this.game.events.off(PROMPT_EVENTS.hotDrink, onHotDrink),
+      () => this.game.events.off(PROMPT_EVENTS.broadcast, onBroadcast),
       () => this.game.events.off(PROMPT_EVENTS.show, onShow),
       () => this.game.events.off(PROMPT_EVENTS.hide, onHide),
     );
@@ -310,14 +315,14 @@ export class HudScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     if (kb !== null) {
       const onEsc = (e: KeyboardEvent): void => {
-        if (e.repeat || this.returnLive() || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Settings) || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.Redaction) || this.scene.isActive(UiSceneKeys.Tells) || this.scene.isActive(UiSceneKeys.HotDrink)) return;
+        if (e.repeat || this.returnLive() || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Settings) || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.Redaction) || this.scene.isActive(UiSceneKeys.Tells) || this.scene.isActive(UiSceneKeys.HotDrink) || this.scene.isActive(UiSceneKeys.Broadcast)) return;
         if (this.shared.overlays.isOpen('tab')) this.closeTab();
         else if (this.shared.overlays.isOpen('pause')) this.closePause();
         else this.openPause();
       };
       const onTab = (e: KeyboardEvent): void => {
         e.preventDefault();
-        if (e.repeat || this.returnLive() || this.shared.overlays.isOpen('pause') || this.shared.overlays.isOpen('hotdrink') || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.Redaction) || this.scene.isActive(UiSceneKeys.Tells)) return;
+        if (e.repeat || this.returnLive() || this.shared.overlays.isOpen('pause') || this.shared.overlays.isOpen('hotdrink') || this.shared.overlays.isOpen('return') || this.scene.isActive(UiSceneKeys.Deduction) || this.scene.isActive(UiSceneKeys.Redaction) || this.scene.isActive(UiSceneKeys.Tells) || this.scene.isActive(UiSceneKeys.Broadcast)) return;
         if (this.shared.overlays.isOpen('tab')) {
           if (this.shared.source.tabMode() === 'toggle') this.closeTab();
         } else if (!this.queue.blocking) this.openTab();
@@ -377,6 +382,21 @@ export class HudScene extends Phaser.Scene {
     this.scene.bringToTop(UiSceneKeys.HotDrink);
   }
 
+  /** The console was asked for (chapter 10): it opens as soon as no line is up and nothing else is open. */
+  private broadcastWanted = false;
+
+  private openBroadcast(): void {
+    if (!this.broadcastWanted) return;
+    if (this.shared.source.activeBroadcast() === null || this.scene.isActive(UiSceneKeys.Broadcast)) {
+      this.broadcastWanted = false;
+      return;
+    }
+    if (this.returnLive() || this.queue.blocking || this.shared.overlays.any) return;
+    this.broadcastWanted = false;
+    this.scene.launch(UiSceneKeys.Broadcast);
+    this.scene.bringToTop(UiSceneKeys.Broadcast);
+  }
+
   openTab(): void {
     this.game.events.emit(PROMPT_EVENTS.tabOpened);
     this.prompts.hide('ui.casebook.first');
@@ -395,12 +415,13 @@ export class HudScene extends Phaser.Scene {
   private teardown(): void {
     for (const u of this.unsubs) u();
     this.unsubs = [];
-    for (const key of [UiSceneKeys.Pause, UiSceneKeys.Settings, UiSceneKeys.Tab, UiSceneKeys.Deduction, UiSceneKeys.Redaction, UiSceneKeys.Tells, UiSceneKeys.HotDrink]) this.scene.stop(key);
+    for (const key of [UiSceneKeys.Pause, UiSceneKeys.Settings, UiSceneKeys.Tab, UiSceneKeys.Deduction, UiSceneKeys.Redaction, UiSceneKeys.Tells, UiSceneKeys.HotDrink, UiSceneKeys.Broadcast, UiSceneKeys.Cards]) this.scene.stop(key);
     this.shared.overlays.hide('pause');
     this.shared.overlays.hide('tab');
     this.shared.overlays.hide('hotdrink');
     this.shared.overlays.hide('redaction');
     this.shared.overlays.hide('tells');
+    this.shared.overlays.hide('broadcast');
     this.shared.overlays.hide('return');
     this.returns.cancel();
     this.returnPhase = 'none';
@@ -462,9 +483,14 @@ export class HudScene extends Phaser.Scene {
       this.scene.launch(UiSceneKeys.Deduction);
       this.scene.bringToTop(UiSceneKeys.Deduction);
     }
-    if (source.activeRedaction() !== null && !this.scene.isActive(UiSceneKeys.Redaction) || this.scene.isActive(UiSceneKeys.Tells)) {
+    if (source.activeRedaction() !== null && !this.scene.isActive(UiSceneKeys.Redaction)) {
       this.scene.launch(UiSceneKeys.Redaction);
       this.scene.bringToTop(UiSceneKeys.Redaction);
+    }
+    this.openBroadcast();
+    if (source.activeCard() !== null && !this.scene.isActive(UiSceneKeys.Cards)) {
+      this.scene.launch(UiSceneKeys.Cards);
+      this.scene.bringToTop(UiSceneKeys.Cards);
     }
     if (source.activeTells() !== null && !this.scene.isActive(UiSceneKeys.Tells)) {
       this.scene.launch(UiSceneKeys.Tells);
