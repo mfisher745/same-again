@@ -36,6 +36,10 @@ export function recordMotion(def: StealthSectionDef, grid: TileGrid, frames: num
 }
 
 /**
+ * Seated guards (`GuardPlacement.seated`) are planned with their shorter cone. They look up on noise, but a sneaking Andrew
+ * is silent below Fecked (`sneakNoiseRadiusByLevel`), so the plan holds for a sneak at any level but Fecked; a route that
+ * has to walk past a seated clerk is not planned.
+ *
  * `heat`: when given, true where Andrew would be at Bit much or above out in the sun (chapter 8), so thermal masts with
  * a clear line and range see him there. Absent: he is at Grand or in shade, and masts and ground sensors (he sneaks) see nothing.
  */
@@ -46,7 +50,9 @@ export function seenAt(def: StealthSectionDef, grid: TileGrid, f: Frame, p: Vec2
     const g = f.guards[i];
     const enemy = TUNING.enemies[def.guards[i]?.enemyId ?? 'suit'];
     const s = enemy.senses;
-    if (g && s && canSee(grid, g.pos, g.facing, { range: s.visionRange, angleDeg: s.visionAngleDeg }, p)) return true;
+    // Seated guards (chapter 9 clerks at their desks) have a shorter cone, as in `Guard`.
+    const range = s ? s.visionRange * (def.guards[i]?.seated === true ? TUNING.stealth.seatedVisionMultiplier : 1) : 0;
+    if (g && s && canSee(grid, g.pos, g.facing, { range, angleDeg: s.visionAngleDeg }, p)) return true;
   }
   for (let i = 0; i < def.hazards.length; i++) {
     const h = def.hazards[i];
