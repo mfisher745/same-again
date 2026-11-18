@@ -23,6 +23,7 @@ export const UiSceneKeys = {
   Tab: 'UiTab',
   Deduction: 'UiDeduction',
   Redaction: 'UiRedaction',
+  Tells: 'UiTells',
   Settings: 'UiSettings',
   HotDrink: 'UiHotDrink',
 } as const;

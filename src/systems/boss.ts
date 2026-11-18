@@ -257,7 +257,9 @@ export class BossRunner extends CompletableSection {
 
   protected forceSolvedState(source: CompletionSource): void {
     this.started = true;
-    for (const a of [...this.targets, ...this.adds]) if (!a.down) this.world.defeat(a, source);
+    // A boss that is let through (Pruitt round two) stops; he is not knocked down.
+    const fallers = this.def.letThrough === true ? this.adds : [...this.targets, ...this.adds];
+    for (const a of fallers) if (!a.down) this.world.defeat(a, source);
     this.stopEveryone();
   }
 

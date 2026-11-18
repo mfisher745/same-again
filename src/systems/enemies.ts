@@ -49,11 +49,28 @@ export interface CombatWorld {
 }
 
 /** Per-roster behaviour flags that are not numbers. docs/chapters/README.md roster. */
-const BEHAVIOUR: Readonly<Partial<Record<EnemyId, { backOffAfterHit?: boolean; flank?: boolean }>>> = {
+const BEHAVIOUR: Readonly<Partial<Record<EnemyId, { backOffAfterHit?: boolean; flank?: boolean; lineUp?: boolean }>>> = {
   lad: { backOffAfterHit: true },
   cousin: { backOffAfterHit: true },
   agent: { flank: true },
+  // Chapter 7: clerks stand in a line toward Andrew and fire down it, so a Stumble or an umbrella catches the lot.
+  clerk: { lineUp: true },
 };
+
+/**
+ * Where each of a group of ranged enemies stands to form a line pointing at the player: the nearest keeps its bearing
+ * from the player at `preferred` px, the next stands `spacing` px behind it on the same bearing, and so on. Pure.
+ */
+export function lineUpGoals(members: readonly { readonly id: string; readonly pos: Vec2 }[], player: Vec2, preferred: number, spacing: number): Map<string, Vec2> {
+  const out = new Map<string, Vec2>();
+  if (members.length === 0) return out;
+  const sorted = [...members].sort((a, b) => distance(a.pos, player) - distance(b.pos, player) || (a.id < b.id ? -1 : 1));
+  const front = sorted[0] as { id: string; pos: Vec2 };
+  const dir = normalize(sub(front.pos, player));
+  const axis = dir.x === 0 && dir.y === 0 ? { x: 1, y: 0 } : dir;
+  sorted.forEach((m, i) => out.set(m.id, add(player, scale(axis, preferred + i * spacing))));
+  return out;
+}
 
 export interface ActorStats {
   readonly maxHealth: number;
@@ -123,6 +140,8 @@ export class EnemyActor {
   frozen = false;
   /** Extra damage taken while dazed (Big Tom after hitting the tractor). */
   damageTakenMultiplier = 1;
+  /** Called when Andrew's Stumble passes through this body, before the hit lands (Zorp's sign). */
+  onStumbled: ((actor: EnemyActor) => void) | null = null;
   /** Called when a charge stops against a blocked tile. */
   onChargeBlocked: ((actor: EnemyActor, col: number, row: number) => void) | null = null;
   /** Called after an attack lands on Andrew. */
@@ -498,6 +517,20 @@ export class EnemyActor {
     if (this.enemyId && BEHAVIOUR[this.enemyId]?.flank && dist > 48 && this.backOffMs === 0) {
       const toPlayer = normalize(sub(player, this.pos));
       goal = add(player, scale({ x: -toPlayer.y, y: toPlayer.x }, TUNING.combat.flankOffset * this.flankSign));
+    }
+    // Chapter 7: clerks form a line toward Andrew.
+    let lineSlot: Vec2 | null = null;
+    if (ranged && this.enemyId && BEHAVIOUR[this.enemyId]?.lineUp && this.backOffMs === 0) {
+      const mates = world.actors().filter((o) => o.enemyId === this.enemyId && !o.down && !o.disguised);
+      if (mates.length >= 2 && mates.includes(this)) {
+        const spacing = TUNING.overhaul?.clerkLine?.spacingPx ?? 20;
+        lineSlot = lineUpGoals(mates.map((m) => ({ id: m.instanceId, pos: m.pos })), player, shapeReach(ranged.shape) * TUNING.combat.rangedPreferredFraction, spacing).get(this.instanceId) ?? null;
+      }
+    }
+    if (lineSlot) {
+      if (distance(this.pos, lineSlot) < 3) return;
+      goal = lineSlot;
+      wantDist = 0;
     }
     if (wantDist > 0 && dist <= wantDist) return;
 

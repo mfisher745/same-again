@@ -31,6 +31,10 @@ const TALL: Partial<Look> = { cellHeight: 28, torsoHeight: 8, legLength: 9 };
 const BIG: Partial<Look> = { cellWidth: 24, cellHeight: 32, headWidth: 9, headHeight: 8, torsoWidth: 12, torsoHeight: 10, armWidth: 2, legLength: 9, legWidth: 3 };
 const ALIEN: Partial<Look> = { cellHeight: 20, headWidth: 9, headHeight: 8, torsoWidth: 5, torsoHeight: 5, legLength: 3, skin: 'alienGrey', skinShade: 'steel', eyes: 'alien' };
 
+/** Chapter 7 costumes: antennae need headroom, so the cell is 28 tall. Costumed aliens stand a little taller than usual. */
+const COSTUME: Partial<Look> = { cellHeight: 28 };
+const COSTUME_ALIEN: Partial<Look> = { cellHeight: 28, torsoHeight: 6, torsoWidth: 6, legLength: 5 };
+
 const look = (...parts: Partial<Look>[]): Look => Object.assign({}, BASE, ...parts) as Look;
 
 /** The animation set every enemy and boss has. docs/style-guide.md section 2. */
@@ -85,7 +89,8 @@ export function bossFigureSheets(): Sheet[] {
     figureSheet(key('c8.boss.pruitt2'), PRUITT, fighter('taser')),
     figureSheet(key('c7.boss.mascots', '.zip'), mascotBoss('lime', 'limeShade'), fighter()),
     figureSheet(key('c7.boss.mascots', '.zap'), mascotBoss('magenta', 'magentaShade'), fighter('pistol')),
-    figureSheet(key('c7.boss.mascots', '.zorp'), mascotBoss('tan', 'tanShade'), fighter('shield')),
+    // Zorp holds the novelty sign in every frame: it is his whole job.
+    figureSheet(key('c7.boss.mascots', '.zorp'), { ...mascotBoss('tan', 'tanShade'), carries: 'sign' }, fighter('sign')),
     figureSheet(key('c10.boss.administrator'), ADMINISTRATOR, fighter('pistol')),
     // Phase 3: jacket hung up properly, shirt sleeves.
     figureSheet(key('c10.boss.administrator', '.personally'), { ...ADMINISTRATOR, top: 'bone', topShade: 'fog' }, fighter()),
@@ -99,7 +104,8 @@ const NPC_LOOKS = {
   halloran: look({ hair: 'fog', top: 'slate', topShade: 'coal', tie: 'moss', band: 'amberLight', legs: 'slate' }),
   colleenAnn: look({ hair: 'amber', top: 'grass', topShade: 'moss', legs: 'denim', shoes: 'white' }),
   pruitt: PRUITT,
-  gary: look(ALIEN, { top: 'lime', topShade: 'limeShade', legs: 'tanShade' }),
+  // Gary works the till in the shop's costume, over himself: lime suit and hood, antennae, the shop's magenta apron.
+  gary: look(ALIEN, COSTUME_ALIEN, { hood: 'lime', hoodShade: 'limeShade', antennae: 'magenta', top: 'lime', topShade: 'limeShade', apron: 'magenta', legs: 'limeShade', shoes: 'limeShade' }),
   administrator: ADMINISTRATOR,
   // Generic townspeople and tourists; chapters pick whichever suits.
   localA: look({ hair: 'coal', top: 'moss', topShade: 'mossDark', legs: 'turf', hat: 'cap', hatColour: 'slate' }),
@@ -113,10 +119,39 @@ const NPC_LOOKS = {
   touristB: look({ hair: 'turfDark', top: 'motelPink', topShade: 'motelPinkShade', legs: 'dustyBlue', shoes: 'white' }),
   attendant: look({ hat: 'cap', hatColour: 'rust', top: 'tan', topShade: 'tanShade', legs: 'denim', stubble: true }),
   alienClerk: look(ALIEN, { top: 'bone', topShade: 'fog', tie: 'violet', legs: 'coal' }),
+  // Chapter 7's bartender: a peat-brown head of hair, an antennae headband and a sunburn up to the hairline.
+  roswellBartender: look(COSTUME, { hair: 'turfDark', antennae: 'lime', skin: 'motelPink', skinShade: 'motelPinkShade', top: 'magenta', topShade: 'magentaShade', apron: 'bone', legs: 'denim', shoes: 'white' }),
+  // Chapter 7's tells puzzle: six people in alien costumes. Keys match `name.costumeA`..`E`; Gary is the sixth.
+  // Tourists (A, C, E) are sunburnt, sweating and fidget; aliens (B, D, Gary) are grey under the hood, dry and still.
+  /** Tourist. Sunburnt, sweating, a bum bag on a magenta strap. */
+  costumeA: look(COSTUME, { hood: 'lime', hoodShade: 'limeShade', antennae: 'magenta', sweat: true, skin: 'motelPink', skinShade: 'motelPinkShade', top: 'lime', topShade: 'limeShade', band: 'magentaShade', legs: 'limeShade', shoes: 'white', torsoWidth: 8 }),
+  /** Alien. A silver suit, a violet tie showing at the collar. Counts change to the cent. */
+  costumeB: look(ALIEN, COSTUME_ALIEN, { hood: 'fog', hoodShade: 'steel', antennae: 'lime', top: 'fog', topShade: 'steel', tie: 'violet', legs: 'steel', shoes: 'coal' }),
+  /** Tourist. Magenta suit, on the phone, sweating. */
+  costumeC: look(COSTUME, { hood: 'magenta', hoodShade: 'magentaShade', antennae: 'lime', sweat: true, top: 'magenta', topShade: 'magentaShade', legs: 'magentaShade', shoes: 'white', hair: 'turfDark' }),
+  /** Alien. Magenta suit, reading a snow globe's small print. */
+  costumeD: look(ALIEN, COSTUME_ALIEN, { hood: 'magenta', hoodShade: 'magentaShade', antennae: 'amberLight', top: 'magenta', topShade: 'magentaShade', legs: 'magentaShade', shoes: 'coal', carries: 'globe' }),
+  /** Tourist. Lime suit, sunglasses, mid-complaint about the heat. */
+  costumeE: look(COSTUME, { hood: 'lime', hoodShade: 'limeShade', antennae: 'lime', eyes: 'shades', mouth: 'open', sweat: true, skin: 'motelPink', skinShade: 'motelPinkShade', top: 'lime', topShade: 'limeShade', legs: 'tan', shoes: 'white', torsoWidth: 8 }),
 } as const satisfies Record<string, Look>;
+
+/** Idle sets for NPCs that do more than stand. The aliens keep the plain `IDLE`, whose two frames are the same: too still. */
+const NPC_IDLES: Partial<Readonly<Record<keyof typeof NPC_LOOKS, AnimSpec>>> = {
+  // Shifting weight in the heat.
+  costumeA: { poses: [{}, { drop: 1, glance: 1 }], frameRate: 2 },
+  // Scrolling, then a selfie.
+  costumeC: { poses: [{ arm: 'guard', item: 'phone' }, { arm: 'guard', item: 'phone', glance: 1 }, { arm: 'up', item: 'phone' }], frameRate: 1 },
+  // Hands up at the sun, one then the other.
+  costumeE: { poses: [{ arm: 'up' }, { otherArm: 'up' }], frameRate: 2 },
+  // Reading the globe, never looking away from it.
+  costumeD: { poses: [{ arm: 'guard' }, { arm: 'guard' }], frameRate: 1 },
+};
 
 export type NpcId = keyof typeof NPC_LOOKS;
 
 export function npcSheets(): Sheet[] {
-  return Object.entries(NPC_LOOKS).map(([id, npcLook]) => figureSheet(npcKey(id), npcLook, stand));
+  return Object.entries(NPC_LOOKS).map(([id, npcLook]) => {
+    const idle = NPC_IDLES[id as NpcId];
+    return figureSheet(npcKey(id), npcLook, idle === undefined ? stand : { ...stand, idle });
+  });
 }

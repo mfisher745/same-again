@@ -36,6 +36,7 @@ export const C07: DialogueFile = {
     'name.costumeC': 'Figure at the photo booth',
     'name.costumeD': 'Figure in the queue',
     'name.costumeE': 'Figure by the fridge magnets',
+    'name.costumeF': 'Figure at the till',
     'name.clerk': 'Clerk',
     'name.bartender': 'Bartender',
     'name.zip': 'Zip',
@@ -137,6 +138,7 @@ export const C07: DialogueFile = {
     box('c7.tells.d', ['andrew', "He's queueing. There's nobody else in the queue. He's left a gap in front of him anyway."], ['myko', 'He blinked there. Sideways. Did you see? Like a gate closing.']),
     // Figure E: tourist.
     box('c7.tells.e', ['andrew', "He's asked the price of the same magnet three times and he's still annoyed."], ['myko', "Human. Aliens crossed the stars, Andrew. They can read a sticker."]),
+    box('c7.tells.gary', ['andrew', "He's counting the change in the till. To the cent. Twice. He hasn't looked up."], ['myko', 'Nineteen years at a till does that to a man. Or something does.']),
     box('c7.tells.wrong', ['npc:name.tourist', "Dude. I'm from Tucson. Do you work here?"], ['myko', 'Mortified for you. Go again.']),
     scene(
       'c7.tells.right',

@@ -72,7 +72,7 @@ export interface PlayerCombatHost {
   alarmGuardsHit(shape: AttackShape, angleDeg: number): void;
   emitNoise(n: NoiseEvent): void;
   spawnProjectile(spawn: ProjectileSpawn): void;
-  addFx(kind: 'swing' | 'slam' | 'glove' | 'hit', pos: Vec2, angleDeg: number, radius: number, arcDeg: number, ttlMs: number): void;
+  addFx(kind: 'swing' | 'slam' | 'glove' | 'hit' | 'throw' | 'wipe', pos: Vec2, angleDeg: number, radius: number, arcDeg: number, ttlMs: number, from?: Vec2): void;
 }
 
 /** The legacy ability id a weapon or move sounds like, for events the audio and chapter 1 still read. */
@@ -402,6 +402,7 @@ export class PlayerCombat {
         const who = byId(selectTargets(effect, p.pos, p.aimDeg, candidates)).filter((a) => !a.aloft);
         const damage = this.weaponDamage();
         const kb = this.tuning.weapons[p.kit.slots.melee].knockback;
+        for (const a of who) a.onStumbled?.(a);
         h.moveWorldHits(id, { kind: 'charge', distance: effect.distance, width: effect.width }, true);
         p.lurch(effect.distance, p.aimDeg, h.grid(), (c, r) => h.extraBlocked(c, r));
         for (const a of who) hit(a, damage, kb);
@@ -432,6 +433,8 @@ export class PlayerCombat {
         break;
       }
       case 'screenWipe':
+        // A ring that sweeps the screen, for the view; the effect itself is on every enemy at once.
+        h.addFx('wipe', p.pos, p.aimDeg, 400, 360, 500);
         for (const a of alive) this.applyOnTarget(effect, a, source);
         break;
     }
@@ -452,8 +455,14 @@ export class PlayerCombat {
     const h = this.host;
     const p = h.player;
     const out = resolveOnTarget(effect, { boss: a.enemyId === null, health: a.health, maxHealth: a.stats.maxHealth });
+    // Barred: he is lifted to Andrew's hands and thrown; the view flies him from there to where he comes down.
+    if (effect.kind === 'throwOut' && out.removed) h.addFx('throw', a.pos, p.aimDeg, effect.landingRadius, 0, TUNING.overhaul?.throwOutFlightMs ?? 350, p.pos);
+    // Last Orders is called on the whole room: Zorp's sign does not turn it away.
+    const guard = a.guardSide;
+    if (effect.kind === 'screenWipe') a.guardSide = null;
     if (out.damage > 0) h.damageActor(a, out.damage, { x: 0, y: 0 }, out.stunMs, source, p.pos, true);
     else if (out.stunMs > 0) a.stun(out.stunMs);
+    a.guardSide = guard;
     if (out.removed && !a.down) h.defeat(a, 'player');
     if (out.landingDamage > 0) {
       // Thrown out, he lands on everyone near where he comes down.

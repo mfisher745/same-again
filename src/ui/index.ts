@@ -14,6 +14,7 @@ import { PauseScene } from './scenes/PauseScene';
 import { RedactionScene } from './scenes/RedactionScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { TabScene } from './scenes/TabScene';
+import { TellsScene } from './scenes/TellsScene';
 import { TitleScene } from './scenes/TitleScene';
 import { PROMPT_EVENTS, UiSceneKeys, createShared } from './shared';
 import type { UiHooks } from './shared';
@@ -33,6 +34,7 @@ export function createUiScenes(source: UiStateSource, hooks: UiHooks = {}): Phas
     new TabScene(shared),
     new DeductionScene(shared),
     new RedactionScene(shared),
+    new TellsScene(shared),
     new SettingsScene(shared),
     new HotDrinkScene(shared),
   ];
