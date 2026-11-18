@@ -30,7 +30,12 @@ export type Item =
   | 'umbrella'
   | 'inflatable'
   | 'wand'
-  | 'rollie';
+  | 'rollie'
+  // Chapter 7: a tourist's phone and a snow globe being read very closely.
+  | 'phone'
+  | 'globe'
+  // Zorp's novelty sign: a foam board on a stick, held in front like a shield.
+  | 'sign';
 export type Arm = 'down' | 'out' | 'up' | 'guard' | 'pocket';
 
 export interface Look {
@@ -72,6 +77,17 @@ export interface Look {
   readonly apron?: ColourName;
   /** Item carried in every pose unless the pose overrides it. */
   readonly carries?: Item;
+  /**
+   * Chapter 7 costumes. `hood` is a full-head costume hood in this colour with a window for the face; `hoodShade`
+   * shades it. `antennae` is a headband with two stalks and bobbles of this colour, four pixels above the head, so
+   * the cell needs at least five rows of headroom. `sweat` is a drop flying off the face. `mouth: 'open'` is someone
+   * mid-complaint.
+   */
+  readonly hood?: ColourName;
+  readonly hoodShade?: ColourName;
+  readonly antennae?: ColourName;
+  readonly sweat?: boolean;
+  readonly mouth?: 'open';
 }
 
 export interface Pose {
@@ -209,6 +225,31 @@ function drawItem(b: PixelBuffer, item: Item, hx: number, hy: number, dx: number
       // Held up between two fingers, lit end up, a thread of smoke.
       b.set(hx, hy - 1, 'white').set(hx, hy - 2, 'amber').set(hx + 1, hy - 4, 'fog');
       return;
+    case 'sign': {
+      // Facing: the white face with its lime border and magenta blocks. Back: the plain bone back. Side: edge on.
+      if (dx !== 0) {
+        const sx = hx + dx * 2;
+        b.rect(sx, hy - 7, 2, 11, 'white').vline(sx + (dx > 0 ? 1 : 0), hy - 7, 11, 'lime');
+      } else {
+        const sy = dy > 0 ? hy - 3 : hy - 6;
+        b.rect(hx - 7, sy, 13, 9, 'lime').rect(hx - 6, sy + 1, 11, 7, dy > 0 ? 'white' : 'bone');
+        if (dy > 0) for (let i = 0; i < 3; i++) b.rect(hx - 5 + i * 3, sy + 2, 2, 2, 'magenta').rect(hx - 5 + i * 3, sy + 5, 2, 1, 'magenta');
+      }
+      return;
+    }
+    case 'phone': {
+      // Held up, screen lit.
+      const px = hx + (dx < 0 ? -1 : 0);
+      b.rect(px, hy - 3, 2, 3, 'ink').set(px, hy - 2, 'fluoro').set(px + 1, hy - 2, 'skyPale');
+      return;
+    }
+    case 'globe': {
+      // A snow globe on its base, a fleck of snow, held up to the eyes.
+      const gx = hx + (dx < 0 ? -2 : 0);
+      b.rect(gx, hy - 3, 3, 3, 'skyPale').set(gx, hy - 3, null).set(gx + 2, hy - 3, null).set(gx + 1, hy - 2, 'white');
+      b.hline(gx, hy, 3, 'tanShade');
+      return;
+    }
   }
 }
 
@@ -363,6 +404,32 @@ function drawStanding(b: PixelBuffer, look: Look, facing: 'down' | 'up' | 'right
     }
   }
 
+  if (look.hood !== undefined) {
+    // A costume hood over the whole head, a window cut for the face. The back of the head is all hood.
+    const hs = look.hoodShade ?? look.hood;
+    b.rect(hx, hy, hw, hh, look.hood);
+    b.vline(hx + hw - 1, hy + 1, hh - 1, hs).hline(hx + 1, hy + hh - 1, hw - 1, hs);
+    b.set(hx, hy, null).set(hx + hw - 1, hy, null).set(hx, hy + hh - 1, null).set(hx + hw - 1, hy + hh - 1, null);
+    if (!back) {
+      const wx = side ? hx + hw - 4 : hx + 2;
+      const ww = side ? 4 : hw - 4;
+      b.rect(wx, hy + 2, ww, hh - 3, look.skin);
+      if (!side) b.vline(wx + ww - 1, hy + 3, hh - 4, look.skinShade);
+    }
+  }
+  const bobble = look.antennae;
+  if (bobble !== undefined) {
+    // Headband stalks leaning outward, a bobble on each.
+    const stalk = look.hood ?? bobble;
+    if (look.hood === undefined) b.hline(hx, hy + 1, hw, bobble);
+    const xs = side ? [hx + 2, hx + hw - 3] : [hx + 1, hx + hw - 2];
+    xs.forEach((x, i) => {
+      const out = i === 0 ? -1 : 1;
+      b.set(x, hy - 1, stalk).set(x, hy - 2, stalk).set(x + out, hy - 3, stalk);
+      b.rect(i === 0 ? x - 2 : x + 1, hy - 5, 2, 2, bobble);
+    });
+  }
+
   if (!back) {
     const eyes = look.eyes ?? 'dot';
     const ey = hy + (eyes === 'alien' ? Math.floor(hh / 2) - 1 : Math.min(hh - 3, 3));
@@ -407,6 +474,16 @@ function drawStanding(b: PixelBuffer, look: Look, facing: 'down' | 'up' | 'right
         b.hline(g.cx - 1 + ox, my, 2, 'ink');
         b.set(g.cx + 1 + ox, my - 1, 'ink');
       }
+    }
+    if (look.mouth === 'open') {
+      const my = hy + hh - 2;
+      if (side) b.set(hx + hw - 1, my, 'ink');
+      else b.rect(g.cx - 1 + ox, my, 2, 1, 'ink');
+    }
+    if (look.sweat === true) {
+      // A drop off the brow, outside the head so it reads against the hood.
+      b.set(hx + hw, hy + 2, 'skyPale').set(hx + hw, hy + 3, 'skyPale');
+      if (!side) b.set(hx - 1, hy + 3, 'skyPale');
     }
     if (look.rollie === true && pose.noRollie !== true) {
       const my = hy + hh - 2;
