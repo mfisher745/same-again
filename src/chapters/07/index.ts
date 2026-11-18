@@ -74,8 +74,7 @@ const tellsLayout: TellsLayout = {
   figures: FIGURES.map((f) => ({
     id: f.key,
     examinableId: f.key === 'gary' ? 'c7.gary' : `c7.tells.${f.key}`,
-    // TODO(cd): Gary's card has no costume name (`name.costumeF`, "Figure at the till"); his speaker name is the stand-in.
-    labelTextId: f.nameTextId ?? 'speaker.gary',
+    labelTextId: f.nameTextId ?? 'name.costumeF',
   })),
   aliens: ALIEN_FIGURES as unknown as readonly [string, string, string],
   promptTextId: 'c7.tells.prompt',

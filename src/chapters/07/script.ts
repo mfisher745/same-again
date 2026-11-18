@@ -250,9 +250,9 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   const garyExamined = (): void => {
     if (!ctx.isComplete(TELLS)) {
       ctx.examineFigure(TELLS, GARY_TELLS_ID);
-      if (tells()?.allExamined() === true) openTellsSoon();
-      // TODO(cd): Gary has no tells line of his own (`c7.tells.gary`); Myko's first hint stands in until he has.
-      else void ctx.say('c7.hint.tells.1', { repeat: true });
+      void ctx.say('c7.tells.gary', { repeat: true }).then(() => {
+        if (tells()?.allExamined() === true) openTellsSoon();
+      });
       return;
     }
     void garyTalk();
