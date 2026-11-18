@@ -26,6 +26,7 @@ import { DressingView } from './dressingView';
 import { ObjectsView } from './objectsView';
 import { SetpieceView } from './setpieceView';
 import { HazardView } from './hazardView';
+import { C910View } from './c910View';
 import { throwPoint } from './c78';
 
 export interface WorldViewOptions {
@@ -67,6 +68,7 @@ export class WorldView {
   private readonly objects: ObjectsView;
   private readonly setpieces: SetpieceView;
   private readonly hazards: HazardView;
+  private readonly chapters910: C910View;
   /** The tile image of each cell of the screen, by `row * width + col`. */
   private readonly tileAt = new Map<number, Phaser.GameObjects.Image>();
   /** Chapter 6: this screen's corn tiles, the frames for standing and cut, and which are drawn cut now. */
@@ -99,6 +101,7 @@ export class WorldView {
     this.objects = new ObjectsView(scene, run);
     this.setpieces = new SetpieceView(scene, run);
     this.hazards = new HazardView(scene, run);
+    this.chapters910 = new C910View(scene, run);
     this.offCornCut = run.bus.on(GameEvents.CornCut, () => {
       this.cornDirty = true;
     });
@@ -160,6 +163,7 @@ export class WorldView {
     this.syncCorn();
     this.setpieces.sync();
     this.hazards.sync();
+    this.chapters910.sync();
     const now = this.scene.time.now;
     const dt = this.lastSync < 0 ? 0 : now - this.lastSync;
     this.lastSync = now;
@@ -240,6 +244,7 @@ export class WorldView {
     this.objects.destroy();
     this.setpieces.destroy();
     this.hazards.destroy();
+    this.chapters910.destroy();
     this.offCornCut();
     this.g.destroy();
     this.playerBody.destroy();
