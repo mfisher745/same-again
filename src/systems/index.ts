@@ -99,3 +99,4 @@ export type { BarrierLine, Pruitt2Placement, Pruitt2View, TruckPath } from './pr
 export { ShadeField } from './heat';
 export type { HeatState } from './heat';
 export { lineUpGoals } from './enemies';
+export { junctionExaminableId, junctionLayoutFrom, lineSensorId, perimeterHazards } from './perimeter';

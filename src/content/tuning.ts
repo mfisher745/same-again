@@ -877,9 +877,11 @@ const overhaul: OverhaulTuning = {
   // stand-in: creative director to set. Chapter 7 clerks stand in a line toward Andrew, this far apart.
   clerkLine: { spacingPx: 20 },
   // stand-in: creative director to set. Chapter 7 mascot boss; the attack numbers are in `c7.boss.mascots`.
-  mascots: { frontOffsetPx: 34, sideOffsetPx: 30, standOffPx: 120, signKnockedMs: 3000, fanSpreadDeg: 28, tumbleSpeed: 260, applauseMs: 3000 },
+  mascots: { frontOffsetPx: 34, sideOffsetPx: 30, standOffPx: 120, signKnockedMs: 3000, fanSpreadDeg: 28, tumbleSpeed: 260, tumbleTriggerPx: 48, applauseMs: 3000 },
   // stand-in: creative director to set. Chapter 8 Pruitt round two; the attack numbers are in `c8.boss.pruitt2`.
   pruitt2: { whiteoutMs: 1000, barrierDownMs: 1500, truckTravelMs: 1200, barrierWidthPx: 16 },
+  // stand-in: creative director to set. Chapter 8 perimeter hardware (ground sensors, thermal masts, patrol trucks).
+  perimeter: { sensorRadiusPx: 12, mastRangePx: 120, truckSpeed: 40, truckCone: { range: 110, angleDeg: 50 } },
   // stand-in: creative director to set. Agents' darts fly this much faster inside the parked truck's headlight cone.
   headlights: { dartSpeedMultiplier: 1.6 },
   // stand-in: creative director to set. A Barred throw takes this long in the air (view only).

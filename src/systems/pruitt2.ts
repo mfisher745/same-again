@@ -88,7 +88,8 @@ export class Pruitt2Director {
   }
 
   /** The boss ended (health at 40%, or a Myko call): everything stops. */
-  end(_by: CompletionSource): void {
+  end(by: CompletionSource): void {
+    void by;
     if (this.stopped) return;
     this.reset();
     this.stopped = true;

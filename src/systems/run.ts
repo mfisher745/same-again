@@ -762,8 +762,11 @@ export class ChapterRun implements ChapterContext, SectionHost, CombatWorld {
       barBeer: () => barBeerOf(this.module.def),
       placeAt: (where) => this.loadScreen(where.screenId, where.position),
       restoreSaved: () => {
+        // The time of day is not undone by a return to the bar: sunset stays.
+        const keep = { [FLAG_HEAT_OFF]: this.flags[FLAG_HEAT_OFF], [FLAG_NIGHT]: this.flags[FLAG_NIGHT] };
         for (const k of Object.keys(this.flags)) delete this.flags[k];
         Object.assign(this.flags, this.savedFlags);
+        for (const [k, v] of Object.entries(keep)) if (v !== undefined) this.flags[k] = v;
       },
       scriptReturned: (reason, resetSectionId) => this.script.onBarReturn?.({ reason, resetSectionId }),
     };

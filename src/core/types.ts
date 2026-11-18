@@ -2336,8 +2336,22 @@ export interface OverhaulTuning {
   readonly headlights?: { readonly dartSpeedMultiplier: number };
   /** Barred: how long the thrown enemy is in the air for the view, ms. */
   readonly throwOutFlightMs?: number;
+  /** Chapter 8 perimeter hardware (`perimeter.ts`). */
+  readonly perimeter?: PerimeterTuning;
   /** Chapter 8: the sunset tint when a chapter has no `nightAmbient` on a screen. */
   readonly sunsetAmbient?: { readonly tint: ColourName; readonly strength: number };
+}
+
+/** Chapter 8 perimeter hazards. First guesses; creative director to set. */
+export interface PerimeterTuning {
+  /** A ground sensor catches running within this, px. */
+  readonly sensorRadiusPx: number;
+  /** A thermal mast sees this far, px. */
+  readonly mastRangePx: number;
+  /** A patrol truck drives this fast, px per second. */
+  readonly truckSpeed: number;
+  /** The truck's spotter cone. */
+  readonly truckCone: { readonly range: number; readonly angleDeg: number };
 }
 
 /** Clerks that line up to fire (chapter 7). First guesses. */
@@ -2360,6 +2374,8 @@ export interface MascotTuning {
   readonly fanSpreadDeg: number;
   /** Zip tumbles at this speed, px per second. */
   readonly tumbleSpeed: number;
+  /** With a marked tumble line, Zip starts only while Andrew is within this of it, px. */
+  readonly tumbleTriggerPx: number;
   /** The tourists applaud for this long, ms (for the view and the chapter). */
   readonly applauseMs: number;
 }

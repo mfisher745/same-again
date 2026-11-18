@@ -23,7 +23,7 @@ import { GameEvents } from '../core/types';
 import type { AttackDef, BossId, CompletionSource, GameEventBus, HitInfo, ScreenId, TileGrid, Vec2 } from '../core/types';
 import type { BossRunner } from './boss';
 import type { EnemyActor } from './enemies';
-import { add, angleTo, distance, fromAngle, normalize, scale, sub } from './geometry';
+import { add, angleTo, distance, distanceToSegment, fromAngle, normalize, scale, sub } from './geometry';
 import { moveBox } from './grid';
 import type { ProjectileSpawn } from './projectiles';
 
@@ -32,6 +32,13 @@ export interface MascotPlacement {
   readonly arena: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
   /** Body tags (defaults 'zip', 'zap', 'zorp'). */
   readonly tags?: { readonly zip: string; readonly zap: string; readonly zorp: string };
+  /**
+   * The line painted on the ground that Zip tumbles along (chapter 7: `ZIP_TUMBLE_LINE`). Absent: he rolls at Andrew
+   * for the attack's distance. With a line: Zip stands on it (formation), and when his tumble starts he rolls from
+   * where he is along it to its `to` end, the whole remaining length, whether or not Andrew is on it. He starts
+   * only while Andrew is within `mascots.tumbleTriggerPx` of the line.
+   */
+  readonly tumbleLine?: { readonly from: Vec2; readonly to: Vec2 };
 }
 
 export interface MascotHost {
@@ -85,7 +92,7 @@ export function fanAngles(aimDeg: number, spreadDeg: number, bolts: number): num
 type ZipState = 'idle' | 'lit' | 'rolling' | 'prone';
 
 export class MascotDirector {
-  private zip: { state: ZipState; ms: number; from: Vec2; dir: number; travelled: number; hit: boolean; cd: number } = freshZip();
+  private zip: ZipRun = freshZip();
   private zap: { state: 'idle' | 'lit'; ms: number; aim: number; cd: number } = { state: 'idle', ms: 0, aim: 0, cd: 0 };
   private signMs = 0;
   private armed = false;
@@ -126,7 +133,8 @@ export class MascotDirector {
   }
 
   /** Called when the boss ends. By a player win or a Myko call the tourists applaud. */
-  end(_by: CompletionSource): void {
+  end(by: CompletionSource): void {
+    void by;
     if (this.ended) return;
     this.ended = true;
     this.zip.state = 'idle';
@@ -141,7 +149,7 @@ export class MascotDirector {
     const zipBody = boss?.body(this.tags.zip);
     const tumble =
       (z.state === 'lit' || z.state === 'rolling') && t && t.shape.kind === 'charge'
-        ? { from: z.from, to: add(z.from, fromAngle(z.dir, t.shape.distance)), width: t.shape.width, state: z.state }
+        ? { from: z.from, to: add(z.from, fromAngle(z.dir, z.len)), width: t.shape.width, state: z.state }
         : null;
     const f = this.currentAttack(boss, 'zapFan');
     const zapBody = boss?.body(this.tags.zap);
@@ -195,7 +203,8 @@ export class MascotDirector {
       };
       hold(zorp, spots.zorp, true);
       hold(zap, spots.zap, this.zap.state === 'idle');
-      hold(zip, spots.zip, this.zip.state === 'idle');
+      const line = this.placement.tumbleLine;
+      hold(zip, line ? { x: spots.zip.x, y: line.from.y } : spots.zip, this.zip.state === 'idle');
     }
 
     if (zip && !zip.down && zipAtk) this.tickZip(dtMs, zip, zipAtk, mult, player, targetable);
@@ -253,25 +262,31 @@ export class MascotDirector {
       z.state = 'prone';
     }
     switch (z.state) {
-      case 'idle':
+      case 'idle': {
         z.cd -= dtMs;
-        if (z.cd <= 0 && targetable && distance(zip.pos, player) <= shape.distance + 40) {
+        const line = this.placement.tumbleLine;
+        const near = line
+          ? distanceToSegment(player, line.from, line.to) <= (TUNING.overhaul?.mascots?.tumbleTriggerPx ?? 0)
+          : distance(zip.pos, player) <= shape.distance + 40;
+        if (z.cd <= 0 && targetable && near) {
           z.state = 'lit';
           z.ms = atk.telegraphMs / mult;
           z.from = { ...zip.pos };
-          z.dir = angleTo(zip.pos, player);
+          z.dir = line ? angleTo(zip.pos, line.to) : angleTo(zip.pos, player);
+          z.len = line ? distance(zip.pos, line.to) : shape.distance;
           z.travelled = 0;
           z.hit = false;
           this.host.bus.emit(GameEvents.MascotsChanged, { bossId: this.bossId, phase: 'telegraph', tag: zip.tag });
         }
         break;
+      }
       case 'lit':
         z.ms -= dtMs;
         if (z.ms <= 0) z.state = 'rolling';
         break;
       case 'rolling': {
         const speed = TUNING.overhaul?.mascots?.tumbleSpeed ?? 0;
-        const step = Math.min((speed * dtMs) / 1000, shape.distance - z.travelled);
+        const step = Math.min((speed * dtMs) / 1000, z.len - z.travelled);
         const blocked = this.moveBody(zip, scale(fromAngle(z.dir), step));
         z.travelled += step;
         zip.pinned = { ...zip.pos };
@@ -286,7 +301,7 @@ export class MascotDirector {
           });
           z.hit = landed;
         }
-        if (blocked || z.travelled >= shape.distance - 0.001) {
+        if (blocked || z.travelled >= z.len - 0.001) {
           // On his back for the recovery time: stunned, open to hits.
           zip.stun(atk.recoveryMs);
           z.state = 'prone';
@@ -343,6 +358,18 @@ export class MascotDirector {
   }
 }
 
-function freshZip(): { state: ZipState; ms: number; from: Vec2; dir: number; travelled: number; hit: boolean; cd: number } {
-  return { state: 'idle', ms: 0, from: { x: 0, y: 0 }, dir: 0, travelled: 0, hit: false, cd: 0 };
+interface ZipRun {
+  state: ZipState;
+  ms: number;
+  from: Vec2;
+  dir: number;
+  travelled: number;
+  /** How far this roll goes, px. */
+  len: number;
+  hit: boolean;
+  cd: number;
+}
+
+function freshZip(): ZipRun {
+  return { state: 'idle', ms: 0, from: { x: 0, y: 0 }, dir: 0, travelled: 0, len: 0, hit: false, cd: 0 };
 }
