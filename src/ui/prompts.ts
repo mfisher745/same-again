@@ -50,6 +50,14 @@ export function openHotDrinkChoice(): void {
   host?.events.emit(PROMPT_EVENTS.hotDrink);
 }
 
+/**
+ * Open the chapter 10 broadcast console (five plugs, five sockets, the button). Does nothing unless the screen has a console
+ * (`activeBroadcast()` is not null) or it is already open.
+ */
+export function openBroadcastConsole(): void {
+  host?.events.emit(PROMPT_EVENTS.broadcast);
+}
+
 /** "2 to use it": the prompt for a special slot's key. */
 export function showSlotPrompt(slot: SpecialSlotIndex): () => void {
   return showPrompt('ui.prompt.slot', { key: keyText(KEY_IDS.slot(slot)) });
