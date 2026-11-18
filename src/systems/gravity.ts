@@ -173,7 +173,8 @@ export function roomGoalMet(room: GravityRoomLayout, crates: readonly { col: num
   return andrew !== null && room.ledges.some((l) => l.col === andrew.col && l.row === andrew.row);
 }
 
-const adjacent = (a: TileCoord, b: TileCoord): boolean => Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row)) <= 1;
+/** Beside it, not on the diagonal: E reaches 20 px and a diagonal tile is 22 px away. */
+const adjacent = (a: TileCoord, b: TileCoord): boolean => Math.abs(a.col - b.col) + Math.abs(a.row - b.row) <= 1;
 
 export class GravityPuzzle extends PuzzleBase {
   private rooms: RoomState[];
@@ -323,12 +324,13 @@ export class GravityPuzzle extends PuzzleBase {
     const andrewTo = a ? { col: a.col, row: a.row } : andrew;
     const andrewMoved = a !== undefined && (a.col !== andrew.col || a.row !== andrew.row);
     this.events.emit(GameEvents.GravityChanged, { puzzleId: this.puzzleId, roomId: state.layout.id, phase: 'pulled', dir });
-    this.pending.push({ room: state, andrew: andrewIn ? andrewTo : null, leftMs: durationMs });
+    // A ledge counts only when he has come to rest on it by sliding.
+    this.pending.push({ room: state, andrew: andrewIn && (andrewMoved || state.layout.ledges.length === 0) ? andrewTo : null, leftMs: durationMs });
     if (durationMs === 0) this.settle();
     return { roomId: state.layout.id, dir, moves, andrewTo, andrewMoved, durationMs };
   }
 
-  /** Whether a switch's examinable is within reach of a tile (tile beside it), for planners. */
+  /** Whether a tile is beside a switch (orthogonally), for planners. */
   static canReach(sw: GravitySwitch, andrew: TileCoord): boolean {
     return adjacent({ col: sw.col, row: sw.row }, andrew);
   }
@@ -508,7 +510,9 @@ export function solveRoom(room: GravityRoomLayout, grid: TileGrid, maxStates = 2
     for (const s of frontier) {
       const sk = key(s);
       const visit = (n: S, step: GravityStep, solvedHere: boolean): GravityStep[] | null => {
-        const nk = key(n);
+        // A room with a ledge is solved by coming to rest on it, not by standing on it: the end state is its own record,
+        // so the same tile reached earlier by a walk does not hide it.
+        const nk = solvedHere ? `${key(n)}#end` : key(n);
         if (seen.has(nk)) return null;
         seen.set(nk, { prev: sk, step });
         states.set(nk, n);
@@ -538,7 +542,8 @@ export function solveRoom(room: GravityRoomLayout, grid: TileGrid, maxStates = 2
         slideBodies(bodies, sw.dir, wall);
         const andrew = bodies[0] as Body;
         const n: S = { a: { col: andrew.col, row: andrew.row }, crates: bodies.slice(1).map((b) => ({ col: b.col, row: b.row })) };
-        const r = visit(n, { kind: 'pull', switchId: sw.id }, roomGoalMet(room, n.crates, n.a));
+        const landed = n.a.col !== s.a.col || n.a.row !== s.a.row;
+        const r = visit(n, { kind: 'pull', switchId: sw.id }, roomGoalMet(room, n.crates, landed || room.ledges.length === 0 ? n.a : null));
         if (r) return r;
       }
     }
