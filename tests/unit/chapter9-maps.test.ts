@@ -450,7 +450,10 @@ describe('chapter 9 layout: dialogue and ids', () => {
   it('every examinable id is unique and has a line, and every proof a title', () => {
     const ids = chapter9.examinables.map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
+    // The gravity switches, the bay switches and the lift panel are mechanisms: the systems work them and the script speaks for them.
+    const mechanism = (id: string): boolean => /^c9\.gravity\.room\d\.|^c9\.hall\.(bay\d\.switch|lift)$/.test(id);
     for (const e of chapter9.examinables) {
+      if (mechanism(e.id)) continue;
       expect(e.dialogueId !== undefined && hasSequence(e.dialogueId), `${e.id} has dialogue`).toBe(true);
       if (e.evidenceId) expect(hasText(`${e.evidenceId}.title`), `${e.evidenceId} title`).toBe(true);
     }

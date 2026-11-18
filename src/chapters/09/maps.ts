@@ -6,20 +6,22 @@
  * The gravity rooms and the bays are PLAIN DATA (`GRAVITY_ROOMS`, `HALL_BAYS`): the tiles of each screen are painted
  * from them, so the data and the walls cannot drift. The shapes are described on `GravityRoomDef` and `HallBayDef`.
  *
- * Art: `base` tiles (gravity switch panel, pressure plate, glass, blast frame, panel, cooler, dais) and the existing
- * props. STAND-INS still in use (each should become its own frame):
- *   - `PROP.cardboardBox` for the lost-property box (a box with a sticky note and a humming glove sticking out);
- *   - `PROP.flask` for the leaving-do tequila bottle on the kitchenette counter;
- *   - `PROP.controlBox` for the bay 3 wall recorder (a wall box with a red light and a tape slot);
- *   - `PROP.serviceGate.shut` for the blast door leaves (hall.door*.*) and the bay 2 and 4 barrier leaves (a 2 x 2 steel
- *     door leaf; the barrier should be a violet grille);
- *   - `PROP.crate` for the gravity rooms' crates (fine as it is, but they should look loose: a lighter crate);
- *   - `base` tile `consoleDais` for the ledge cells in the gravity rooms (a raised step, "H" in the room rows);
+ * Art: `base` tiles (gravity switch panel, pressure plate, glass, blast frame, panel, cooler, dais) and the
+ * chapter 9 props (`PROP.baseDesk`, `baseWaterCooler`, `kitchenette`, `baseKettle`, `baseFilingCabinet`, `staffNoticeboard`,
+ * `baseDartboard`, `partySignUp`, `baseFridge`, `lostPropertyBox`, `hangarWindow`, `recordsShelves`, `queueBarrier`,
+ * `wallRecorder`, `liftDoors`, `liftGuardChair`). The script swaps the frames that change in play (the cabinet, the board, the
+ * shelves, the box, the recorder, the lift). STAND-INS still in use:
+ *   - `PROP.flask` for the leaving-do tequila bottle on the kitchenette counter (no frame drawn for it);
+ *   - `PROP.serviceGate.shut` for the blast door leaves (hall.door*.*): the door-closing frame set is drawn by the
+ *     world view as a lowered rectangle (its timer too), so the door timer frames are not placed;
+ *   - the lift guard is the `alienClerk` NPC (no security-guard NPC sheet);
+ *   - the gravity rooms' crates, plates, ledges and switches are drawn by the world view from the puzzle's state (the
+ *     crate props in `labs` are hidden by the script); the ledge cells are the `consoleDais` tile ("H" in the room rows);
  *   - the hangar beyond the viewing window is empty floor and marking lines: the craft with its panel missing is not drawn.
  */
 
 import { PROP } from '../../art/props';
-import type { AreaRect, ExitDef, PropPlacement, ScreenLayout } from '../../core/chapter';
+import type { AreaRect, ExitDef, NpcPlacement, PropPlacement, ScreenLayout } from '../../core/chapter';
 import type { EnemyId, Facing, HidingPropDef, PatrolRoute, StealthSectionDef, TileCoord, Vec2 } from '../../core/types';
 import { Canvas, T, tilesArea } from '../canvas';
 
@@ -148,23 +150,31 @@ export function officesScreen(): ScreenLayout {
   const exits: ExitDef[] = [{ id: 'c9.offices.labs', area: OFFICES_TO_LABS, toScreen: 'c9.labs', spawn: LABS_FROM_OFFICES }];
   const props: PropPlacement[] = [
     // The staff social area: dartboard and the sign-up sheet on the wall, the fridge, the kettle and its steam.
-    { id: 'bar.dartboard', frame: PROP.dartboard, col: 30, row: 1 },
-    { id: 'bar.sheet', frame: PROP.signUpSheet, col: 32, row: 1 },
-    { id: 'bar.fridge', frame: PROP.clubFridge, col: 34, row: 1, solid: { dy: 1, width: 1, height: 1 } },
-    { id: 'bar.kettle', frame: PROP.kettle, col: KETTLE_TILE.col, row: KETTLE_TILE.row },
+    { id: 'bar.dartboard', frame: PROP.baseDartboard, col: 30, row: 1 },
+    { id: 'bar.sheet', frame: PROP.partySignUp, col: 32, row: 1 },
+    { id: 'bar.fridge', frame: PROP.baseFridge.shut, col: 34, row: 1, solid: { dy: 1, width: 1, height: 1 } },
+    { id: 'bar.kitchenette', frame: PROP.kitchenette, col: 35, row: 1 },
+    { id: 'bar.kettle', frame: PROP.baseKettle, col: KETTLE_TILE.col, row: KETTLE_TILE.row },
     { id: 'bar.steam', frame: PROP.steam[0], frames: PROP.steam, frameRate: 4, col: KETTLE_TILE.col, row: KETTLE_TILE.row - 1, hidden: true },
-    // Lost property by the lift: the box (STAND-IN), an umbrella stand beside it.
-    { id: 'offices.lostProperty', frame: PROP.cardboardBox, col: LOST_PROPERTY_TILE.col, row: LOST_PROPERTY_TILE.row, solid: { width: 1, height: 1 } },
+    // Lost property by the lift: the box (empty once the Glove is taken), an umbrella stand beside it.
+    { id: 'offices.lostProperty', frame: PROP.lostPropertyBox.withGlove, col: LOST_PROPERTY_TILE.col, row: LOST_PROPERTY_TILE.row, solid: { width: 1, height: 1 } },
     { id: 'offices.umbrellas', frame: PROP.umbrellaStand.full, col: 36, row: 19, solid: { width: 1, height: 1 } },
     // The open plan: the cabinet by the plant, the noticeboard, the cooler.
-    { id: 'offices.cabinet', frame: PROP.filingCabinet.shut, col: CABINET_TILE.col, row: CABINET_TILE.row, solid: { dy: 1, width: 1, height: 1 } },
+    { id: 'offices.cabinet', frame: PROP.baseFilingCabinet.shut, col: CABINET_TILE.col, row: CABINET_TILE.row, solid: { dy: 1, width: 1, height: 1 } },
     { id: 'offices.plant', frame: PROP.flowerPot, col: 5, row: 2, solid: { width: 1, height: 1 } },
-    { id: 'offices.board', frame: PROP.noticeboard, col: NOTICEBOARD_TILE.col, row: NOTICEBOARD_TILE.row, solid: { dy: 1, width: 1, height: 1 } },
-    { id: 'offices.cooler', frame: PROP.waterCooler, col: COOLER_TILE.col, row: COOLER_TILE.row, solid: { dy: 1, width: 1, height: 1 } },
-    // The desks, in two banks; the clerks sit at them (`SEATED_CLERKS`).
-    ...DESK_TILES.map((d, i) => ({ id: `offices.desk${i + 1}`, frame: PROP.officeDesk, col: d.col, row: d.row, solid: { width: 2, height: 1 } })),
+    { id: 'offices.board', frame: PROP.staffNoticeboard.full, col: NOTICEBOARD_TILE.col, row: NOTICEBOARD_TILE.row, solid: { dy: 1, width: 2, height: 1 } },
+    { id: 'offices.cooler', frame: PROP.baseWaterCooler[0], frames: PROP.baseWaterCooler, frameRate: 2, col: COOLER_TILE.col, row: COOLER_TILE.row, solid: { dy: 1, width: 1, height: 1 } },
+    // The desks, in two banks; the clerks sit at them (`SEATED_CLERKS`). The north bank's desks have the chair's back showing
+    // and are drawn over the clerk (the sprite is a row up from the solid row); the south bank's are plain, a row up from theirs.
+    ...DESK_TILES.map((d, i) => ({
+      id: `offices.desk${i + 1}`,
+      frame: i < 3 ? PROP.baseDesk.seated : PROP.baseDesk.tidy,
+      col: d.col,
+      row: d.row - 1,
+      solid: { dy: 1, width: 2, height: 1 },
+    })),
     // The kitchenette: the fridge and the leaving-do tequila (STAND-IN), shown by the script after a clean run.
-    { id: 'offices.fridge', frame: PROP.clubFridge, col: 2, row: 17, solid: { dy: 1, width: 1, height: 1 } },
+    { id: 'offices.fridge', frame: PROP.baseFridge.shut, col: 2, row: 17, solid: { dy: 1, width: 1, height: 1 } },
     { id: 'offices.tequila', frame: PROP.flask, col: TEQUILA_TILE.col, row: TEQUILA_TILE.row, hidden: true },
   ];
   return c.build('c9.offices', exits, BAR_ARRIVAL, { mykoStart: MYKO_BAR, dressing: { props } });
@@ -195,6 +205,8 @@ export const RECORDS_AREA = tilesArea(40, 3, 14, 5);
 /** The labs fight: the whole hall, two waves of two `security` and two `clerk`s. */
 export const LABS_FIGHT_AREA = tilesArea(5, 11, 50, 15);
 export const LABS_FIGHT_TRIGGER = tilesArea(9, 11, 1, 15);
+/** In front of the labs' east door to the hall: with the fight won and the board open, walking up to it opens the board again. */
+export const LABS_EXIT_AREA = tilesArea(53, 16, 4, 5);
 /** Four spawns down the east side (the first two for `security`, the others for `clerk`s) and Myko's phone place. */
 export const LABS_SPAWNS: readonly Vec2[] = [T(52, 13), T(52, 23), T(48, 16), T(48, 20)];
 export const LABS_ENTRANCE = T(4, 22);
@@ -312,6 +324,9 @@ export const gravityCentre = (room: GravityRoomDef, cell: TileCoord): Vec2 => {
 };
 /** Walking up to a room's door starts its prompt line (`GravityRoomDef.promptDialogueId`). */
 export const GRAVITY_ENTRY_AREAS: readonly AreaRect[] = GRAVITY_ROOMS.map((r) => tilesArea(r.origin.col + r.door.col - 1, r.origin.row - 3, 3, 3));
+/** A room's reset panel: a wall panel (`N` tile) beside its door, worked from the floor outside. Its tile and its examinable's id. */
+export const gravityResetTile = (room: GravityRoomDef): TileCoord => ({ col: room.origin.col + room.door.col + 1, row: room.origin.row });
+export const gravityResetId = (room: GravityRoomDef): string => `c9.gravity.reset${room.id.slice(-1)}`;
 /** The prop id of a room's k-th crate (0-based): `gravity.roomN.crate<k+1>`. The systems move these. */
 export const gravityCrateId = (room: GravityRoomDef, k: number): string => `${room.id.replace('c9.', '')}.crate${k + 1}`;
 
@@ -328,7 +343,6 @@ export function labsScreen(): ScreenLayout {
   c.rect(RECORDS_ROOM.col, RECORDS_ROOM.row, RECORDS_ROOM.width, RECORDS_ROOM.height, ',');
   c.rect(33, 9, 25, 1, 'W').rect(RECORDS_DOOR.x / 16, RECORDS_DOOR.y / 16, 2, 1, 'd');
   c.rect(35, 3, 8, 1, 'o').rect(35, 6, 8, 1, 'o');
-  c.set(LOG_TILE.col, LOG_TILE.row, 't');
   // The hall's cover, and marking lines for the fight.
   for (const b of LABS_COVER) c.rect(b.col, b.row, b.width, b.height, 'o');
   c.rect(6, 18, 6, 1, 'm').rect(46, 18, 8, 1, 'm');
@@ -346,6 +360,8 @@ export function labsScreen(): ScreenLayout {
     }
     const door = gravityTile(room, room.door);
     c.set(door.col, door.row, 'd');
+    const panel = gravityResetTile(room);
+    c.set(panel.col, panel.row, 'N');
     if (room.plate) {
       const at = gravityTile(room, room.plate);
       c.set(at.col, at.row, 'P');
@@ -361,11 +377,15 @@ export function labsScreen(): ScreenLayout {
     ...GRAVITY_ROOMS.flatMap((room) =>
       room.crates.map((cell, k) => {
         const at = gravityTile(room, cell);
-        return { id: gravityCrateId(room, k), frame: PROP.crate, col: at.col, row: at.row };
+        // The world view draws the live crates from the puzzle; the script hides these starting-place props.
+        return { id: gravityCrateId(room, k), frame: PROP.slidingCrate, col: at.col, row: at.row };
       }),
     ),
+    // The hangar window over the glass (the craft behind it is not drawn), and the records shelves (one box gone after the log).
+    { id: 'labs.hangarWindow', frame: PROP.hangarWindow, col: 16, row: 8 },
+    { id: 'records.shelves', frame: PROP.recordsShelves.full, col: LOG_TILE.col, row: LOG_TILE.row - 1, solid: { dy: 1, width: 2, height: 1 } },
     { id: 'labs.plant', frame: PROP.flowerPot, col: 4, row: 12, solid: { width: 1, height: 1 } },
-    { id: 'labs.cooler', frame: PROP.waterCooler, col: 55, row: 11, solid: { dy: 1, width: 1, height: 1 } },
+    { id: 'labs.cooler', frame: PROP.baseWaterCooler[0], frames: PROP.baseWaterCooler, frameRate: 2, col: 55, row: 11, solid: { dy: 1, width: 1, height: 1 } },
   ];
   return c.build('c9.labs', exits, LABS_FROM_OFFICES, { mykoStart: T(4, 19), dressing: { props } });
 }
@@ -542,12 +562,23 @@ export function hallScreen(): ScreenLayout {
     ),
     // The barriers in bays 2 and 4: leaves from top to bottom, hidden by the script when the switch is pressed.
     ...HALL_BAYS.flatMap((bay) =>
-      (bay.gravity?.barrier.propIds ?? []).map((id, k) => ({ id, frame: PROP.serviceGate.shut, col: bay.gravity?.barrier.col ?? 0, row: BAY_ROWS.from + k * 2, solid: { width: 2, height: 2 } })),
+      (bay.gravity?.barrier.propIds ?? []).map((id, k) => ({ id, frame: PROP.queueBarrier, col: bay.gravity?.barrier.col ?? 0, row: BAY_ROWS.from + k * 2, solid: { width: 2, height: 2 } })),
     ),
     // The wall recorder in bay 3.
-    ...HALL_BAYS.flatMap((bay) => (bay.recorder ? [{ id: 'hall.recorder', frame: PROP.controlBox, col: bay.recorder.tile.col, row: bay.recorder.tile.row, solid: { dy: 1, width: 1, height: 1 } }] : [])),
+    ...HALL_BAYS.flatMap((bay) =>
+      bay.recorder ? [{ id: 'hall.recorder', frame: PROP.wallRecorder.tape[0], frames: PROP.wallRecorder.tape, frameRate: 3, col: bay.recorder.tile.col, row: bay.recorder.tile.row, solid: { dy: 1, width: 1, height: 1 } }] : [],
+    ),
+    // Sealed bays in the side walls, for dressing.
+    ...[3, 7, 21, 25, 38, 41].map((col, i) => ({ id: `hall.sealed${i + 1}`, frame: PROP.sealedBay, col, row: 4 })),
+    // The lift: its doors (two 2 x 2 leaves up the east wall) and the guard's chair.
+    { id: 'hall.lift.a', frame: PROP.liftDoors.shut, col: 47, row: 14 },
+    { id: 'hall.lift.b', frame: PROP.liftDoors.shut, col: 47, row: 16 },
+    { id: 'hall.guardChair', frame: PROP.liftGuardChair.chair, col: LIFT_GUARD_SPOT.x / 16 - 0.5, row: LIFT_GUARD_SPOT.y / 16 - 0.5 },
     // The wand on the floor where the guard puts it down (shown by the script).
     { id: 'hall.wand', frame: PROP.weapon.securityWand, col: WAND_TILE.col, row: WAND_TILE.row, hidden: true },
   ];
-  return c.build('c9.hall', exits, HALL_FROM_LABS, { mykoStart: HALL_ENTRANCE, dressing: { props } });
+  // TODO(cd): a security-guard NPC sheet (and a tequila bottle frame, and the door timer frames if the world view stops drawing its own).
+  // The guard who is not in lift access's department: a clerk sprite stands in for a security NPC.
+  const npcs: NpcPlacement[] = [{ id: 'hall.guard', npc: 'alienClerk', col: LIFT_GUARD_SPOT.x / 16 - 0.5, row: LIFT_GUARD_SPOT.y / 16 - 0.5, facing: LIFT_GUARD_FACING }];
+  return c.build('c9.hall', exits, HALL_FROM_LABS, { mykoStart: HALL_ENTRANCE, dressing: { props, npcs } });
 }
