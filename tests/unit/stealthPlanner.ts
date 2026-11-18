@@ -8,7 +8,7 @@ import { TUNING } from '../../src/content/tuning';
 import { EventBus } from '../../src/core/events';
 import type { AreaRect } from '../../src/core/chapter';
 import type { StealthSectionDef, TileGrid, Vec2 } from '../../src/core/types';
-import { isBlocked, rectBlocked } from '../../src/systems/grid';
+import { isBlocked, lineOfSight, rectBlocked } from '../../src/systems/grid';
 import { StealthRunner, canSee } from '../../src/systems/stealth';
 
 export const FRAME_MS = 16;
@@ -19,6 +19,8 @@ export const CELL = 8;
 interface Frame {
   readonly guards: readonly { pos: Vec2; facing: number }[];
   readonly lights: readonly number[];
+  /** Where every hazard is (patrol trucks drive). */
+  readonly hazards: readonly { pos: Vec2; facing: number }[];
 }
 
 export function recordMotion(def: StealthSectionDef, grid: TileGrid, frames: number): Frame[] {
@@ -28,12 +30,18 @@ export function recordMotion(def: StealthSectionDef, grid: TileGrid, frames: num
   const hidden = { pos: { x: -9999, y: -9999 }, hidden: true, running: false, thermalVisible: false };
   for (let i = 0; i < frames; i++) {
     runner.tick(FRAME_MS, hidden);
-    out.push({ guards: runner.guards.map((g) => ({ pos: { ...g.pos }, facing: g.facingDeg })), lights: runner.hazards.map((h) => h.facingDeg) });
+    out.push({ guards: runner.guards.map((g) => ({ pos: { ...g.pos }, facing: g.facingDeg })), lights: runner.hazards.map((h) => h.facingDeg), hazards: runner.hazards.map((h) => ({ pos: { ...h.pos }, facing: h.facingDeg })) });
   }
   return out;
 }
 
-export function seenAt(def: StealthSectionDef, grid: TileGrid, f: Frame, p: Vec2): boolean {
+/**
+ * `heat`: when given, true where Andrew would be at Bit much or above out in the sun (chapter 8), so thermal masts with
+ * a clear line and range see him there. Absent: he is at Grand or in shade, and masts and ground sensors (he sneaks) see nothing.
+ */
+export type HeatAt = (p: Vec2) => boolean;
+
+export function seenAt(def: StealthSectionDef, grid: TileGrid, f: Frame, p: Vec2, heat?: HeatAt): boolean {
   for (let i = 0; i < def.guards.length; i++) {
     const g = f.guards[i];
     const enemy = TUNING.enemies[def.guards[i]?.enemyId ?? 'suit'];
@@ -44,6 +52,9 @@ export function seenAt(def: StealthSectionDef, grid: TileGrid, f: Frame, p: Vec2
     const h = def.hazards[i];
     const facing = f.lights[i];
     if (h?.kind === 'floodlight' && facing !== undefined && canSee(grid, h.position, facing, h.cone, p)) return true;
+    const live = f.hazards[i];
+    if (h?.kind === 'patrolTruck' && live && canSee(grid, live.pos, live.facing, h.headlights, p)) return true;
+    if (h?.kind === 'thermalMast' && heat?.(p) === true && Math.hypot(h.position.x - p.x, h.position.y - p.y) <= h.range && lineOfSight(grid, h.position, p)) return true;
   }
   return false;
 }
@@ -56,7 +67,7 @@ export interface Route {
 
 const inRect = (r: AreaRect, p: Vec2): boolean => p.x >= r.x && p.y >= r.y && p.x < r.x + r.width && p.y < r.y + r.height;
 
-export function planRoute(opts: { def: StealthSectionDef; grid: TileGrid; start: AreaRect; exit: AreaRect; horizonSec?: number; margin?: number }): Route | null {
+export function planRoute(opts: { def: StealthSectionDef; grid: TileGrid; start: AreaRect; exit: AreaRect; horizonSec?: number; margin?: number; heat?: HeatAt }): Route | null {
   const { def, grid, start, exit } = opts;
   const margin = opts.margin ?? 0;
   const w = Math.ceil((grid.widthTiles * 16) / CELL);
@@ -77,8 +88,8 @@ export function planRoute(opts: { def: StealthSectionDef; grid: TileGrid; start:
       const p = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
       const f = frames[Math.min(frames.length - 1, tick * STEP_FRAMES + k)];
       if (!f) continue;
-      if (seenAt(def, grid, f, p)) return true;
-      if (margin > 0) for (const [dx, dy] of [[margin, 0], [-margin, 0], [0, margin], [0, -margin]] as const) if (seenAt(def, grid, f, { x: p.x + dx, y: p.y + dy })) return true;
+      if (seenAt(def, grid, f, p, opts.heat)) return true;
+      if (margin > 0) for (const [dx, dy] of [[margin, 0], [-margin, 0], [0, margin], [0, -margin]] as const) if (seenAt(def, grid, f, { x: p.x + dx, y: p.y + dy }, opts.heat)) return true;
     }
     return false;
   };
@@ -98,7 +109,7 @@ export function planRoute(opts: { def: StealthSectionDef; grid: TileGrid; start:
       });
       if (!edge) continue;
       const f = frames[0];
-      if (f && seenAt(def, grid, f, centre(i, j))) continue;
+      if (f && seenAt(def, grid, f, centre(i, j), opts.heat)) continue;
       frontier.push(idx(i, j));
       parent.set(key(idx(i, j), 0), -1);
     }
