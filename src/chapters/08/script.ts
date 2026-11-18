@@ -121,6 +121,8 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
   let barredLesson = false;
   let ending = false;
   let barredUsed = false;
+  /** Pruitt's body is standing in the world (let through, frozen): his chair is empty until the world is loaded again. */
+  let pruittStanding = false;
   let lone: LoneEnemyHandle | null = null;
   let stealthRunning = false;
   let buzz = 0;
@@ -234,7 +236,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     for (let i = 1; i <= 4; i++) ctx.setPropFrame(`gate.flood${i}`, night ? PROP.gateFloodlight.on : PROP.gateFloodlight.off);
     ctx.setPropFrame('gate.hut', night ? PROP.guardHut.night : PROP.guardHut.day);
     ctx.setPropFrame('gate.barrier', PROP.barrierArm.up);
-    ctx.setNpcVisible('gate.pruitt', ctx.boss(BOSS)?.body('pruitt') === undefined);
+    ctx.setNpcVisible('gate.pruitt', ctx.boss(BOSS)?.active !== true && !pruittStanding);
     // The night was saved with a section; a fight finished (or begun) in it is night even if the flag was lost.
     if (fightDone()) ctx.sunset();
   };
@@ -523,6 +525,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       if (phase.id === 'truck') void ctx.say('c8.pruitt.phase2');
     },
     onEnd: (_boss, by) => {
+      pruittStanding = true;
       ctx.setObjective(null);
       // He raises the barrier and gives Andrew his lanyard. A Myko call has its own scene, which says the same.
       ctx.setPropFrame('gate.barrier', PROP.barrierArm.up);
@@ -634,6 +637,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
       stealthStopped();
       drive = null;
       lone = null;
+      pruittStanding = false;
       sunMs = 0;
       lastPos = null;
       clearPrompt();
@@ -658,6 +662,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     onScreenEntered: (screenId) => {
       // A screen change takes the lone agent and any truck on its way with it.
       lone = null;
+      pruittStanding = false;
       entered(screenId);
     },
 

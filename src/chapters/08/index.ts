@@ -2,7 +2,7 @@
  * Chapter 8: The Long Road. docs/chapters/08-the-long-road.md.
  *
  * The three screens, their exits, the dressing, the examinables, the section placements and every constant for the
- * script and the systems are in `maps.ts`. `script.ts` is a stub (see its header for what the real one must wire).
+ * script and the systems are in `maps.ts`. `script.ts` plays every beat.
  * Not registered in `src/chapters/index.ts`.
  */
 

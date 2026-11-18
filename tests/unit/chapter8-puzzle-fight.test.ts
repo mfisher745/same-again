@@ -174,7 +174,7 @@ describe('chapter 8: the fence fight', () => {
     const inside = dart({ x: position.x + cone.range / 2, y: position.y });
     const outside = dart({ x: position.x + cone.range / 2, y: position.y + 200 });
     run.tick(16, frame());
-    expect(inside.speedScale).toBe(TUNING.overhaul!.headlights.dartSpeedMultiplier);
+    expect(inside.speedScale).toBe(TUNING.overhaul!.headlights!.dartSpeedMultiplier);
     expect(outside.speedScale).toBe(1);
     await winFence(run);
     expect(run.headlightsHere()).toHaveLength(0);
