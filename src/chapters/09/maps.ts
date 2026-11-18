@@ -577,6 +577,7 @@ export function hallScreen(): ScreenLayout {
     // The wand on the floor where the guard puts it down (shown by the script).
     { id: 'hall.wand', frame: PROP.weapon.securityWand, col: WAND_TILE.col, row: WAND_TILE.row, hidden: true },
   ];
+  // TODO(cd): a security-guard NPC sheet (and a tequila bottle frame, and the door timer frames if the world view stops drawing its own).
   // The guard who is not in lift access's department: a clerk sprite stands in for a security NPC.
   const npcs: NpcPlacement[] = [{ id: 'hall.guard', npc: 'alienClerk', col: LIFT_GUARD_SPOT.x / 16 - 0.5, row: LIFT_GUARD_SPOT.y / 16 - 0.5, facing: LIFT_GUARD_FACING }];
   return c.build('c9.hall', exits, HALL_FROM_LABS, { mykoStart: HALL_ENTRANCE, dressing: { props, npcs } });

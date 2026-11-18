@@ -292,6 +292,7 @@ export function createChapterScript(ctx: ChapterContext): ChapterScript {
     afterScenes(() => void startLabsFight());
   };
 
+  // TODO(cd): confirm the labs fight starts after both labs proofs (the spec order), not on first entry; the strip is at the west.
   /** The fight: the gravity rooms and both proofs are in. Starts from the strip at the labs' west or straight after the last proof. */
   const startLabsFight = async (): Promise<void> => {
     if (!gravityDone() || !labsDone() || fightDone() || fightStarting || ctx.fight(FIGHT)?.active === true) return;
