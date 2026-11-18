@@ -1,41 +1,24 @@
 /**
- * Chapter 7: Gift Shop. docs/chapters/07-gift-shop.md. LAYOUT ONLY: the three screens, exits, dressing, examinables,
- * placements and constants. Not registered in `src/chapters/index.ts`. `script.ts` is a stub.
- *
- * The script must wire (all text by id from `src/content/dialogue/c07.ts`):
- * - Bar: `c7.bar.open` at the start, `c7.bar.tequila` (the bartender examinable), the hot drink on `TEA_SPOT`
- *   (show/hide prop `bar.steam`), the first tequila on the house, `c7.bar.return`. Captions `c7.caption.*`.
- * - Strip: `c7.explore.strip`; the leaflet clue `c7.clue.leaflet` (examinable placed); the two tourists.
- * - Tells puzzle `c7.puzzle.tells` (kind `spotTheAlien`): the six `FIGURES` (npc ids `figure.a`..`figure.e`, `gary`),
- *   `ALIEN_FIGURES` b, d, gary; examining plays `c7.tells.<key>`; accusations `c7.tells.wrong` / `.right`;
- *   register with `ctx.registerPuzzle` or `registerCompletable`. The systems placement for it is NOT in this module.
- * - Gary: `c7.gary` examinable (`c7.gary.intro`, then `.nineteen`, `.payslip`; grant `c7.clue.payslip` in `onExamine`).
- * - Last Orders: `c7.lastOrders.lesson`; hide the `TOURIST_FIGURES` NPCs (walk to `SHOP_CLOSING_EXIT`); learn the move for slot 4.
- * - Stockroom `c7.stealth.stock` (placement in `stealth`; `STOCK_STEALTH` has four clerks): `c7.stock.open`, the four
- *   `STOCK_OVERHEARD` lines (triggers `c7.trig.overheard.1`..`4` placed), `c7.stock.caught` on alarm, `c7.stock.clean` and the
- *   reveal of prop `stock.stout` (a can of stout to pick up at `STOUT_TILE`) on a clean run. Permit `c7.clue.permit`.
- * - Yard fight `c7.fight.yard` (script trigger; fire from `c7.trig.yard`): `c7.yard.intro`, `c7.yard.end`. Spawns:
- *   the first three are mascots, the last three clerks (`YARD_SPAWNS`).
- * - Van `c7.explore.van`: `c7.clue.route` (`c7.van.log`). Deduction `c7.deduction.nevada` (board defined; the script opens it).
- * - Exits `c7.strip.gate` and `c7.stock.gate` are `lockedUntil` `c7.fight.yard` (the back gate opens once the stockroom is
- *   passed). The shop and stockroom doors are open, so the stub still walks.
- * - Boss `c7.boss.mascots`: bodies zorp, zap, zip are placed in formation; the boss system or script sets Zorp's shield, Zip's
- *   tumble along `ZIP_TUMBLE_LINE` (painted on the road), Zap's fans, the Stumble knocking the sign away, the speed-ups,
- *   `c7.mascots.*`, the tip from `TIPPING_TOURIST` and the prize `weapon.inflatableAlien` from `RACK_SPOT`, `c7.weapon.inflatable`.
- *   Crowd spots: `STRIP_CROWD_SPOTS`. Bottle crates are placed (`strip.arenaCrate1..4`). Trigger `c7.trig.mascots` is placed.
- * - Closing scene `c7.closing` at `CLOSING_SPOT` / `CLOSING_GARY_SPOT` (night ambient is not set here).
+ * Chapter 7: Gift Shop. docs/chapters/07-gift-shop.md. The three screens, exits, dressing, examinables, placements and
+ * constants are in `maps.ts`; `script.ts` wires every beat (the bar, the strip, the tells puzzle, Gary and Last Orders,
+ * the stockroom stealth, the yard, the van, the board, the mascots and the closing). All text is by id from
+ * `src/content/dialogue/c07.ts`.
  */
+
 
 import type { ChapterModule } from '../../core/chapter';
 import type { ChapterDef, ClueId, DeductionBoardDef, ObjectiveDef } from '../../core/types';
+import type { TellsLayout } from '../../systems/tells';
 import { createChapterScript } from './script';
 import {
   BAR_ARRIVAL,
+  ALIEN_FIGURES,
   BARTENDER_SPOT,
   FIGURES,
   FRIDGE_SPOT,
   GARY_TILE,
   LEAFLET_SPOT,
+  MASCOT_ARENA,
   MASCOT_ENTRANCE,
   MASCOT_FORMATION,
   MASCOT_TRIGGER,
@@ -56,6 +39,7 @@ import {
   YARD_ENTRANCE,
   YARD_SPAWNS,
   YARD_TRIGGER,
+  ZIP_TUMBLE_LINE,
   shopScreen,
   stockScreen,
   stripScreen,
@@ -83,6 +67,20 @@ const board: DeductionBoardDef = {
   leadTextId: 'c7.deduction.nevada.lead.body',
   leadMarginTextId: 'c7.deduction.nevada.lead.margin',
   wrongAnswerDialogueIds: ['c7.board.wrong.1', 'c7.board.wrong.2', 'c7.board.wrong.3'],
+};
+
+/** `c7.puzzle.tells`: the six figures (Gary is examined at the till), the three aliens fixed. */
+const tellsLayout: TellsLayout = {
+  figures: FIGURES.map((f) => ({
+    id: f.key,
+    examinableId: f.key === 'gary' ? 'c7.gary' : `c7.tells.${f.key}`,
+    // TODO(cd): Gary's card has no costume name (`name.costumeF`, "Figure at the till"); his speaker name is the stand-in.
+    labelTextId: f.nameTextId ?? 'speaker.gary',
+  })),
+  aliens: ALIEN_FIGURES as unknown as readonly [string, string, string],
+  promptTextId: 'c7.tells.prompt',
+  rightTextId: 'c7.tells.right',
+  wrongTextId: 'c7.tells.wrong',
 };
 
 const def: ChapterDef = {
@@ -142,7 +140,8 @@ export const chapter7: ChapterModule = {
   pickups: [],
   mykoTangentPools: { ohio: 'c7.ohio', other: 'c7.tangent' },
   examinables: [
-    // The strip.
+    // The strip: the bar's hot drink and the bartender.
+    { id: 'c7.bar.hotDrink', screenId: 'c7.strip', position: TEA_SPOT, dialogueId: 'c7.bar.hotDrink', objective: true },
     { id: 'c7.bar.tequila', screenId: 'c7.strip', position: BARTENDER_SPOT, dialogueId: 'c7.bar.tequila' },
     { id: 'c7.strip.tourist1', screenId: 'c7.strip', position: T(TOURIST1_TILE.col, TOURIST1_TILE.row), dialogueId: 'c7.strip.tourist1' },
     { id: 'c7.strip.tourist2', screenId: 'c7.strip', position: T(TOURIST2_TILE.col, TOURIST2_TILE.row), dialogueId: 'c7.strip.tourist2' },
@@ -167,8 +166,13 @@ export const chapter7: ChapterModule = {
         { tag: 'zip', position: MASCOT_FORMATION.zip, spriteKey: 'boss.c7.boss.mascots.zip' },
       ],
       entrance: MASCOT_ENTRANCE,
+      mascots: {
+        arena: { x: MASCOT_ARENA.col * 16, y: MASCOT_ARENA.row * 16, width: MASCOT_ARENA.width * 16, height: MASCOT_ARENA.height * 16 },
+        tumbleLine: { from: ZIP_TUMBLE_LINE.from, to: ZIP_TUMBLE_LINE.to },
+      },
     },
   ],
+  tellsPuzzles: [{ sectionId: 'c7.puzzle.tells', layout: tellsLayout }],
   stealth: [
     {
       sectionId: 'c7.stealth.stock',

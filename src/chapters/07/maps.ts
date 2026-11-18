@@ -139,6 +139,8 @@ export function stripScreen(): ScreenLayout {
     ...LAMP_TILES.map((t, i) => ({ id: LAMP_IDS[i]!, frame: PROP.eyeLamp.day, col: t.col, row: t.row, solid: { dy: 1, width: 1, height: 1 } })),
     // The rack of inflatable aliens by the shop (the prize is taken from it).
     { id: 'strip.rack', frame: PROP.inflatableRack.full, col: RACK_TILE.col, row: RACK_TILE.row, solid: { dy: 1, width: 4, height: 1 } },
+    // Zorp's sign, lying on the road for the moments after The Stumble knocks it out of his hands (moved to him by the script).
+    { id: 'mascot.sign', frame: PROP.zorpSign.dropped, col: 0, row: 0, hidden: true },
     // Bottle crates at the arena's corners.
     ...MASCOT_BOTTLE_TILES.map((t, i) => ({ id: `strip.arenaCrate${i + 1}`, frame: PROP.bottleCrate, col: t.col, row: t.row, solid: { width: 1, height: 1 }, breakable: {} })),
   ];
@@ -296,6 +298,8 @@ export const FRIDGE_TILE = { col: 16, row: 2 } as const;
 export const FRIDGE_SPOT = T(16, 4);
 /** The clean-run can of stout sits on top of the fridge (shown by the script). */
 export const STOUT_TILE = { col: 15, row: 2 } as const;
+/** Where the stout can is picked up: on the floor below it, beside the fridge. */
+export const STOUT_PICKUP_SPOT = T(15, 3);
 export const VAN_TILE = { col: 21, row: 13 } as const;
 export const VAN_SPOT = T(20, 14);
 
