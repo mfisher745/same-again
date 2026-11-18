@@ -14,6 +14,8 @@
  * - No Phaser import, so everything here is plain data and unit-testable.
  */
 
+import type { ColourName } from '../art/palette';
+
 // ---------------------------------------------------------------------------
 // Primitives and identifiers
 // ---------------------------------------------------------------------------
@@ -696,6 +698,11 @@ export interface BossDef {
    * for this long, attacking nothing (the ram, docs/chapters/02). Absent: bodies ignore noise.
    */
   readonly noiseStopMs?: number;
+  /**
+   * The boss ends "let through", not beaten (Pruitt round two): when it ends, by health or by a Myko call, its bodies
+   * stop but are not knocked down.
+   */
+  readonly letThrough?: boolean;
 }
 
 /** One wave of a fight. docs/chapters, "Beats". */
@@ -1645,6 +1652,20 @@ export interface GameEventPayloads {
   'redaction:tried': { readonly puzzleId: PuzzleSectionId; readonly sheetIds: readonly string[]; readonly correct: boolean; readonly textId: TextId };
   /** Standing corn was cut (the combine). `tiles` are the tiles that were standing. */
   'corn:cut': { readonly screenId: ScreenId; readonly tiles: readonly TileCoord[] };
+  /** Chapter 7 tells puzzle: a figure was examined, or three were accused. */
+  'tells:examined': { readonly puzzleId: PuzzleSectionId; readonly figureId: string };
+  'tells:accused': { readonly puzzleId: PuzzleSectionId; readonly figureIds: readonly string[]; readonly correct: boolean; readonly textId: TextId };
+  /** Chapter 8 junction puzzle: a box was toggled. `off` lists the lines now switched off. */
+  'junctions:toggled': { readonly puzzleId: PuzzleSectionId; readonly boxId: string; readonly off: readonly string[] };
+  /** Chapter 7 mascots: a fan or tumble telegraphed (`telegraph`), the sign knocked away (`signKnocked`) or back (`signBack`), a mascot fell (`fell`), and the tourists applaud (`applause`). */
+  'mascots:changed': { readonly bossId: BossId; readonly phase: 'telegraph' | 'signKnocked' | 'signBack' | 'fell' | 'applause'; readonly tag?: string };
+  /** Chapter 8 Pruitt: flashbang marker (`flashLit`), burst (`flash`), whiteout on Andrew (`whiteout`), barrier line lit/dropped, truck path lit/pass, he stops (`letThrough`). */
+  'pruitt:changed': {
+    readonly bossId: BossId;
+    readonly phase: 'flashLit' | 'flash' | 'whiteout' | 'barrierLit' | 'barrierDown' | 'barrierUp' | 'truckLit' | 'truckPass' | 'letThrough';
+  };
+  /** The heat switch changed (`ChapterContext.setHeatActive`): night has fallen when `active` is false. */
+  'heat:switched': { readonly active: boolean };
   'prop:broken': { readonly screenId: ScreenId; readonly propId: string; readonly frame: string };
   // --- Overhaul events (DESIGN.md 7.1, 7.2, 7.7) ---
   /** Andrew crossed into another drunk level. */
@@ -1766,6 +1787,12 @@ export const GameEvents = {
   MazeStone: 'maze:stone',
   RedactionTried: 'redaction:tried',
   CornCut: 'corn:cut',
+  TellsExamined: 'tells:examined',
+  TellsAccused: 'tells:accused',
+  JunctionsToggled: 'junctions:toggled',
+  MascotsChanged: 'mascots:changed',
+  PruittChanged: 'pruitt:changed',
+  HeatSwitched: 'heat:switched',
   WeaponGained: 'weapon:gained',
   KitChanged: 'kit:changed',
   MeterHiddenChanged: 'meter:hiddenChanged',
@@ -2299,6 +2326,54 @@ export interface OverhaulTuning {
   readonly corn?: { readonly rustleRadius: number; readonly sneakRustleRadius: number };
   /** Chapter 5 rolling shelves (`shelves.ts`). */
   readonly shelves?: ShelfTuning;
+  /** Chapter 7 clerks lining up to fire (`enemies.ts`). */
+  readonly clerkLine?: ClerkLineTuning;
+  /** Chapter 7 mascot boss (`mascots.ts`). */
+  readonly mascots?: MascotTuning;
+  /** Chapter 8 Pruitt round two (`pruitt2.ts`). */
+  readonly pruitt2?: Pruitt2Tuning;
+  /** Chapter 8 fence fight: a parked truck's headlights speed agents' darts. */
+  readonly headlights?: { readonly dartSpeedMultiplier: number };
+  /** Barred: how long the thrown enemy is in the air for the view, ms. */
+  readonly throwOutFlightMs?: number;
+  /** Chapter 8: the sunset tint when a chapter has no `nightAmbient` on a screen. */
+  readonly sunsetAmbient?: { readonly tint: ColourName; readonly strength: number };
+}
+
+/** Clerks that line up to fire (chapter 7). First guesses. */
+export interface ClerkLineTuning {
+  /** Gap between clerks standing in a line toward Andrew, px. */
+  readonly spacingPx: number;
+}
+
+/** The three mascots (chapter 7). First guesses; creative director to set. */
+export interface MascotTuning {
+  /** Zorp stands this far in front of the other two, px. */
+  readonly frontOffsetPx: number;
+  /** Zip and Zap stand this far to either side of the line to Andrew, px. */
+  readonly sideOffsetPx: number;
+  /** The formation keeps this far from Andrew, px (Zorp's distance). */
+  readonly standOffPx: number;
+  /** Zorp's sign is knocked out of his hands this long by a Stumble, ms. */
+  readonly signKnockedMs: number;
+  /** Angle between the three bolts of one of Zap's fans, degrees. */
+  readonly fanSpreadDeg: number;
+  /** Zip tumbles at this speed, px per second. */
+  readonly tumbleSpeed: number;
+  /** The tourists applaud for this long, ms (for the view and the chapter). */
+  readonly applauseMs: number;
+}
+
+/** Pruitt round two (chapter 8). First guesses; creative director to set. */
+export interface Pruitt2Tuning {
+  /** How long the screen stays white when the flashbang catches Andrew, ms. */
+  readonly whiteoutMs: number;
+  /** The barrier arm stays down this long after it drops, ms. */
+  readonly barrierDownMs: number;
+  /** The patrol truck takes this long to cross the lit path, ms. */
+  readonly truckTravelMs: number;
+  /** Width of the barrier arm's marked line, px. */
+  readonly barrierWidthPx: number;
 }
 
 /** Chapter 5 rolling shelves. First guesses; creative director to set. */

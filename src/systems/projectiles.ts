@@ -40,6 +40,8 @@ export interface Projectile {
   landed: boolean;
   /** Art frame hint (`fx` key name), chosen by the spawner. */
   readonly frame: string;
+  /** Flight speed multiplier right now (the parked truck's headlights); absent is 1. The world sets it each tick. */
+  speedScale?: number;
 }
 
 let nextId = 1;
@@ -104,7 +106,7 @@ export function spawnProjectile(s: ProjectileSpawn): Projectile {
  */
 export function stepProjectile(p: Projectile, grid: TileGrid, dtMs: number): boolean {
   if (p.done) return false;
-  const step = (p.shape.speed * dtMs) / 1000;
+  const step = (p.shape.speed * (p.speedScale ?? 1) * dtMs) / 1000;
   const remaining = p.totalDistance - p.travelled;
   const move = Math.min(step, remaining);
   const next = add(p.pos, scale(normalize(p.vel), move));

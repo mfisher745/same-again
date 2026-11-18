@@ -88,3 +88,14 @@ export const session = new GameSession({ fallbackModule: createSandboxModule });
 
 /** The object the UI receives (`UiStateSource` in `src/ui/contract.ts`). */
 export const uiState = createUiState(session);
+export { TellsPuzzle } from './tells';
+export type { TellsFigure, TellsLayout, TellsTry, TellsView } from './tells';
+export { JunctionPuzzle, minToggles } from './junctions';
+export type { JunctionBox, JunctionLayout, JunctionLine, JunctionView } from './junctions';
+export { MascotDirector, fanAngles, formationSpots } from './mascots';
+export type { MascotPlacement, MascotView } from './mascots';
+export { Pruitt2Director } from './pruitt2';
+export type { BarrierLine, Pruitt2Placement, Pruitt2View, TruckPath } from './pruitt2';
+export { ShadeField } from './heat';
+export type { HeatState } from './heat';
+export { lineUpGoals } from './enemies';

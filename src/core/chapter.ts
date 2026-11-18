@@ -73,6 +73,11 @@ import type { LoneEnemyHandle, LoneEnemyOptions } from '../systems/loneEnemy';
 import type { PuzzleBase } from '../systems/investigation';
 import type { CombinePlacement } from '../systems/combine';
 import type { ShelfArenaPlacement } from '../systems/shelves';
+import type { MascotPlacement } from '../systems/mascots';
+import type { Pruitt2Placement } from '../systems/pruitt2';
+import type { TellsLayout, TellsPuzzle } from '../systems/tells';
+import type { JunctionLayout, JunctionPuzzle } from '../systems/junctions';
+import type { HeatState } from '../systems/heat';
 import type { MazePuzzlePlacement } from '../systems/maze';
 import type { RedactionLayout, RedactionPuzzle } from '../systems/redaction';
 import type { PushPuzzleLayout } from '../systems/puzzles';
@@ -287,6 +292,21 @@ export interface ScreenLayout {
    * movement; draw it with tile frames or props yourself and redraw on `corn:cut`. The combine cuts it.
    */
   readonly corn?: readonly { readonly col: number; readonly row: number; readonly width: number; readonly height: number }[];
+  /**
+   * Chapter 8 shade (pixel areas): rock outcrops, the roadhouse awning. Standing in one is shade on a sunny screen
+   * (`ScreenDef.sun`), like a shade tile. A parked truck's shadow moves with `ctx.setShadeArea`.
+   */
+  readonly shadeAreas?: readonly AreaRect[];
+  /** What `ctx.sunset()` puts on this screen; absent: `TUNING.overhaul.sunsetAmbient` with no lights. */
+  readonly nightAmbient?: ScreenAmbient;
+}
+
+/** Chapter 8 fence fight: a parked truck's headlights. While the fight is under way, agents' darts are faster inside the cone. */
+export interface HeadlightPlacement {
+  /** Where the truck is parked (feet of the sprite), px. */
+  readonly position: Vec2;
+  readonly facingDeg: number;
+  readonly cone: { readonly range: number; readonly angleDeg: number };
 }
 
 /** What a melee swing that touched an `onMeleeHit` area was. */
@@ -323,6 +343,8 @@ export interface FightPlacement {
    * leave it, so they fight at range from there (chapter 3's box-throwing workers on the gantry). Others roam as usual.
    */
   readonly zones?: readonly { readonly enemyId: EnemyId; readonly area: AreaRect }[];
+  /** Chapter 8: a parked truck that adds headlights while the fight is under way (`TUNING.overhaul.headlights`). */
+  readonly headlights?: HeadlightPlacement;
 }
 
 export interface BossPlacement {
@@ -334,6 +356,10 @@ export interface BossPlacement {
   readonly shelves?: ShelfArenaPlacement;
   /** Chapter 6 set piece: the combine's lanes, lights and escort (`combine.ts`). */
   readonly combine?: CombinePlacement;
+  /** Chapter 7 boss: Zip, Zap and Zorp (`mascots.ts`). Bodies tagged 'zip', 'zap' and 'zorp'. */
+  readonly mascots?: MascotPlacement;
+  /** Chapter 8 boss: Pruitt round two (`pruitt2.ts`). Body tagged 'pruitt'. */
+  readonly pruitt2?: Pruitt2Placement;
   readonly entrance: Vec2;
   /**
    * What Myko's call lines for this boss or set piece are called: the chapter's `mykoCallLines.setpiece` set is
@@ -414,6 +440,20 @@ export interface RedactionPlacement {
   readonly examinableId?: string;
 }
 
+/** Chapter 7 `c7.puzzle.tells`. */
+export interface TellsPlacement {
+  readonly sectionId: PuzzleSectionId;
+  readonly layout: TellsLayout;
+  /** An examinable (the till, a sign) that opens the accuse screen once every figure is examined. Optional: `ctx.openTells`. */
+  readonly accuseExaminableId?: string;
+}
+
+/** Chapter 8 `c8.puzzle.junctions`. */
+export interface JunctionPlacement {
+  readonly sectionId: PuzzleSectionId;
+  readonly layout: JunctionLayout;
+}
+
 export interface DeductionPlacement {
   /** Examining this opens the board (or the script calls `ctx.openDeduction()`). */
   readonly examinableId?: string;
@@ -444,6 +484,10 @@ export interface ChapterModule {
   readonly mazePuzzles?: readonly MazePuzzlePlacement[];
   /** The chapter 5 lightbox puzzle (`redaction.ts`). */
   readonly redactionPuzzles?: readonly RedactionPlacement[];
+  /** Chapter 7: who is an alien. */
+  readonly tellsPuzzles?: readonly TellsPlacement[];
+  /** Chapter 8: the junction boxes. */
+  readonly junctionPuzzles?: readonly JunctionPlacement[];
   readonly deduction?: DeductionPlacement;
   readonly triggers: readonly TriggerDef[];
   /** Pools for Myko's tangents (DESIGN.md 7.5: Ohio from chapter 6). */
@@ -635,7 +679,32 @@ export interface ChapterContext {
   goToScreen(screenId: ScreenId, spawn: Vec2): void;
   currentScreen(): ScreenId;
   setExitLocked(exitId: string, locked: boolean): void;
+  /**
+   * Chapter 8: switches heat on or off (on by default). Off, a sunny screen drains and pours as normal and thermal
+   * masts see nothing. Kept in a saved flag, so it survives a load and a return to the bar. Emits `heat:switched`.
+   */
   setHeatActive(active: boolean): void;
+  /** Whether the heat switch is on. */
+  heatActive(): boolean;
+  /** What the HUD reads: `{ active, sunnyScreen, inSun }`. */
+  heat(): HeatState;
+  /** Puts a named shade area on a screen (a parked truck's shadow), or takes it away with `null`. Run-time only: set it again in `onStart` and `onBarReturn`. */
+  setShadeArea(id: string, area: AreaRect | null, screenId?: ScreenId): void;
+  /**
+   * Sunset: heat off and every screen takes its `nightAmbient` (or the default tint). Saved in a flag, so after a load
+   * or a return to the bar the night is back with no call. Emits `heat:switched`.
+   */
+  sunset(): void;
+  /** Whether `sunset()` has been called. */
+  isNight(): boolean;
+  /** Chapter 7: the tells puzzle `id`, or null. */
+  tells(id: PuzzleSectionId): TellsPuzzle | null;
+  /** Chapter 7: examines figure `figureId` (also done by E on its examinable). Saved with the flags. False if unknown or already done. */
+  examineFigure(id: PuzzleSectionId, figureId: string): boolean;
+  /** Chapter 7: opens the accuse screen (needs every figure examined). */
+  openTells(id: PuzzleSectionId): boolean;
+  /** Chapter 8: the junction puzzle `id`, or null. */
+  junctions(id: PuzzleSectionId): JunctionPuzzle | null;
   /** Park Myko at a spot (scripted), or null to let him follow again. */
   setMykoScripted(pos: Vec2 | null): void;
   playerPosition(): Vec2;

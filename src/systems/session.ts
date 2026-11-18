@@ -23,6 +23,8 @@ import type { Random } from '../core/random';
 import { seededRandom } from '../core/random';
 import { MemoryStorage, SaveStore } from '../core/save';
 import type { RedactionTry, RedactionView } from './redaction';
+import type { TellsTry, TellsView } from './tells';
+import type { HeatState } from './heat';
 import { GameEvents, SAVE_VERSION_OVERHAUL } from '../core/types';
 import type { PuzzleSectionId } from '../core/types';
 import type {
@@ -495,6 +497,34 @@ export function createUiState(session: GameSession) {
     /** Chapter 5 lightbox: step back without answering. */
     closeRedaction(): void {
       run()?.closeRedaction();
+    },
+    /** Chapter 7 accuse screen: waiting for three names, or null. */
+    activeTells(): TellsView | null {
+      return run()?.activeTells()?.view() ?? null;
+    },
+    /** Chapter 7 accuse screen: the figures ticked so far (select one at a time with `selectTells`). */
+    tellsSelection(): readonly string[] {
+      return run()?.activeTells()?.selection() ?? [];
+    },
+    /** Chapter 7 accuse screen: tick or untick a figure; the third accuses and returns the try, else null. */
+    selectTells(id: PuzzleSectionId, figureId: string): TellsTry | null {
+      return run()?.tells(id)?.select(figureId) ?? null;
+    },
+    /** Chapter 7 accuse screen: accuse three at once. */
+    submitTells(id: PuzzleSectionId, figureIds: readonly string[]): TellsTry {
+      return run()?.submitTells(id, figureIds) ?? { correct: false, textId: '', refused: true };
+    },
+    /** Chapter 7 accuse screen: step back. */
+    closeTells(): void {
+      run()?.closeTells();
+    },
+    /** Chapter 8: the heat state for the HUD's sun mark (`inSun`) and anything else that wants it. */
+    heat(): HeatState {
+      return run()?.heat() ?? { active: false, sunnyScreen: false, inSun: false };
+    },
+    /** Pruitt's flashbang: 0..1 white overlay for the whole screen. */
+    whiteoutAlpha(): number {
+      return run()?.whiteoutAlpha() ?? 0;
     },
     dialogueFinished(sequenceId: DialogueId): void {
       run()?.dialogueFinished(sequenceId);
