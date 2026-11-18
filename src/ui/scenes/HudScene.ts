@@ -483,7 +483,7 @@ export class HudScene extends Phaser.Scene {
       this.scene.launch(UiSceneKeys.Deduction);
       this.scene.bringToTop(UiSceneKeys.Deduction);
     }
-    if (source.activeRedaction() !== null && !this.scene.isActive(UiSceneKeys.Redaction) || this.scene.isActive(UiSceneKeys.Tells)) {
+    if (source.activeRedaction() !== null && !this.scene.isActive(UiSceneKeys.Redaction)) {
       this.scene.launch(UiSceneKeys.Redaction);
       this.scene.bringToTop(UiSceneKeys.Redaction);
     }

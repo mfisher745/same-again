@@ -143,7 +143,6 @@ export class BroadcastScene extends Phaser.Scene {
     const back = rect(this, 20, 236, 90, 20, 'coal');
     back.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.stepBack());
     makeLabel(this, 65, 242, text('ui.deduction.back'), 'white', { anchor: 'centre' });
-    // TODO(cd): `ui.broadcast.help` (the key line). Shown once the text exists.
     if (hasText('ui.broadcast.help')) makeLabel(this, 240, 258, text('ui.broadcast.help'), 'fog', { anchor: 'centre' });
     this.bindKeys();
   }

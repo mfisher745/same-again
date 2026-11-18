@@ -272,6 +272,7 @@ export const COMMON: DialogueFile = {
     'ui.deduction.title': 'What does it add up to?',
     'ui.deduction.instruction': 'Link three. Esc to step back and read the casebook.',
     'ui.deduction.back': 'Step back',
+    'ui.broadcast.help': 'Arrows choose · E plugs in · X looks closer · Esc steps back',
     'ui.deduction.reopen': '{key} to go back to the board',
     'ui.key.b': 'B',
     'ui.deduction.confirm': 'That’s it',
