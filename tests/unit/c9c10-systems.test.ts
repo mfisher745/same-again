@@ -223,7 +223,7 @@ describe('seated clerks', () => {
 
   it('Act Natural at the water cooler, the noticeboard and the kitchenette queue hides him once he has stood still', () => {
     for (const kind of ['waterCooler', 'noticeboard', 'queue'] as const) {
-      const props = [{ kind, position: { x: 100, y: 100 }, radius: 24 }];
+      const props = [{ id: `p.${kind}`, kind, position: { x: 100, y: 100 }, radius: 24 }];
       expect(actingNatural(props, { x: 110, y: 100 }, TUNING.stealth.actNaturalStillMs, true), kind).toBe(true);
       expect(actingNatural(props, { x: 110, y: 100 }, TUNING.stealth.actNaturalStillMs - 100, true), kind).toBe(false);
       expect(actingNatural(props, { x: 160, y: 100 }, 2000, true), kind).toBe(false);

@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ChapterRun } from '../../src/systems/run';
 import { gridFromAscii, tileCentre, tileOf } from '../../src/systems/grid';
-import { GravityPuzzle, estimateSeconds, slideBodies, solveRoom } from '../../src/systems/gravity';
+import { estimateSeconds, slideBodies, solveRoom } from '../../src/systems/gravity';
 import type { GravityLayout, GravityRoomLayout, GravityStep } from '../../src/systems/gravity';
 import { createMeter } from '../../src/systems/meter';
 import { frame, makeRun, record } from './helpers';
@@ -260,9 +260,8 @@ describe('the puzzle in a run', () => {
 
 function assignGlove(run: ChapterRun) {
   const kit = run.player.kit;
-  const specials = [...kit.slots.specials] as typeof kit.slots.specials;
-  specials[2] = 'borrowedGlove';
-  return { ...kit, slots: { ...kit.slots, specials } };
+  const [a, b, , d] = kit.slots.specials;
+  return { ...kit, slots: { ...kit.slots, specials: [a, b, 'borrowedGlove', d] as typeof kit.slots.specials } };
 }
 
 void SCREEN;
