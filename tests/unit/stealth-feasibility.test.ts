@@ -10,6 +10,7 @@ import { chapter5 } from '../../src/chapters/05/index';
 import { chapter6 } from '../../src/chapters/06/index';
 import { chapter7 } from '../../src/chapters/07/index';
 import { chapter8 } from '../../src/chapters/08/index';
+import { chapter9 } from '../../src/chapters/09/index';
 import type { ChapterModule } from '../../src/core/chapter';
 import type { AreaRect } from '../../src/core/chapter';
 import type { ScreenId, StealthSectionId } from '../../src/core/types';
@@ -31,6 +32,7 @@ const CASES: Case[] = [
   { name: 'chapter 6 fields', module: chapter6, sectionId: 'c6.stealth.fields' },
   { name: 'chapter 7 stockroom', module: chapter7, sectionId: 'c7.stealth.stock' },
   { name: 'chapter 8 perimeter', module: chapter8, sectionId: 'c8.stealth.perimeter' },
+  { name: 'chapter 9 offices', module: chapter9, sectionId: 'c9.stealth.offices' },
 ];
 
 async function openRun(module: ChapterModule, screen: ScreenId) {

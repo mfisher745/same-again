@@ -225,7 +225,7 @@ export function anteroomScreen(): ScreenLayout {
 export function controlScreen(): ScreenLayout {
   const c = new Canvas(40, 25, '.', 'base').room();
   // The wall of screens along the top of the room, with the north gravity switch among them.
-  c.rect(2, 2, 36, 1, 'P').set(30, 2, 'G');
+  c.rect(2, 2, 36, 1, 'N').set(30, 2, 'G');
   // The other three switches, set in the walls.
   c.set(9, 23, 'G').set(1, 12, 'G').set(38, 13, 'G');
   // The door to the anteroom in the south wall.

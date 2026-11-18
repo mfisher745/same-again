@@ -46,7 +46,9 @@ export function seenAt(def: StealthSectionDef, grid: TileGrid, f: Frame, p: Vec2
     const g = f.guards[i];
     const enemy = TUNING.enemies[def.guards[i]?.enemyId ?? 'suit'];
     const s = enemy.senses;
-    if (g && s && canSee(grid, g.pos, g.facing, { range: s.visionRange, angleDeg: s.visionAngleDeg }, p)) return true;
+    // Seated guards (chapter 9) have the shorter seated range, as in the real guard.
+    const range = s ? s.visionRange * (def.guards[i]?.seated ? TUNING.stealth.seatedVisionMultiplier : 1) : 0;
+    if (g && s && canSee(grid, g.pos, g.facing, { range, angleDeg: s.visionAngleDeg }, p)) return true;
   }
   for (let i = 0; i < def.hazards.length; i++) {
     const h = def.hazards[i];
@@ -82,8 +84,8 @@ export function planRoute(opts: { def: StealthSectionDef; grid: TileGrid; start:
   const ticks = Math.floor(((opts.horizonSec ?? 120) * 1000) / (FRAME_MS * STEP_FRAMES));
   const frames = recordMotion(def, grid, (ticks + 2) * STEP_FRAMES);
   const exposed = (tick: number, from: Vec2, to: Vec2): boolean => {
-    // Check every other frame of the step at the interpolated position, plus a small margin ring when asked.
-    for (let k = 0; k <= STEP_FRAMES; k += 2) {
+    // Check every frame of the step at the interpolated position, plus a small margin ring when asked.
+    for (let k = 0; k <= STEP_FRAMES; k += 1) {
       const t = k / STEP_FRAMES;
       const p = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
       const f = frames[Math.min(frames.length - 1, tick * STEP_FRAMES + k)];
